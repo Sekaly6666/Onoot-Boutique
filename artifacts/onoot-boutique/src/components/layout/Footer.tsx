@@ -13,59 +13,63 @@ function TikTokIcon({ size = 20 }: { size?: number }) {
 
 export function Footer() {
   return (
-    <footer className="bg-[#111827] text-gray-300 py-12">
+    <footer className="bg-[#111827] text-gray-300 pt-14 pb-8">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+          {/* Brand */}
           <div className="space-y-4">
             <OnootLogo size="md" variant="white" />
-            <p className="text-sm text-gray-400 mt-2">
+            <p className="text-sm text-gray-400 mt-3 leading-relaxed">
               Votre destination premium pour les accessoires tech en Afrique. Qualité, rapidité et confiance.
             </p>
-            <div className="flex space-x-4 pt-1">
+            <div className="flex space-x-3 pt-2">
               <a
                 href="https://www.tiktok.com/@onoot_boutique0"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transition-colors"
+                className="bg-gray-800 hover:bg-white text-gray-400 hover:text-[#111827] p-2 rounded-full transition-all duration-200"
                 aria-label="TikTok"
               >
-                <TikTokIcon size={20} />
+                <TikTokIcon size={16} />
               </a>
               <a
                 href="https://www.facebook.com/share/1BaonWPXwv/?mibextid=wwXIfr"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-400 hover:text-[#1877F2] transition-colors"
+                className="bg-gray-800 hover:bg-[#1877F2] text-gray-400 hover:text-white p-2 rounded-full transition-all duration-200"
                 aria-label="Facebook"
               >
-                <Facebook size={20} />
+                <Facebook size={16} />
               </a>
               <a
                 href="https://www.instagram.com/onoo_t?igsh=aXE1cDZiOWg5eGpy"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-400 hover:text-[#E1306C] transition-colors"
+                className="bg-gray-800 hover:bg-gradient-to-br hover:from-[#833ab4] hover:to-[#E1306C] text-gray-400 hover:text-white p-2 rounded-full transition-all duration-200"
                 aria-label="Instagram"
               >
-                <Instagram size={20} />
+                <Instagram size={16} />
               </a>
             </div>
           </div>
 
+          {/* Quick Links */}
           <div>
-            <h3 className="font-semibold text-white mb-4">Liens Rapides</h3>
-            <ul className="space-y-2 text-sm">
+            <h3 className="font-semibold text-white mb-5 text-sm uppercase tracking-wider">Liens Rapides</h3>
+            <ul className="space-y-3 text-sm">
               <li><Link href="/" className="hover:text-[#F5C430] transition-colors">Accueil</Link></li>
               <li><Link href="/products" className="hover:text-[#F5C430] transition-colors">Catalogue</Link></li>
               <li><Link href="/products?category=smartwatches" className="hover:text-[#F5C430] transition-colors">Montres Connectées</Link></li>
               <li><Link href="/products?category=earphones" className="hover:text-[#F5C430] transition-colors">Écouteurs</Link></li>
+              <li><Link href="/products?onSale=true" className="hover:text-[#F5C430] transition-colors">Promotions</Link></li>
               <li><Link href="/auth/login" className="hover:text-[#F5C430] transition-colors">Mon Compte</Link></li>
             </ul>
           </div>
 
+          {/* Customer Service */}
           <div>
-            <h3 className="font-semibold text-white mb-4">Service Client</h3>
-            <ul className="space-y-2 text-sm">
+            <h3 className="font-semibold text-white mb-5 text-sm uppercase tracking-wider">Service Client</h3>
+            <ul className="space-y-3 text-sm">
               <li><a href="#" className="hover:text-[#F5C430] transition-colors">Contactez-nous</a></li>
               <li><a href="#" className="hover:text-[#F5C430] transition-colors">Livraison & Retours</a></li>
               <li><a href="#" className="hover:text-[#F5C430] transition-colors">FAQ</a></li>
@@ -74,64 +78,49 @@ export function Footer() {
             </ul>
           </div>
 
+          {/* Contact */}
           <div>
-            <h3 className="font-semibold text-white mb-4">Contact</h3>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-center gap-3">
-                <MapPin size={16} className="text-[#4BB5E8] shrink-0" />
-                <span>Plateau, Abidjan, Côte d'Ivoire</span>
+            <h3 className="font-semibold text-white mb-5 text-sm uppercase tracking-wider">Contact</h3>
+            <ul className="space-y-4 text-sm">
+              <li className="flex items-start gap-3">
+                <MapPin size={16} className="text-[#4BB5E8] shrink-0 mt-0.5" />
+                <span className="text-gray-400 leading-snug">Angré 8ème Tranche star 11, Abidjan, Côte d'Ivoire</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone size={16} className="text-[#4BB5E8] shrink-0" />
-                <span>+225 01 23 45 67 89</span>
+                <a href="tel:+2250503648312" className="text-gray-400 hover:text-white transition-colors">+225 05 03 64 83 12</a>
               </li>
               <li className="flex items-center gap-3">
                 <Mail size={16} className="text-[#4BB5E8] shrink-0" />
-                <span>contact@onoot.com</span>
+                <a href="mailto:onootboutique@gmail.com" className="text-gray-400 hover:text-white transition-colors break-all">onootboutique@gmail.com</a>
               </li>
             </ul>
 
             <div className="mt-6 space-y-2">
               <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Suivez-nous</p>
               <div className="flex flex-col gap-2 text-sm">
-                <a
-                  href="https://www.tiktok.com/@onoot_boutique0"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-                >
-                  <TikTokIcon size={16} />
-                  @onoot_boutique0
+                <a href="https://www.tiktok.com/@onoot_boutique0" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                  <TikTokIcon size={14} /> @onoot_boutique0
                 </a>
-                <a
-                  href="https://www.facebook.com/share/1BaonWPXwv/?mibextid=wwXIfr"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-gray-400 hover:text-[#1877F2] transition-colors"
-                >
-                  <Facebook size={16} />
-                  Onoot Boutique
+                <a href="https://www.facebook.com/share/1BaonWPXwv/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-400 hover:text-[#1877F2] transition-colors">
+                  <Facebook size={14} /> Onoot Boutique
                 </a>
-                <a
-                  href="https://www.instagram.com/onoo_t?igsh=aXE1cDZiOWg5eGpy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-gray-400 hover:text-[#E1306C] transition-colors"
-                >
-                  <Instagram size={16} />
-                  @onoo_t
+                <a href="https://www.instagram.com/onoo_t?igsh=aXE1cDZiOWg5eGpy" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-400 hover:text-[#E1306C] transition-colors">
+                  <Instagram size={14} /> @onoo_t
                 </a>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
+        <div className="border-t border-gray-800 mt-12 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 gap-3">
           <p>&copy; {new Date().getFullYear()} Onoot Boutique. Tous droits réservés.</p>
-          <div className="flex gap-4 mt-4 md:mt-0">
-            <span>Paiement Sécurisé</span>
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1">🔒 Paiement Sécurisé</span>
             <span>•</span>
-            <span>Livraison Rapide</span>
+            <span className="flex items-center gap-1">🚀 Livraison Rapide</span>
+            <span>•</span>
+            <span className="flex items-center gap-1">✅ Qualité Garantie</span>
           </div>
         </div>
       </div>

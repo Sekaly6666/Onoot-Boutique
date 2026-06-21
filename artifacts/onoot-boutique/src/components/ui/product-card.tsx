@@ -4,9 +4,10 @@ import { Product } from "@workspace/api-client-react";
 import { useCartContext } from "@/contexts/CartContext";
 import { StarRating } from "./star-rating";
 import { Button } from "./button";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Eye } from "lucide-react";
 import { Badge } from "./badge";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 interface ProductCardProps {
   product: Product;
@@ -17,81 +18,119 @@ export function ProductCard({ product, className }: ProductCardProps) {
   const { addItem } = useCartContext();
 
   const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent navigating to product detail
+    e.preventDefault();
     addItem(product.id, 1);
   };
 
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 5;
   const hasDiscount = product.discountPrice && product.discountPrice < product.price;
+  const discountPct = hasDiscount
+    ? Math.round(((product.price - (product.discountPrice ?? 0)) / product.price) * 100)
+    : 0;
 
   return (
     <Link href={`/products/${product.id}`}>
-      <div className={cn(
-        "group relative flex flex-col bg-card rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1",
-        className
-      )}>
+      <motion.div
+        whileHover={{ y: -4 }}
+        transition={{ duration: 0.2 }}
+        className={cn(
+          "group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 cursor-pointer",
+          className
+        )}
+      >
         {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
-          {isOutOfStock ? (
-            <Badge variant="destructive" className="font-semibold uppercase tracking-wider text-[10px]">Rupture</Badge>
-          ) : isLowStock ? (
-            <Badge className="bg-orange-500 hover:bg-orange-600 font-semibold uppercase tracking-wider text-[10px]">Stock Limité</Badge>
-          ) : null}
-          
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
           {hasDiscount && (
-            <Badge className="bg-red-500 hover:bg-red-600 font-semibold uppercase tracking-wider text-[10px]">Promo</Badge>
+            <Badge className="bg-[#E87C2A] hover:bg-[#D06820] text-white font-bold text-[10px] px-2">
+              -{discountPct}%
+            </Badge>
           )}
-          
-          {product.featured && (
-            <Badge className="bg-accent text-accent-foreground font-semibold uppercase tracking-wider text-[10px]">Nouveau</Badge>
+          {isOutOfStock ? (
+            <Badge variant="destructive" className="font-semibold text-[10px]">Rupture</Badge>
+          ) : isLowStock ? (
+            <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-[10px]">Stock Limité</Badge>
+          ) : null}
+          {product.featured && !hasDiscount && (
+            <Badge className="bg-[#4BB5E8] hover:bg-[#3A9FD4] text-white font-semibold text-[10px]">Nouveau</Badge>
           )}
         </div>
 
         {/* Image */}
-        <div className="aspect-square bg-muted/30 overflow-hidden p-6 flex items-center justify-center">
-          <img 
-            src={product.images?.[0] || "/images/smartwatch.png"} 
+        <div className="relative aspect-square bg-gray-50 overflow-hidden flex items-center justify-center p-6">
+          <img
+            src={product.images?.[0] || "/images/smartwatch.png"}
             alt={product.name}
-            className="object-contain w-full h-full mix-blend-multiply group-hover:scale-110 transition-transform duration-500"
+            className="object-contain w-full h-full mix-blend-multiply transition-transform duration-500 group-hover:scale-110"
           />
+          {/* Quick action overlay */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100">
+            <motion.div
+              initial={{ y: 10, opacity: 0 }}
+              whileInView={{ y: 0, opacity: 1 }}
+              className="flex gap-2"
+            >
+              <Button
+                size="sm"
+                className="bg-[#E87C2A] hover:bg-[#D06820] text-white shadow-lg font-semibold text-xs"
+                onClick={handleAddToCart}
+                disabled={isOutOfStock}
+              >
+                <ShoppingCart className="h-3.5 w-3.5 mr-1" />
+                Ajouter
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="bg-white text-[#111827] hover:bg-gray-100 shadow-lg text-xs"
+              >
+                <Eye className="h-3.5 w-3.5 mr-1" />
+                Voir
+              </Button>
+            </motion.div>
+          </div>
         </div>
 
         {/* Content */}
         <div className="p-4 flex flex-col flex-1">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">{product.category}</p>
-          <h3 className="font-semibold text-foreground line-clamp-2 mb-2 group-hover:text-primary transition-colors">
+          <p className="text-[10px] text-[#4BB5E8] font-semibold uppercase tracking-wider mb-1">{product.category}</p>
+          <h3 className="font-semibold text-sm text-foreground line-clamp-2 mb-2 group-hover:text-primary transition-colors leading-snug">
             {product.name}
           </h3>
-          
+
           <div className="mt-auto pt-2">
             <StarRating rating={product.rating} count={product.reviewCount} className="mb-3" />
-            
-            <div className="flex items-end justify-between">
-              <div>
+
+            <div className="flex items-end justify-between gap-2">
+              <div className="min-w-0">
                 {hasDiscount ? (
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground line-through">{product.price.toLocaleString()} FCFA</span>
-                    <span className="text-lg font-bold text-accent">{product.discountPrice?.toLocaleString()} FCFA</span>
+                  <div>
+                    <span className="text-[11px] text-muted-foreground line-through block">
+                      {product.price.toLocaleString()} FCFA
+                    </span>
+                    <span className="text-base font-bold text-[#E87C2A]">
+                      {product.discountPrice?.toLocaleString()} FCFA
+                    </span>
                   </div>
                 ) : (
-                  <span className="text-lg font-bold text-foreground">{product.price.toLocaleString()} FCFA</span>
+                  <span className="text-base font-bold text-foreground">
+                    {product.price.toLocaleString()} FCFA
+                  </span>
                 )}
               </div>
-              
-              <Button 
-                size="icon" 
-                variant="secondary"
-                className="h-10 w-10 rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors"
+
+              <Button
+                size="icon"
+                className="h-9 w-9 rounded-full bg-[#111827] text-white hover:bg-[#E87C2A] transition-colors shrink-0 shadow-md"
                 onClick={handleAddToCart}
                 disabled={isOutOfStock}
               >
-                <ShoppingCart className="h-5 w-5" />
+                <ShoppingCart className="h-4 w-4" />
               </Button>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </Link>
   );
 }
