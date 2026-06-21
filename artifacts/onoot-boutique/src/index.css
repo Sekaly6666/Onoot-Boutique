@@ -92,23 +92,23 @@
   --popover-foreground: 221 39% 11%;
   --popover-border: 214 32% 91%;
   
-  --primary: 224 76% 33%; /* #1E3A8A - deep blue */
+  --primary: 24 82% 53%; /* #E87C2A - orange */
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 210 40% 96%;
-  --secondary-foreground: 221 39% 11%;
+  --secondary: 204 76% 60%; /* #4BB5E8 - blue */
+  --secondary-foreground: 0 0% 100%;
   
   --muted: 214 32% 91%;
   --muted-foreground: 215 16% 47%;
   
-  --accent: 189 94% 43%; /* #06B6D4 - cyan */
-  --accent-foreground: 0 0% 100%;
+  --accent: 44 90% 57%; /* #F5C430 - yellow */
+  --accent-foreground: 221 39% 11%;
   
   --destructive: 0 84% 60%; /* #EF4444 */
   --destructive-foreground: 0 0% 100%;
   
   --input: 214 32% 91%;
-  --ring: 224 76% 33%;
+  --ring: 24 82% 53%;
   
   --chart-1: 189 94% 43%;
   --chart-2: 224 76% 33%;
