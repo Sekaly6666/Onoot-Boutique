@@ -173,7 +173,7 @@ export default function Products() {
                   <div key={i} className="h-80 bg-gray-100 animate-pulse rounded-xl"></div>
                 ))}
               </div>
-            ) : data?.products.length === 0 ? (
+            ) : !Array.isArray(data?.products) || data?.products.length === 0 ? (
               <div className="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-border">
                 <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
                   <Search className="h-8 w-8 text-muted-foreground" />
@@ -188,7 +188,7 @@ export default function Products() {
               <>
                 <p className="text-sm text-muted-foreground mb-4">{data?.total || 0} produits trouvés</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {data?.products.map((product) => (
+                  {Array.isArray(data?.products) && data.products.map((product) => (
                     <ProductCard key={product.id} product={product} />
                   ))}
                 </div>

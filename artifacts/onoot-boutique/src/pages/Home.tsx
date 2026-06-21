@@ -260,7 +260,7 @@ function FlashSaleSection({ products }: { products: any[] }) {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {products.slice(0, 4).map((product, i) => (
+          {Array.isArray(products) && products.slice(0, 4).map((product, i) => (
             <motion.div
               key={product.id}
               initial={{ opacity: 0, y: 20 }}
@@ -380,7 +380,7 @@ export default function Home() {
       </section>
 
       {/* Flash Sale */}
-      {!isOnSaleLoading && onSaleProducts && onSaleProducts.length > 0 && (
+      {!isOnSaleLoading && Array.isArray(onSaleProducts) && onSaleProducts.length > 0 && (
         <FlashSaleSection products={onSaleProducts} />
       )}
 
@@ -410,7 +410,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {featuredProducts?.slice(0, 4).map((product, i) => (
+              {Array.isArray(featuredProducts) && featuredProducts.slice(0, 4).map((product, i) => (
                 <motion.div
                   key={product.id}
                   initial={{ opacity: 0, y: 24 }}
@@ -468,7 +468,7 @@ export default function Home() {
               <div className="space-y-3">
                 {isNewArrivalsLoading
                   ? [...Array(3)].map((_, i) => <div key={i} className="h-24 bg-white border animate-pulse rounded-xl" />)
-                  : newArrivals?.slice(0, 4).map((product, i) => (
+                  : Array.isArray(newArrivals) && newArrivals.slice(0, 4).map((product, i) => (
                       <motion.div
                         key={product.id}
                         initial={{ opacity: 0, x: -20 }}
@@ -516,7 +516,7 @@ export default function Home() {
               <div className="space-y-3">
                 {isBestSellersLoading
                   ? [...Array(3)].map((_, i) => <div key={i} className="h-24 bg-white border animate-pulse rounded-xl" />)
-                  : bestSellers?.slice(0, 4).map((product, i) => (
+                  : Array.isArray(bestSellers) && bestSellers.slice(0, 4).map((product, i) => (
                       <motion.div
                         key={product.id}
                         initial={{ opacity: 0, x: 20 }}
