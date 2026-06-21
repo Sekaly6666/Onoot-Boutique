@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Onoot Boutique"
+version = "1.0.0"
+id = "artifacts/onoot-boutique"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24739
+
+[services.development]
+run = "pnpm --filter @workspace/onoot-boutique run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/onoot-boutique", "run", "build" ]
+publicDir = "artifacts/onoot-boutique/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24739"
+BASE_PATH = "/"

@@ -1,0 +1,324 @@
+PROMPT COMPLET – ONOOT BOUTIQUE
+
+Tu es un développeur Full Stack Senior expert en Next.js, TypeScript, Tailwind CSS, Node.js, Express.js, MongoDB et Mongoose.
+
+Crée une application e-commerce professionnelle nommée "Onoot Boutique" spécialisée dans la vente :
+
+Accessoires de téléphone
+Coques de protection
+Écouteurs Bluetooth
+Casques audio
+Chargeurs
+Power Banks
+Montres connectées
+Câbles USB
+Haut-parleurs Bluetooth
+Gadgets électroniques
+Autres produits technologiques
+Stack Technique
+
+Frontend :
+
+Next.js 15
+TypeScript
+Tailwind CSS
+Shadcn UI
+Framer Motion
+
+Backend :
+
+Node.js
+Express.js
+MongoDB Atlas
+Mongoose
+JWT Authentication
+Cloudinary pour les images et vidéos
+
+Base de données :
+
+MongoDB
+Fonctionnalités Utilisateur
+Accueil
+
+Créer une page d'accueil moderne contenant :
+
+Hero Section avec bannière promotionnelle
+Produits vedettes
+Nouveautés
+Produits populaires
+Produits en promotion
+Catégories
+Avis clients
+Footer professionnel
+Authentification
+Inscription
+Connexion
+Déconnexion
+Mot de passe oublié
+Vérification Email
+Profil utilisateur
+Produits
+
+Chaque produit doit contenir :
+
+Nom
+Description
+Prix
+Prix promotionnel
+Catégorie
+Sous-catégorie
+Marque
+Stock
+SKU
+Images multiples
+Vidéos du produit
+Couleurs disponibles
+Évaluation
+Nombre de ventes
+Caractéristiques techniques
+
+MongoDB doit supporter :
+
+Product {
+    _id,
+    name,
+    slug,
+    description,
+    price,
+    discountPrice,
+    category,
+    subCategory,
+    brand,
+    stock,
+
+    images: [],
+    videos: [],
+
+    specifications: {},
+
+    colors: [],
+    tags: [],
+
+    featured,
+    bestSeller,
+
+    rating,
+    reviewCount,
+
+    createdAt,
+    updatedAt
+}
+
+Les produits doivent pouvoir contenir plusieurs images et plusieurs vidéos. Cette approche correspond aux modèles de catalogue e-commerce fréquemment utilisés avec MongoDB.
+
+Recherche
+
+Créer :
+
+Barre de recherche intelligente
+Recherche par catégorie
+Recherche par marque
+Filtre par prix
+Filtre par note
+Filtre par disponibilité
+Panier
+
+Fonctionnalités :
+
+Ajouter au panier
+Modifier quantité
+Supprimer article
+Calcul automatique du total
+Sauvegarde du panier
+Commandes
+
+Créer :
+
+Order {
+    _id,
+    userId,
+
+    products: [
+        {
+            productId,
+            quantity,
+            price
+        }
+    ],
+
+    totalAmount,
+
+    paymentMethod,
+
+    orderStatus,
+
+    shippingAddress,
+
+    createdAt
+}
+
+Statuts :
+
+En attente
+Confirmée
+Expédiée
+Livrée
+Annulée
+Paiement
+
+Prévoir :
+
+Paiement à la livraison
+Mobile Money
+Orange Money
+MTN Money
+Moov Money
+Carte bancaire
+Tableau de Bord Administrateur
+
+Créer un Dashboard Admin complet.
+
+L'administrateur peut :
+
+Gestion Produits
+Ajouter produit
+Modifier produit
+Supprimer produit
+Ajouter images
+Ajouter vidéos
+Gérer stock
+Gestion Commandes
+Voir commandes
+Modifier statut
+Historique
+Gestion Clients
+Liste clients
+Historique achats
+Statistiques
+Chiffre d'affaires
+Nombre commandes
+Produits les plus vendus
+Nouveaux clients
+Base de Données MongoDB
+
+Collections :
+
+users
+products
+categories
+orders
+reviews
+carts
+wishlists
+notifications
+Responsive Design
+
+Le site doit être :
+
+Responsive Mobile
+Responsive Tablette
+Responsive Desktop
+Design
+
+Inspiré de :
+
+Jumia
+Amazon
+Apple Store
+
+Style :
+
+Moderne
+Premium
+Rapide
+Élégant
+Animations fluides
+SEO
+
+Inclure :
+
+Sitemap
+Meta Tags
+Open Graph
+URLs SEO Friendly
+Déploiement
+
+Préparer pour :
+
+Frontend : Vercel
+Backend : Render
+Base de données : MongoDB Atlas
+Résultat attendu
+
+Générer :
+
+Architecture complète
+Structure des dossiers
+Schémas Mongoose
+API REST complète
+Pages Frontend
+Dashboard Admin
+Code propre et professionnel
+Commentaires dans le code
+Instructions d'installation
+
+Avec ce prompt, un générateur IA peut te produire un vrai projet e-commerce professionnel proche de Jumia, mais adapté à Onoot Boutique.
+
+tu propose quelle couleur pour ce site 
+
+Pour Onoot Boutique (accessoires téléphone + tech), le choix des couleurs est important parce que ça doit donner un effet moderne, fiable et “premium tech”.
+
+Voici 3 palettes solides que tu peux utiliser :
+
+🎨 1. Style “Tech Premium” (RECOMMANDÉ ⭐)
+
+👉 Inspiré Apple / Amazon / sites modernes
+
+Couleur principale : Bleu profond #1E3A8A
+Couleur secondaire : Noir / Gris foncé #111827
+Fond clair : Blanc cassé #F9FAFB
+Accent (boutons, promos) : Bleu cyan #06B6D4
+Pourquoi c’est bon :
+Donne un effet professionnel et fiable
+Très utilisé en e-commerce tech
+Parfait pour les accessoires téléphone
+⚡ 2. Style “Modern Neon Tech”
+
+👉 Plus jeune et dynamique
+
+Principal : Noir #0B0F19
+Accent 1 : Violet #8B5CF6
+Accent 2 : Bleu néon #3B82F6
+Vert succès : #22C55E
+Pourquoi :
+Très moderne
+Style “startup / gaming / gadgets”
+Attire les jeunes clients
+🛍️ 3. Style “Marketplace (Jumia-like)”
+
+👉 Plus commercial et e-commerce classique
+
+Orange principal : #F97316
+Noir texte : #111111
+Blanc fond : #FFFFFF
+Gris UI : #E5E7EB
+Pourquoi :
+Très bon pour vendre rapidement
+Couleur qui pousse à l’achat (orange = action)
+Style marketplace africain (Jumia)
+🧠 Mon conseil pour toi
+
+Pour Onoot Boutique, je te recommande :
+
+👉 Palette #1 (Tech Premium)
+
+Parce que :
+
+tu vends des produits tech
+tu veux un site professionnel (portfolio + entretien)
+ça fait sérieux et propre
+💡 Petit bonus UX (important)
+Bouton “Acheter” → cyan ou bleu vif
+Promo / réduction → rouge léger #EF4444
+Stock faible → orange
+“En stock” → vert

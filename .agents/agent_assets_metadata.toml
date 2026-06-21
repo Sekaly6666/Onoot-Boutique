@@ -1,0 +1,44 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "qMoXUsZxvlmusLh_mchuP"
+uri = "file://artifacts/onoot-boutique/public/images/hero-banner.png"
+type = "image"
+title = "African tech hero banner"
+
+[[generated]]
+id = "HsXfawJBNUnUpMWJ-ZpBG"
+uri = "file://artifacts/onoot-boutique/public/images/smartwatch.png"
+type = "image"
+title = "Smartwatch product shot"
+
+[[generated]]
+id = "E_0P0edENA8vSxD83mjU0"
+uri = "file://artifacts/onoot-boutique/public/images/earbuds.png"
+type = "image"
+title = "Wireless earbuds product"
+
+[[generated]]
+id = "WH4Rl08y0E-mxyOzW3ZDD"
+uri = "file://artifacts/onoot-boutique/public/images/case.png"
+type = "image"
+title = "Phone case product"
+
+[[generated]]
+id = "AIxQXTA-C1ODDwyikwpX7"
+uri = "file://artifacts/onoot-boutique/public/images/powerbank.png"
+type = "image"
+title = "Power bank product"
+
+[[generated]]
+id = "TzeTrd8CgLXqUO6Rk4It2"
+uri = "file://artifacts/onoot-boutique/public/images/charger.png"
+type = "image"
+title = "Fast charger product"
+
+[[generated]]
+id = "6Yk836BQdziQ9Ss1hOLKg"
+uri = "file://artifacts/onoot-boutique/public/images/speaker.png"
+type = "image"
+title = "Bluetooth speaker product"
