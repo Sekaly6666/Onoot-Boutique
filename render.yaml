@@ -5,8 +5,8 @@ services:
     runtime: node
     plan: free
     region: frankfurt
-    buildCommand: pnpm install && pnpm build:api
-    startCommand: pnpm start:api
+    buildCommand: npx -y pnpm install && npx -y pnpm build:api
+    startCommand: node Onoot-Boutique/api-server/dist/index.mjs
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
