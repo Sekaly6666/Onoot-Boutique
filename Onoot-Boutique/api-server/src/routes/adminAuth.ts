@@ -51,26 +51,35 @@ router.post('/login', async (req, res) => {
       return;
     }
 
+    const defaultEmail = process.env.ADMIN_EMAIL || process.env.VITE_ADMIN_EMAIL || 'adminboutique@onoot.com';
+    const defaultPassword = process.env.ADMIN_PASSWORD || process.env.VITE_ADMIN_PASSWORD || 'admin1234';
+
     let admin = await Admin.findOne({ email });
     if (!admin) {
       // If admin not found, try to create default admin from env vars if credentials match
-      const defaultEmail = process.env.ADMIN_EMAIL;
-      const defaultPassword = process.env.ADMIN_PASSWORD;
-      if (defaultEmail && defaultPassword && email === defaultEmail && password === defaultPassword) {
+      if (email.toLowerCase() === defaultEmail.toLowerCase() && password === defaultPassword) {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(defaultPassword, salt);
         admin = await Admin.create({ email: defaultEmail, passwordHash });
         logger.info({ email: defaultEmail }, 'Admin par défaut créé automatiquement lors du login');
       } else {
-        res.status(401).json({ error: 'Aucun administrateur trouvé avec cet email.' }); // Message plus clair pour le dev
+        res.status(401).json({ error: 'Aucun administrateur trouvé avec cet email.' });
         return;
       }
     }
 
-    const isMatch = await bcrypt.compare(password, admin.passwordHash);
+    let isMatch = await bcrypt.compare(password, admin.passwordHash);
     if (!isMatch) {
-      res.status(401).json({ error: 'Mot de passe incorrect.' }); // Message plus clair
-      return;
+      // If default admin credentials match, update the passwordHash to restore access
+      if (email.toLowerCase() === defaultEmail.toLowerCase() && password === defaultPassword) {
+        const salt = await bcrypt.genSalt(10);
+        admin.passwordHash = await bcrypt.hash(defaultPassword, salt);
+        await admin.save();
+        isMatch = true;
+      } else {
+        res.status(401).json({ error: 'Mot de passe incorrect.' });
+        return;
+      }
     }
 
     // Generate JWT
@@ -82,9 +91,13 @@ router.post('/login', async (req, res) => {
 
     logger.info({ email }, 'Administrateur connecté');
     res.status(200).json({ token, email: admin.email });
-  } catch (error) {
+  } catch (error: any) {
     logger.error({ err: error }, 'Erreur login admin');
-    res.status(500).json({ error: 'Erreur interne du serveur.' });
+    if (error?.name === 'MongooseServerSelectionError' || error?.message?.includes('buffering timed out')) {
+      res.status(503).json({ error: 'Connexion à MongoDB Atlas impossible : autorisez l\'adresse IP 0.0.0.0/0 dans MongoDB Atlas Network Access.' });
+      return;
+    }
+    res.status(500).json({ error: error?.message || 'Erreur interne du serveur.' });
   }
 });
 
