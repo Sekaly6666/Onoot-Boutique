@@ -9,7 +9,7 @@
       "destination": "https://onoot-boutique.onrender.com/uploads/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!assets|favicon|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]
