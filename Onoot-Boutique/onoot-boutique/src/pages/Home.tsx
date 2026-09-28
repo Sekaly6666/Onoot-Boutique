@@ -68,54 +68,57 @@ const exampleProducts = [
 const heroSlides = [
   {
     id: 0,
-    bg: "from-[#0f172a] to-[#1e293b]",
-    badgeText: "NOUVEAUTÉ",
+    bg: "from-[#0a0f1d] via-[#111c35] to-[#1e293b]",
+    badgeText: "NOUVEAUTÉ 2026",
     badgeIcon: Zap,
-    badgeColor: "bg-[#F5C430]/20 text-[#F5C430] border-[#F5C430]/30",
+    badgeColor: "bg-[#F5C430]/20 text-[#F5C430] border-[#F5C430]/40",
     title: "L'excellence tech,",
     highlight: "livrée chez vous.",
     highlightColor: "text-[#F5C430]",
-    desc: "Découvrez notre sélection premium d'accessoires pour smartphones. Qualité garantie, paiement à la livraison.",
+    desc: "Découvrez notre sélection premium d'accessoires pour smartphones. Qualité garantie, garantie 1 an & paiement à la livraison.",
     cta: "Acheter maintenant",
     ctaLink: "/products",
     cta2: "Voir les promotions",
     cta2Link: "/products?onSale=true",
     image: "/images/smartwatch.png",
-    imageBg: "bg-[#4BB5E8]/10",
+    imageBg: "bg-[#4BB5E8]/15",
+    tagText: "★ 4.9/5 • Meilleure Vente",
   },
   {
     id: 1,
-    bg: "from-[#7c2d12] to-[#9a3412]",
-    badgeText: "FLASH SALE",
+    bg: "from-[#451003] via-[#7c2d12] to-[#9a3412]",
+    badgeText: "VENTE FLASH DU JOUR",
     badgeIcon: Flame,
     badgeColor: "bg-white/20 text-white border-white/30",
     title: "Flash Sale",
     highlight: "jusqu'à -40% !",
     highlightColor: "text-[#F5C430]",
-    desc: "Offres limitées sur les meilleures marques. Dépêchez-vous, les stocks s'épuisent vite !",
+    desc: "Offres exceptionnelles limitées sur le son et la haute technologie. Stocks réduits, profitez-en avant rupture !",
     cta: "Profiter des offres",
     ctaLink: "/products?onSale=true",
     cta2: "Voir le catalogue",
     cta2Link: "/products",
     image: "/images/earbuds.png",
     imageBg: "bg-white/10",
+    tagText: "🔥 -40% Remise Immédiate",
   },
   {
     id: 2,
-    bg: "from-[#0c4a6e] to-[#0369a1]",
+    bg: "from-[#082f49] via-[#0c4a6e] to-[#0369a1]",
     badgeText: "NOUVEAUX ARRIVAGES",
     badgeIcon: Sparkles,
     badgeColor: "bg-white/20 text-white border-white/30",
     title: "Découvrez les",
     highlight: "dernières tendances.",
     highlightColor: "text-[#F5C430]",
-    desc: "Smartphones, montres connectées, écouteurs... Restez à la pointe de la technologie avec Onoot Boutique.",
+    desc: "Smartphones, montres connectées, écouteurs sans fil... Restez à la pointe de l'innovation avec Onoot Boutique.",
     cta: "Explorer maintenant",
     ctaLink: "/products",
     cta2: "Nos catégories",
     cta2Link: "/products",
     image: "/images/speaker.png",
     imageBg: "bg-white/10",
+    tagText: "✨ 100% Produit Original",
   },
 ];
 
@@ -127,7 +130,7 @@ function HeroCarousel() {
     const timer = setInterval(() => {
       setDirection(1);
       setCurrent((c) => (c + 1) % heroSlides.length);
-    }, 5000);
+    }, 6000);
     return () => clearInterval(timer);
   }, []);
 
@@ -139,21 +142,29 @@ function HeroCarousel() {
   const slide = heroSlides[current];
 
   return (
-    <section className="relative overflow-hidden min-h-[420px] sm:min-h-[480px]">
+    <section className="relative overflow-hidden min-h-[580px] sm:min-h-[540px] md:min-h-[620px] lg:min-h-[660px] flex items-center">
+      {/* Dynamic Animated Gradient Background */}
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
           key={current}
           custom={direction}
-          initial={{ x: direction * 80, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: -direction * 80, opacity: 0 }}
-          transition={{ duration: 0.5, ease: "easeInOut" }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.6, ease: "easeInOut" }}
           className={`absolute inset-0 bg-gradient-to-r ${slide.bg}`}
         />
       </AnimatePresence>
 
-      <div className="relative z-10 container mx-auto px-4 py-8 sm:py-14 md:py-24 flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-8 md:gap-12">
-        <div className="flex-1 text-white max-w-2xl text-center md:text-left">
+      {/* Decorative ambient glowing orbs */}
+      <div className="absolute -top-24 -left-24 w-80 h-80 sm:w-96 sm:h-96 rounded-full bg-[#F5C430]/15 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-24 -right-24 w-80 h-80 sm:w-96 sm:h-96 rounded-full bg-[#4BB5E8]/20 blur-3xl pointer-events-none" />
+
+      {/* Main Content Grid */}
+      <div className="relative z-10 container mx-auto px-4 pt-8 pb-16 sm:py-16 md:py-24 flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8 md:gap-12 w-full">
+        
+        {/* Left Column: Text & CTAs */}
+        <div className="flex-1 text-white max-w-2xl text-center md:text-left flex flex-col items-center md:items-start">
           <AnimatePresence mode="wait">
             <motion.div
               key={`content-${current}`}
@@ -161,23 +172,36 @@ function HeroCarousel() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
+              className="flex flex-col items-center md:items-start"
             >
-              <span className={`inline-flex items-center py-1 px-3 rounded-full text-xs sm:text-sm font-semibold tracking-wider uppercase mb-2.5 sm:mb-5 border ${slide.badgeColor}`}>
-                <slide.badgeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" />
+              {/* Badge */}
+              <span className={`inline-flex items-center py-1.5 px-3.5 rounded-full text-xs sm:text-sm font-bold tracking-wider uppercase mb-3 sm:mb-5 border backdrop-blur-md shadow-sm ${slide.badgeColor}`}>
+                <slide.badgeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
                 {slide.badgeText}
               </span>
-              <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold mb-2.5 sm:mb-4 leading-tight">
+
+              {/* Title */}
+              <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-3 sm:mb-4 leading-tight sm:leading-none tracking-tight">
                 {slide.title} <br className="hidden sm:inline" />
-                <span className={slide.highlightColor}>{slide.highlight}</span>
+                <span className={`${slide.highlightColor} block sm:inline mt-1 sm:mt-0 drop-shadow-sm`}>
+                  {slide.highlight}
+                </span>
               </h1>
-              <p className="text-sm sm:text-base md:text-lg text-white/80 mb-4 sm:mb-7 max-w-lg mx-auto md:mx-0">{slide.desc}</p>
-              <div className="flex flex-row gap-2.5 sm:gap-4 justify-center md:justify-start">
-                <Button size="default" className="flex-1 sm:flex-none bg-[#E87C2A] hover:bg-[#D06820] text-white font-semibold shadow-lg shadow-[#E87C2A]/30 text-xs sm:text-sm md:text-base px-3 sm:px-6 py-2 sm:py-3" asChild>
+
+              {/* Description */}
+              <p className="text-xs sm:text-base md:text-lg text-white/85 mb-5 sm:mb-8 max-w-md md:max-w-lg leading-relaxed">
+                {slide.desc}
+              </p>
+
+              {/* CTAs */}
+              <div className="flex flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto justify-center md:justify-start">
+                <Button size="default" className="flex-1 sm:flex-none bg-[#E87C2A] hover:bg-[#D06820] active:scale-[0.98] text-white font-bold shadow-lg shadow-[#E87C2A]/40 text-xs sm:text-sm md:text-base px-4 sm:px-7 py-2.5 sm:py-3.5 rounded-xl transition-all" asChild>
                   <Link href={slide.ctaLink}>
-                    {slide.cta} <ArrowRight className="ml-1.5 h-4 w-4" />
+                    <span>{slide.cta}</span>
+                    <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Link>
                 </Button>
-                <Button size="default" variant="outline" className="flex-1 sm:flex-none text-white border-white/40 hover:bg-white/10 text-xs sm:text-sm md:text-base px-3 sm:px-6 py-2 sm:py-3" asChild>
+                <Button size="default" variant="outline" className="flex-1 sm:flex-none text-white border-white/30 hover:bg-white/15 active:scale-[0.98] backdrop-blur-md text-xs sm:text-sm md:text-base px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-xl font-semibold transition-all" asChild>
                   <Link href={slide.cta2Link}>
                     {slide.cta2}
                   </Link>
@@ -187,43 +211,65 @@ function HeroCarousel() {
           </AnimatePresence>
         </div>
 
+        {/* Right Column: Hero Visual Image with Floating Halo */}
         <AnimatePresence mode="wait">
           <motion.div
             key={`img-${current}`}
-            initial={{ scale: 0.8, opacity: 0, rotate: -5 }}
+            initial={{ scale: 0.85, opacity: 0, rotate: -3 }}
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            exit={{ scale: 0.8, opacity: 0 }}
+            exit={{ scale: 0.85, opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className="flex flex-1 items-center justify-center my-2 md:my-0"
+            className="flex flex-1 items-center justify-center my-2 sm:my-0 w-full"
           >
-            <div className={`w-36 h-36 sm:w-56 sm:h-56 md:w-80 md:h-80 rounded-full ${slide.imageBg} flex items-center justify-center p-4 sm:p-6 md:p-8 backdrop-blur-sm shadow-xl`}>
-              <img src={slide.image} alt="" className="w-full h-full object-contain drop-shadow-2xl" />
+            <div className="relative flex items-center justify-center">
+              {/* Radial ambient backlight */}
+              <div className="absolute -inset-4 sm:-inset-8 rounded-full bg-gradient-to-tr from-[#F5C430]/25 via-[#E87C2A]/20 to-transparent blur-2xl pointer-events-none" />
+
+              {/* Main Product Showcase Circle */}
+              <div className={`relative w-44 h-44 sm:w-60 sm:h-60 md:w-80 md:h-80 lg:w-96 lg:h-96 rounded-3xl sm:rounded-full ${slide.imageBg} border border-white/15 flex items-center justify-center p-5 sm:p-7 md:p-10 backdrop-blur-md shadow-2xl`}>
+                <motion.img 
+                  src={slide.image} 
+                  alt={slide.title} 
+                  className="w-full h-full object-contain drop-shadow-[0_20px_35px_rgba(0,0,0,0.55)] select-none"
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{ repeat: Infinity, duration: 3.5, ease: "easeInOut" }}
+                />
+
+                {/* Floating mini badge for luxury trust */}
+                <div className="absolute -bottom-2 sm:bottom-4 -right-1 sm:right-2 bg-slate-900/85 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-xl text-[11px] sm:text-xs text-white font-medium select-none pointer-events-none">
+                  <Sparkles className="w-3.5 h-3.5 text-[#F5C430] flex-shrink-0" />
+                  <span>{slide.tagText}</span>
+                </div>
+              </div>
             </div>
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Arrows */}
+      {/* Desktop Arrows */}
       <button
         onClick={() => go((current - 1 + heroSlides.length) % heroSlides.length)}
-        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 backdrop-blur-sm transition"
+        className="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/25 hover:bg-black/50 text-white rounded-full p-2.5 backdrop-blur-md border border-white/15 transition-all hover:scale-110 active:scale-95"
+        aria-label="Diapositive précédente"
       >
-        <ChevronLeft className="h-6 w-6" />
+        <ChevronLeft className="h-5 w-5" />
       </button>
       <button
         onClick={() => go((current + 1) % heroSlides.length)}
-        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 backdrop-blur-sm transition"
+        className="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/25 hover:bg-black/50 text-white rounded-full p-2.5 backdrop-blur-md border border-white/15 transition-all hover:scale-110 active:scale-95"
+        aria-label="Diapositive suivante"
       >
-        <ChevronRight className="h-6 w-6" />
+        <ChevronRight className="h-5 w-5" />
       </button>
 
-      {/* Dots */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+      {/* Pagination Dots */}
+      <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/30 backdrop-blur-md border border-white/10">
         {heroSlides.map((_, i) => (
           <button
             key={i}
             onClick={() => go(i)}
-            className={`rounded-full transition-all duration-300 ${i === current ? "bg-[#F5C430] w-6 h-2" : "bg-white/40 w-2 h-2"}`}
+            aria-label={`Aller au slide ${i + 1}`}
+            className={`rounded-full transition-all duration-300 ${i === current ? "bg-[#F5C430] w-6 h-2" : "bg-white/40 hover:bg-white/70 w-2 h-2"}`}
           />
         ))}
       </div>
@@ -386,13 +432,17 @@ export default function Home() {
       <HeroCarousel />
       
       {/* Brands Marquee */}
-      <div className="bg-white dark:bg-gray-900 py-8 border-y border-border overflow-hidden">
-        <div className="container mx-auto px-4 mb-6 text-center">
-          <h2 className="text-sm font-bold text-muted-foreground dark:text-gray-400 tracking-widest uppercase">Nos Marques Partenaires</h2>
+      <div className="bg-slate-50/80 dark:bg-gray-900/80 py-6 sm:py-8 border-b border-slate-200/70 dark:border-gray-800 overflow-hidden transition-colors">
+        <div className="container mx-auto px-4 mb-4 sm:mb-6 text-center flex items-center justify-center gap-3">
+          <span className="h-px w-8 sm:w-16 bg-slate-200 dark:bg-gray-800" />
+          <h2 className="text-xs sm:text-sm font-bold text-slate-400 dark:text-gray-500 tracking-widest uppercase">
+            Nos Marques Partenaires
+          </h2>
+          <span className="h-px w-8 sm:w-16 bg-slate-200 dark:bg-gray-800" />
         </div>
-        <Marquee className="[--duration:40s] [--gap:5rem]" pauseOnHover>
+        <Marquee className="[--duration:35s] [--gap:3.5rem] sm:[--gap:5rem]" pauseOnHover>
           {["APPLE", "SAMSUNG", "ORAIMO", "JBL", "XIAOMI", "HUAWEI", "SONY", "BEATS", "BASEUS"].map((brand) => (
-            <div key={brand} className="text-3xl md:text-4xl font-black text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 transition-colors cursor-pointer select-none">
+            <div key={brand} className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-300 dark:text-gray-700 hover:text-[#E87C2A] dark:hover:text-[#F5C430] transition-colors cursor-pointer select-none tracking-wider">
               {brand}
             </div>
           ))}
