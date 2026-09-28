@@ -11,7 +11,7 @@ router.get(["/healthz", "/api/health", "/health"], (_req, res) => {
   res.json(data);
 });
 
-router.get("/api/debug/db", async (_req, res) => {
+router.get(["/debug/db", "/api/debug/db"], async (_req, res) => {
   const rawEnv = process.env.MONGODB_URI ? "DEFINED" : "UNDEFINED";
   const cleanUri = getCleanMongoUri();
   const maskedUri = cleanUri.replace(/:([^:@]+)@/, ":****@");
