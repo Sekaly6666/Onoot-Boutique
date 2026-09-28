@@ -8,8 +8,8 @@
   "scripts": {
     "dev": "pnpm exec concurrently \"pnpm --filter @workspace/admin dev\" \"pnpm --filter @workspace/api-server dev\" \"pnpm --filter @workspace/onoot-boutique dev\"",
     "build": "pnpm build:api",
-    "start": "pnpm start:api",
-    "build:api": "pnpm --filter @workspace/api-server build",
+    "start": "node --enable-source-maps Onoot-Boutique/api-server/dist/index.mjs",
+    "build:api": "pnpm --filter @workspace/api-server build && node -e \"const fs=require('fs'); fs.cpSync('Onoot-Boutique/api-server/dist', 'dist', {recursive:true});\"",
     "start:api": "node --enable-source-maps Onoot-Boutique/api-server/dist/index.mjs",
     "build:admin": "pnpm --filter @workspace/admin build",
     "build:boutique": "pnpm --filter @workspace/onoot-boutique build"
