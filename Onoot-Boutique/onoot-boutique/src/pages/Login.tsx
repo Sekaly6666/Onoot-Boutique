@@ -79,57 +79,57 @@ export default function Login() {
 
   return (
     <Layout>
-      <div className="min-h-[calc(100vh-80px)] bg-slate-50 dark:bg-gray-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans relative overflow-hidden transition-colors duration-200">
+      <div className="min-h-[calc(100vh-80px)] bg-slate-50 dark:bg-gray-950 flex flex-col justify-center py-6 px-4 sm:py-12 sm:px-6 lg:px-8 font-sans relative overflow-hidden transition-colors duration-200">
         {/* Decorative background elements */}
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/10 dark:bg-primary/5 blur-3xl pointer-events-none"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 dark:bg-blue-500/5 blur-3xl pointer-events-none"></div>
 
         <motion.div 
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="sm:mx-auto sm:w-full sm:max-w-md z-10 flex flex-col items-center"
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-sm sm:max-w-md mx-auto z-10 flex flex-col items-center text-center"
         >
-          <div className="mb-6">
+          <div className="mb-3 sm:mb-5 transform scale-90 sm:scale-100">
             <OnootLogo size="lg" variant={isDark ? "white" : "color"} />
           </div>
-          <h2 className="text-center text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          <h2 className="text-xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Connexion
           </h2>
-          <p className="mt-2 text-center text-sm text-slate-500 dark:text-gray-400">
+          <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-gray-400">
             Accédez à votre compte client
           </p>
         </motion.div>
 
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="mt-8 sm:mx-auto sm:w-full sm:max-w-md z-10"
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="mt-4 sm:mt-6 w-full max-w-sm sm:max-w-md mx-auto z-10"
         >
-          <div className="bg-white dark:bg-gray-900 py-8 px-4 shadow-xl shadow-slate-200/50 dark:shadow-black/40 sm:rounded-2xl sm:px-10 border border-slate-100 dark:border-gray-800 transition-colors">
+          <div className="bg-white dark:bg-gray-900 py-5 px-4 sm:py-8 sm:px-8 shadow-lg sm:shadow-xl shadow-slate-200/50 dark:shadow-black/40 rounded-2xl border border-slate-100 dark:border-gray-800 transition-colors">
 
             {/* Google Sign-In Button */}
             <button
               type="button"
               onClick={handleGoogleLogin}
               disabled={isGoogleLoading}
-              className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-slate-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-slate-700 dark:text-gray-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2.5 py-2.5 sm:py-3 px-4 border border-slate-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-slate-700 dark:text-gray-200 text-xs sm:text-sm font-semibold hover:bg-slate-50 dark:hover:bg-gray-700 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isGoogleLoading ? (
-                <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
               ) : (
-                <GoogleIcon className="w-5 h-5 flex-shrink-0" />
+                <GoogleIcon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
               )}
-              {isGoogleLoading ? "Redirection…" : "Continuer avec Google"}
+              <span>{isGoogleLoading ? "Redirection…" : "Continuer avec Google"}</span>
             </button>
 
             {/* Divider */}
-            <div className="relative my-6">
+            <div className="relative my-4 sm:my-5">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-slate-200 dark:border-gray-700" />
               </div>
-              <div className="relative flex justify-center text-sm">
+              <div className="relative flex justify-center text-xs sm:text-sm">
                 <span className="px-3 bg-white dark:bg-gray-900 text-slate-400 dark:text-gray-500 font-medium">
                   ou avec email
                 </span>
@@ -137,27 +137,27 @@ export default function Login() {
             </div>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3.5 sm:space-y-4">
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-2">Adresse Email</label>
+                      <label className="block text-xs sm:text-sm font-medium text-slate-700 dark:text-gray-300 mb-1 sm:mb-1.5">Adresse Email</label>
                       <FormControl>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Mail className="h-5 w-5 text-slate-400 dark:text-gray-500" />
+                            <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400 dark:text-gray-500" />
                           </div>
                           <input
                             {...field}
                             type="email"
-                            className="appearance-none block w-full pl-10 pr-3 py-3 border border-slate-200 dark:border-gray-700 rounded-xl shadow-sm bg-white dark:bg-gray-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
+                            className="appearance-none block w-full pl-9 sm:pl-10 pr-3 py-2 sm:py-2.5 border border-slate-200 dark:border-gray-700 rounded-xl shadow-sm bg-white dark:bg-gray-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-base sm:text-sm"
                             placeholder="votre@email.com"
                           />
                         </div>
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
@@ -167,16 +167,16 @@ export default function Login() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-2">Mot de passe</label>
+                      <label className="block text-xs sm:text-sm font-medium text-slate-700 dark:text-gray-300 mb-1 sm:mb-1.5">Mot de passe</label>
                       <FormControl>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Lock className="h-5 w-5 text-slate-400 dark:text-gray-500" />
+                            <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400 dark:text-gray-500" />
                           </div>
                           <input
                             {...field}
                             type={showPassword ? "text" : "password"}
-                            className="appearance-none block w-full pl-10 pr-10 py-3 border border-slate-200 dark:border-gray-700 rounded-xl shadow-sm bg-white dark:bg-gray-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
+                            className="appearance-none block w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2 sm:py-2.5 border border-slate-200 dark:border-gray-700 rounded-xl shadow-sm bg-white dark:bg-gray-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-base sm:text-sm"
                             placeholder="••••••••"
                           />
                           <button
@@ -184,46 +184,46 @@ export default function Login() {
                             onClick={() => setShowPassword(!showPassword)}
                             className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-gray-400 dark:hover:text-gray-200 transition-colors focus:outline-none"
                           >
-                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                            {showPassword ? <EyeOff className="h-4 w-4 sm:h-5 sm:w-5" /> : <Eye className="h-4 w-4 sm:h-5 sm:w-5" />}
                           </button>
                         </div>
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between text-xs sm:text-sm pt-0.5">
                   <div className="flex items-center">
                     <input
                       id="remember-me"
                       name="remember-me"
                       type="checkbox"
-                      className="h-4 w-4 text-primary focus:ring-primary/20 border-slate-300 dark:border-gray-600 dark:bg-gray-800 rounded cursor-pointer"
+                      className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary focus:ring-primary/20 border-slate-300 dark:border-gray-600 dark:bg-gray-800 rounded cursor-pointer"
                     />
-                    <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-600 dark:text-gray-400 cursor-pointer">
+                    <label htmlFor="remember-me" className="ml-2 block text-xs sm:text-sm text-slate-600 dark:text-gray-400 cursor-pointer">
                       Se souvenir de moi
                     </label>
                   </div>
-                  <div className="text-sm">
+                  <div>
                     <a href="#" className="font-medium text-primary hover:text-primary/80 transition-colors">
                       Mot de passe oublié ?
                     </a>
                   </div>
                 </div>
 
-                <div>
+                <div className="pt-1">
                   <button
                     type="submit"
                     disabled={loginMutation.isPending}
-                    className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all disabled:opacity-70 disabled:cursor-not-allowed group"
+                    className="w-full flex justify-center items-center gap-2 py-2.5 sm:py-3 px-4 border border-transparent rounded-xl shadow-sm text-xs sm:text-sm font-bold text-white bg-primary hover:bg-primary/90 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all disabled:opacity-70 disabled:cursor-not-allowed group"
                   >
                     {loginMutation.isPending ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                     ) : (
                       <>
-                        Connexion
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        <span>Connexion</span>
+                        <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" />
                       </>
                     )}
                   </button>
@@ -231,7 +231,7 @@ export default function Login() {
               </form>
             </Form>
 
-            <div className="mt-6 text-center text-sm text-muted-foreground dark:text-gray-400">
+            <div className="mt-4 sm:mt-5 text-center text-xs sm:text-sm text-muted-foreground dark:text-gray-400">
               Pas encore de compte ?{" "}
               <Link href="/auth/register" className="font-medium text-primary hover:text-primary/80 transition-colors">
                 Créer un compte
