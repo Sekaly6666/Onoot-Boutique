@@ -1,13 +1,13 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import app from "./app";
 import { logger } from "./lib/logger";
 import { connectDB } from "./lib/mongoose";
-await connectDB();
-// Ensure a default admin exists (development only)
-import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { Admin } from './models/Admin';
 
-dotenv.config();
+await connectDB();
 
 async function ensureAdminExists() {
   const count = await Admin.countDocuments();

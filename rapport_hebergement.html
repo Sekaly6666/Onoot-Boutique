@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Rapport d'Hébergement & Déploiement - Onoot Boutique</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+
+    @page {
+      size: A4;
+      margin: 15mm 15mm 15mm 15mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1E293B;
+      background: #FFFFFF;
+      line-height: 1.55;
+      font-size: 13px;
+    }
+
+    .page-break {
+      page-break-after: always;
+      break-after: page;
+    }
+
+    /* HEADER BANNER */
+    .header {
+      background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+      color: #FFFFFF;
+      padding: 28px 32px;
+      border-radius: 16px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+      border-left: 6px solid #F5C430;
+    }
+
+    .header-accent {
+      position: absolute;
+      top: -40px;
+      right: -40px;
+      width: 140px;
+      height: 140px;
+      background: radial-gradient(circle, rgba(75, 181, 232, 0.25) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+
+    .brand-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-title span.highlight {
+      color: #F5C430;
+    }
+
+    .subtitle {
+      color: #94A3B8;
+      font-size: 14px;
+      margin-top: 6px;
+      font-weight: 400;
+    }
+
+    .meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .pill {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      color: #E2E8F0;
+      font-weight: 500;
+    }
+
+    /* SECTIONS */
+    h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: #0F172A;
+      margin-top: 22px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #F1F5F9;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h2 .num {
+      background: #0F172A;
+      color: #F5C430;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1E293B;
+      margin-top: 14px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      margin-bottom: 10px;
+      color: #334155;
+      font-size: 12.5px;
+    }
+
+    /* ARCHITECTURE BOX */
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .arch-card {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .arch-card.highlight-blue {
+      border-top: 4px solid #4BB5E8;
+    }
+
+    .arch-card.highlight-orange {
+      border-top: 4px solid #F5C430;
+    }
+
+    .arch-card.highlight-green {
+      border-top: 4px solid #10B981;
+    }
+
+    .arch-title {
+      font-weight: 700;
+      font-size: 13px;
+      color: #0F172A;
+      margin-bottom: 4px;
+    }
+
+    .arch-badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .badge-blue { background: #E0F2FE; color: #0369A1; }
+    .badge-orange { background: #FEF3C7; color: #92400E; }
+    .badge-green { background: #DCFCE7; color: #166534; }
+
+    .arch-desc {
+      font-size: 11px;
+      color: #64748B;
+      line-height: 1.45;
+    }
+
+    /* TABLES */
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin: 14px 0 20px 0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #E2E8F0;
+      font-size: 12px;
+    }
+
+    th {
+      background: #F8FAFC;
+      color: #475569;
+      font-weight: 700;
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid #CBD5E1;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #E2E8F0;
+      color: #334155;
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:nth-child(even) td {
+      background-color: #FBFDFE;
+    }
+
+    .price-tag {
+      font-weight: 700;
+      color: #0F172A;
+    }
+
+    .price-free {
+      color: #16A34A;
+      font-weight: 700;
+      background: #DCFCE7;
+      padding: 2px 8px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    .price-cfa {
+      font-size: 10.5px;
+      color: #64748B;
+      display: block;
+    }
+
+    .rating-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 700;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .rec-top { background: #FEF3C7; color: #B45309; border: 1px solid #FCD34D; }
+    .rec-best { background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; }
+
+    /* CALLOUT BOXES */
+    .callout {
+      padding: 14px 18px;
+      border-radius: 12px;
+      margin: 14px 0;
+      border-left: 4px solid;
+      font-size: 12px;
+    }
+
+    .callout-info {
+      background: #F0F9FF;
+      border-left-color: #0284C7;
+      color: #0369A1;
+    }
+
+    .callout-warning {
+      background: #FFFBEB;
+      border-left-color: #F59E0B;
+      color: #92400E;
+    }
+
+    .callout-success {
+      background: #F0FDF4;
+      border-left-color: #16A34A;
+      color: #15803D;
+    }
+
+    .step-list {
+      margin: 12px 0 16px 0;
+      padding-left: 0;
+      list-style: none;
+      counter-reset: step-counter;
+    }
+
+    .step-item {
+      position: relative;
+      padding-left: 36px;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+
+    .step-item::before {
+      counter-increment: step-counter;
+      content: counter(step-counter);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 24px;
+      height: 24px;
+      background: #0F172A;
+      color: #F5C430;
+      font-weight: 700;
+      font-size: 11px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .code-inline {
+      background: #F1F5F9;
+      color: #0F172A;
+      font-family: Consolas, monospace;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      border: 1px solid #E2E8F0;
+    }
+
+    .footer-note {
+      margin-top: 30px;
+      padding-top: 14px;
+      border-top: 1px solid #E2E8F0;
+      font-size: 10.5px;
+      color: #94A3B8;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PAGE 1 : ARCHITECTURE & HÉBERGEMENT GRATUIT DE TEST -->
+  <div class="header">
+    <div class="header-accent"></div>
+    <div class="brand-title">
+      ONOOT <span class="highlight">BOUTIQUE</span>
+    </div>
+    <div class="subtitle">Rapport Stratégique d'Hébergement Web & Plan de Déploiement Cloud</div>
+    <div class="meta-pills">
+      <div class="pill">📁 Dépôt : Sekaly6666/Onoot-Boutique</div>
+      <div class="pill">⚙️ Architecture : Full-Stack (Vite React + Node Express + MongoDB)</div>
+      <div class="pill">🌍 Cible : Côte d'Ivoire & Afrique de l'Ouest</div>
+      <div class="pill">📅 Date : Septembre 2026</div>
+    </div>
+  </div>
+
+  <h2><span class="num">1</span> Architecture Technique du Projet</h2>
+  <p>Le projet <strong>Onoot Boutique</strong> est composé de 3 modules distincts nécessitant chacun un type d'infrastructure adapté :</p>
+
+  <div class="arch-grid">
+    <div class="arch-card highlight-blue">
+      <div class="arch-title">1. Boutique Client</div>
+      <span class="arch-badge badge-blue">Frontend Vite React</span>
+      <div class="arch-desc">
+        Catalogue, panier, commandes WhatsApp, paiements, authentification client.<br>
+        <strong>Dossier :</strong> <span class="code-inline">onoot-boutique/onoot-boutique</span>
+      </div>
+    </div>
+
+    <div class="arch-card highlight-orange">
+      <div class="arch-title">2. Espace Administrateur</div>
+      <span class="arch-badge badge-orange">Frontend Vite React</span>
+      <div class="arch-desc">
+        Tableau de bord, gestion des stocks, livreurs, commandes, reporting Excel.<br>
+        <strong>Dossier :</strong> <span class="code-inline">onoot-boutique/admin</span>
+      </div>
+    </div>
+
+    <div class="arch-card highlight-green">
+      <div class="arch-title">3. Serveur API & Base</div>
+      <span class="arch-badge badge-green">Node Express + MongoDB</span>
+      <div class="arch-desc">
+        API REST, sessions JWT, emails SMTP Brevo, téléversement de fichiers et photos.<br>
+        <strong>Dossier :</strong> <span class="code-inline">Onoot-Boutique/api-server</span>
+      </div>
+    </div>
+  </div>
+
+  <h2><span class="num">2</span> Phase 1 : Déploiement 100% Gratuit pour les Tests</h2>
+  <p>Pour tester l'intégralité du site en conditions réelles sans dépenser 1 centime, la combinaison idéale est :</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Composant</th>
+        <th>Hébergeur Recommandé</th>
+        <th>Tarif</th>
+        <th>Avantages Spécifiques</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Base de données</strong></td>
+        <td><strong>MongoDB Atlas (M0 Free Tier)</strong></td>
+        <td><span class="price-free">0 FCFA / mois</span></td>
+        <td>512 Mo de stockage gratuit à vie, réplication cloud sécurisée, sauvegardes automatiques.</td>
+      </tr>
+      <tr>
+        <td><strong>Backend API</strong></td>
+        <td><strong>Render.com</strong> ou <strong>Koyeb</strong></td>
+        <td><span class="price-free">0 FCFA / mois</span></td>
+        <td>Support Node.js natif, HTTPS automatique, synchronisation directe avec le repo GitHub.</td>
+      </tr>
+      <tr>
+        <td><strong>Frontend Boutique</strong></td>
+        <td><strong>Vercel</strong></td>
+        <td><span class="price-free">0 FCFA / mois</span></td>
+        <td>CDN mondial ultra-rapide, déploiement continu à chaque git push, bande passante gratuite 100 Go/m.</td>
+      </tr>
+      <tr>
+        <td><strong>Frontend Admin</strong></td>
+        <td><strong>Vercel</strong> (Projet séparé)</td>
+        <td><span class="price-free">0 FCFA / mois</span></td>
+        <td>Accès indépendant avec URL dédiée (ex: <em>onoot-admin.vercel.app</em>).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-warning">
+    <strong>⚠️ Particularité de l'offre gratuite Render :</strong> Sur l'offre gratuite, le serveur Node.js s'endort automatiquement après 15 minutes sans requête. Au premier réveil (première visite), la première requête peut prendre environ 30 à 45 secondes. Pour les tests, c'est parfaitement fonctionnel ; pour la production client, un serveur sans mise en veille sera requis.
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- PAGE 2 : ÉTAPES PAS À PAS DE DÉPLOIEMENT GRATUIT -->
+  <h2><span class="num">3</span> Guide Pratique : Déployer Gratuitement en 4 Étapes</h2>
+
+  <ul class="step-list">
+    <li class="step-item">
+      <strong>Créer la base de données gratuite sur MongoDB Atlas</strong>
+      <p>Créez un compte gratuit sur <span class="code-inline">mongodb.com/atlas</span>, déployez un cluster gratuit <em>M0 (512MB)</em> en région <em>Europe (Frankfurt)</em> ou <em>Irlande</em>, créez un utilisateur et autorisez l'IP <span class="code-inline">0.0.0.0/0</span> (accès cloud). Récupérez votre chaîne de connexion <span class="code-inline">mongodb+srv://...</span>.</p>
+    </li>
+    <li class="step-item">
+      <strong>Déployer le Backend `api-server` sur Render.com</strong>
+      <p>
+        1. Connectez-vous sur <span class="code-inline">render.com</span> avec votre compte GitHub.<br>
+        2. Cliquez sur <strong>New Web Service</strong> et sélectionnez votre dépôt <strong>Sekaly6666/Onoot-Boutique</strong>.<br>
+        3. Renseignez les paramètres suivants :<br>
+        &bull; <strong>Root Directory :</strong> <span class="code-inline">Onoot-Boutique/api-server</span><br>
+        &bull; <strong>Build Command :</strong> <span class="code-inline">npm install && npm run build</span><br>
+        &bull; <strong>Start Command :</strong> <span class="code-inline">node dist/index.mjs</span><br>
+        &bull; <strong>Variables d'environnement :</strong> Ajoutez <span class="code-inline">MONGODB_URI</span>, <span class="code-inline">JWT_SECRET</span>, <span class="code-inline">PORT=5005</span>, <span class="code-inline">SMTP_HOST</span>, <span class="code-inline">SMTP_PORT</span>, <span class="code-inline">SMTP_USER</span>, <span class="code-inline">SMTP_PASS</span>, <span class="code-inline">SMTP_FROM</span>, <span class="code-inline">SHOP_EMAIL</span>.<br>
+        4. Une fois déployé, Render vous fournit l'URL de votre API : <span class="code-inline">https://onoot-api.onrender.com</span>.
+      </p>
+    </li>
+    <li class="step-item">
+      <strong>Déployer la Boutique (`onoot-boutique`) sur Vercel</strong>
+      <p>
+        1. Rendez-vous sur <span class="code-inline">vercel.com</span> et importez votre dépôt GitHub.<br>
+        2. Définissez <strong>Root Directory</strong> sur : <span class="code-inline">onoot-boutique/onoot-boutique</span>.<br>
+        3. Framework Preset : <strong>Vite</strong>.<br>
+        4. Dans <strong>Environment Variables</strong>, ajoutez :<br>
+        &bull; <span class="code-inline">VITE_API_URL</span> = <span class="code-inline">https://onoot-api.onrender.com</span><br>
+        5. Cliquez sur <strong>Deploy</strong>. Vous obtenez : <span class="code-inline">https://onoot-boutique.vercel.app</span>.
+      </p>
+    </li>
+    <li class="step-item">
+      <strong>Déployer le Panel Admin (`admin`) sur Vercel</strong>
+      <p>
+        1. Sur Vercel, ajoutez un nouveau projet avec le même dépôt.<br>
+        2. Définissez <strong>Root Directory</strong> sur : <span class="code-inline">onoot-boutique/admin</span>.<br>
+        3. Dans <strong>Environment Variables</strong>, ajoutez :<br>
+        &bull; <span class="code-inline">VITE_API_URL</span> = <span class="code-inline">https://onoot-api.onrender.com</span><br>
+        4. Déployez. Vous obtenez : <span class="code-inline">https://onoot-admin.vercel.app</span>.
+      </p>
+    </li>
+  </ul>
+
+  <div class="callout callout-success">
+    <strong>💡 Synchronisation automatique :</strong> Chaque fois que vous ferez un <span class="code-inline">git push</span> sur votre GitHub, Vercel et Render mettront automatiquement à jour vos sites en moins de 2 minutes !
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- PAGE 3 : COMPARATIF HÉBERGEURS FIABLES & SÉCURISÉS PRODUCTION -->
+  <h2><span class="num">4</span> Hébergements Fiables & Sécurisés pour la Production</h2>
+  <p>Pour passer en production commerciale et assurer une disponibilité 99.9% avec des vitesses de chargement optimales pour les clients en Côte d'Ivoire et à l'international, voici le comparatif des solutions professionnelles :</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Hébergeur / Formule</th>
+        <th>Type</th>
+        <th>Tarif Mensuel</th>
+        <th>Tarif en FCFA</th>
+        <th>Performance & Sécurité</th>
+        <th>Recommandation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Hetzner Cloud (CPX11/21)</strong><br><span style="font-size:10px; color:#64748B;">Serveurs Allemagne / Finlande</span></td>
+        <td>VPS Dédié Cloud</td>
+        <td><span class="price-tag">~4.50 € / mois</span></td>
+        <td><span class="price-tag">~3 000 FCFA</span></td>
+        <td>Performance brute exceptionnelle (SSD NVMe, 4 Go RAM, CPU vCPU AMD). Disque persistant idéal pour les images et vidéos.</td>
+        <td><span class="rating-badge rec-best">⭐ N°1 Rapport Qualité/Prix</span></td>
+      </tr>
+      <tr>
+        <td><strong>Hostinger Cloud VPS</strong><br><span style="font-size:10px; color:#64748B;">KVM 1 ou 2</span></td>
+        <td>VPS Managé</td>
+        <td><span class="price-tag">~5.99 € / mois</span></td>
+        <td><span class="price-tag">~4 000 FCFA</span></td>
+        <td>Panneau d'administration très simple en français, sauvegardes automatiques hebdomadaires, support 24/7.</td>
+        <td><span class="rating-badge rec-top">Facile & Fiable</span></td>
+      </tr>
+      <tr>
+        <td><strong>Render (Offre Starter/Team)</strong><br><span style="font-size:10px; color:#64748B;">PaaS Cloud Managé</span></td>
+        <td>PaaS (No-Ops)</td>
+        <td><span class="price-tag">~7 $ à 15 $ / mois</span></td>
+        <td><span class="price-tag">~4 500 à 9 800 FCFA</span></td>
+        <td>Zéro maintenance de serveur Linux, pas de mise en veille, certificats SSL automatiques, isolation par conteneur.</td>
+        <td><span class="rating-badge">Idéal sans sysadmin</span></td>
+      </tr>
+      <tr>
+        <td><strong>OVHcloud (VPS Starter/Value)</strong><br><span style="font-size:10px; color:#64748B;">Datacenter France / Europe</span></td>
+        <td>VPS Cloud</td>
+        <td><span class="price-tag">~5.50 € / mois</span></td>
+        <td><span class="price-tag">~3 600 FCFA</span></td>
+        <td>Protection Anti-DDoS incluse gratuite, excellente latence vers l'Afrique francophone via les câbles sous-marins.</td>
+        <td><span class="rating-badge">Sécurité Réseau</span></td>
+      </tr>
+      <tr>
+        <td><strong>DigitalOcean (Droplet Basic)</strong><br><span style="font-size:10px; color:#64748B;">Standard Cloud</span></td>
+        <td>VPS Cloud</td>
+        <td><span class="price-tag">6 $ / mois</span></td>
+        <td><span class="price-tag">~3 900 FCFA</span></td>
+        <td>Écosystème réputé, snapshots faciles, IP fixe dédiée, surveillance des métriques en temps réel.</td>
+        <td><span class="rating-badge">Standard Mondial</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2><span class="num">5</span> Recommandation Finale d'Expert pour Onoot Boutique</h2>
+
+  <div class="callout callout-info">
+    <h3 style="margin-top:0; color:#0369A1;">🎯 Notre Stratégie Recommandée en 2 Temps :</h3>
+    <p>
+      <strong>1. Immédiatement (Tests & Validation) :</strong><br>
+      Utiliser <strong>Vercel (gratuit)</strong> pour la Boutique et l'Admin + <strong>Render (gratuit)</strong> pour l'API Node.js + <strong>MongoDB Atlas (gratuit)</strong> pour la base de données. Coût total : <strong>0 FCFA</strong>. Cela vous permet de valider toutes les fonctionnalités (commandes, livreurs, emails) sur smartphone et PC en situation réelle.
+    </p>
+    <p style="margin-bottom:0;">
+      <strong>2. Pour le Lancement Officiel (Production) :</strong><br>
+      Garder les deux frontends sur <strong>Vercel</strong> (qui reste gratuit même en production avec une vitesse CDN mondiale imbattable) et basculer l'API et les fichiers sur un <strong>VPS Hetzner ou Hostinger (~3 500 FCFA/mois)</strong> avec un nom de domaine officiel (ex: <em>onoot.ci</em> ou <em>onootboutique.com</em>, coût : ~6 000 FCFA/an). C'est la configuration la plus robuste, rapide et économique du marché.
+    </p>
+  </div>
+
+  <div class="footer-note">
+    Document généré pour Onoot Boutique • Rapport d'ingénierie web et hébergement cloud • Confidentiel
+  </div>
+
+</body>
+</html>

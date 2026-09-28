@@ -3,7 +3,11 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "dev": "pnpm exec concurrently \"pnpm --filter @workspace/admin dev\" \"pnpm --filter @workspace/api-server dev\" \"pnpm --filter @workspace/onoot-boutique dev\""
+    "dev": "pnpm exec concurrently \"pnpm --filter @workspace/admin dev\" \"pnpm --filter @workspace/api-server dev\" \"pnpm --filter @workspace/onoot-boutique dev\"",
+    "build:api": "pnpm --filter @workspace/api-server build",
+    "start:api": "node --enable-source-maps Onoot-Boutique/api-server/dist/index.mjs",
+    "build:admin": "pnpm --filter @workspace/admin build",
+    "build:boutique": "pnpm --filter @workspace/onoot-boutique build"
   },
   "private": true,
   "devDependencies": {
