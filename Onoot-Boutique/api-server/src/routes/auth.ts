@@ -8,13 +8,33 @@ import { sendLoginNotification } from "../lib/email";
 
 const router: IRouter = Router();
 
-// ─── Config Helper ────────────────────────────────────────────────────────────
-function getGoogleConfig() {
+function getGoogleConfig(req?: any) {
   const clientId = process.env.GOOGLE_CLIENT_ID || "";
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
-  const apiBase = process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 5005}`;
-  const boutiqueUrl = process.env.BOUTIQUE_URL || "http://localhost:5182";
-  const redirectUri = `${apiBase}/api/auth/google/callback`;
+
+  let apiBase = process.env.API_BASE_URL;
+  if (!apiBase && req) {
+    const proto = req.get("x-forwarded-proto") || req.protocol || "https";
+    const host = req.get("x-forwarded-host") || req.get("host") || "";
+    if (host && !host.includes("localhost") && !host.includes("127.0.0.1")) {
+      apiBase = `${proto}://${host}`;
+    }
+  }
+  if (!apiBase) {
+    if (process.env.NODE_ENV === "production" || process.env.RENDER) {
+      apiBase = "https://onoot-boutique.onrender.com";
+    } else {
+      apiBase = `http://localhost:${process.env.PORT || 5005}`;
+    }
+  }
+
+  const redirectUri = `${apiBase.replace(/\/$/, "")}/api/auth/google/callback`;
+  const boutiqueUrl =
+    process.env.BOUTIQUE_URL ||
+    (process.env.NODE_ENV === "production"
+      ? "https://onoot-boutique.vercel.app"
+      : "http://localhost:5182");
+
   return { clientId, clientSecret, apiBase, boutiqueUrl, redirectUri };
 }
 
@@ -248,7 +268,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
 
 /** Step 1: Redirect to Google */
 router.get("/auth/google", (req, res): void => {
-  const { clientId, boutiqueUrl, redirectUri } = getGoogleConfig();
+  const { clientId, boutiqueUrl, redirectUri } = getGoogleConfig(req);
 
   if (!clientId) {
     res.status(503).json({
@@ -258,7 +278,7 @@ router.get("/auth/google", (req, res): void => {
   }
 
   // Preserve originating frontend URL if supplied
-  const origin = (req.query.origin as string) || (req.query.returnUrl as string) || boutiqueUrl;
+  const origin = (req.query.origin as string) || (req.query.returnUrl as string) || req.get("referer") || boutiqueUrl;
   const stateData = JSON.stringify({ origin });
   const state = Buffer.from(stateData).toString("base64url");
 
@@ -278,7 +298,7 @@ router.get("/auth/google", (req, res): void => {
 /** Step 2: Google callback */
 router.get("/auth/google/callback", async (req, res): Promise<void> => {
   const { code, state, error: oauthError } = req.query as Record<string, string>;
-  const { clientId, clientSecret, boutiqueUrl, redirectUri } = getGoogleConfig();
+  const { clientId, clientSecret, boutiqueUrl, redirectUri } = getGoogleConfig(req);
 
   let returnOrigin = boutiqueUrl;
   if (state) {

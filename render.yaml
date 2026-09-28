@@ -37,6 +37,14 @@ services:
         value: onootboutique@gmail.com
       - key: SHOP_EMAIL
         value: onootboutique@gmail.com
+      - key: API_BASE_URL
+        value: https://onoot-boutique.onrender.com
+      - key: BOUTIQUE_URL
+        value: https://onoot-boutique.vercel.app
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
 
   # ─── 2. Frontend Boutique (Site Client) ───
   - type: web
