@@ -35,17 +35,26 @@ router.get(["/debug/db", "/api/debug/db"], async (_req, res) => {
 router.get(["/debug/google", "/api/debug/google"], (_req, res) => {
   const clientId = process.env.GOOGLE_CLIENT_ID || "";
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
-  const apiBase =
-    process.env.API_BASE_URL ||
-    (process.env.NODE_ENV === "production" || process.env.RENDER
-      ? "https://onoot-boutique.onrender.com"
-      : `http://localhost:${process.env.PORT || 5005}`);
+
+  let apiBase = process.env.API_BASE_URL;
+  if (!apiBase || apiBase.includes("localhost")) {
+    if (process.env.NODE_ENV === "production" || process.env.RENDER) {
+      apiBase = "https://onoot-boutique.onrender.com";
+    } else {
+      apiBase = `http://localhost:${process.env.PORT || 5005}`;
+    }
+  }
+
+  let boutiqueUrl = process.env.BOUTIQUE_URL;
+  if (!boutiqueUrl || boutiqueUrl.includes("localhost")) {
+    if (process.env.NODE_ENV === "production" || process.env.RENDER) {
+      boutiqueUrl = "https://onoot-boutique.vercel.app";
+    } else {
+      boutiqueUrl = "http://localhost:5182";
+    }
+  }
+
   const redirectUri = `${apiBase.replace(/\/$/, "")}/api/auth/google/callback`;
-  const boutiqueUrl =
-    process.env.BOUTIQUE_URL ||
-    (process.env.NODE_ENV === "production"
-      ? "https://onoot-boutique.vercel.app"
-      : "http://localhost:5182");
 
   res.json({
     googleClientIdConfigured: Boolean(clientId),
@@ -56,7 +65,7 @@ router.get(["/debug/google", "/api/debug/google"], (_req, res) => {
     redirectUri,
     boutiqueUrl,
     requiredGoogleConsoleRedirectUri: redirectUri,
-    tip: "Vérifiez que cette URL exacte est ajoutée dans Google Cloud Console > Identifiants OAuth > URI de redirection autorisés.",
+    tip: "Dans Google Cloud Console (console.cloud.google.com > APIs & Services > Credentials > Identifiants OAuth), vérifiez que 'URI de redirection autorisés' contient EXACTEMENT : " + redirectUri,
   });
 });
 
