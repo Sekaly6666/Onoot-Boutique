@@ -82,7 +82,9 @@ const heroSlides = [
     cta2Link: "/products?onSale=true",
     image: "/images/smartwatch.png",
     imageBg: "bg-[#4BB5E8]/15",
-    tagText: "★ 4.9/5 • Meilleure Vente",
+    tagIcon: Star,
+    tagColor: "text-[#F5C430] fill-[#F5C430]",
+    tagText: "4.9/5 • Meilleure Vente",
   },
   {
     id: 1,
@@ -100,7 +102,9 @@ const heroSlides = [
     cta2Link: "/products",
     image: "/images/earbuds.png",
     imageBg: "bg-white/10",
-    tagText: "🔥 -40% Remise Immédiate",
+    tagIcon: Flame,
+    tagColor: "text-[#E87C2A] fill-[#E87C2A]",
+    tagText: "-40% Remise Immédiate",
   },
   {
     id: 2,
@@ -118,7 +122,9 @@ const heroSlides = [
     cta2Link: "/products",
     image: "/images/speaker.png",
     imageBg: "bg-white/10",
-    tagText: "✨ 100% Produit Original",
+    tagIcon: Sparkles,
+    tagColor: "text-[#F5C430]",
+    tagText: "100% Produit Original",
   },
 ];
 
@@ -237,7 +243,7 @@ function HeroCarousel() {
 
                 {/* Floating mini badge for luxury trust */}
                 <div className="absolute -bottom-2 sm:bottom-4 -right-1 sm:right-2 bg-slate-900/85 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-xl text-[11px] sm:text-xs text-white font-medium select-none pointer-events-none">
-                  <Sparkles className="w-3.5 h-3.5 text-[#F5C430] flex-shrink-0" />
+                  <slide.tagIcon className={`w-3.5 h-3.5 ${slide.tagColor} flex-shrink-0`} />
                   <span>{slide.tagText}</span>
                 </div>
               </div>
