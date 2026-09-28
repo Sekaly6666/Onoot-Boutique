@@ -47,6 +47,10 @@ app.use('/uploads', express.static(uploadsDir, {
   },
 }));
 
+app.get(["/", "/health", "/healthz", "/api/health"], (_req, res) => {
+  res.json({ status: "ok", service: "onoot-boutique-api", timestamp: new Date().toISOString() });
+});
+
 app.use("/api", uploadRouter);
 app.use("/api", router);
 
