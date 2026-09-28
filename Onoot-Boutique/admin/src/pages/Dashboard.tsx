@@ -34,22 +34,22 @@ const StatCard = ({ title, value, icon: Icon, accentClass, iconClass, trend, del
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.35, delay }}
     whileHover={{ y: -3 }}
-    className="bg-card p-6 rounded-2xl border border-border shadow-sm hover:shadow-md transition-all"
+    className="bg-card p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-border shadow-xs hover:shadow-md transition-all"
   >
     <div className="flex justify-between items-start">
       <div>
-        <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
-        <h3 className="text-2xl font-bold text-foreground">{value}</h3>
+        <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-0.5 sm:mb-1">{title}</p>
+        <h3 className="text-xl sm:text-2xl font-bold text-foreground">{value}</h3>
       </div>
-      <div className={`p-3 rounded-xl ${accentClass}`}>
-        <Icon className={`w-5 h-5 ${iconClass}`} />
+      <div className={`p-2 sm:p-3 rounded-xl ${accentClass}`}>
+        <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${iconClass}`} />
       </div>
     </div>
     {trend && (
-      <div className="mt-4 flex items-center text-sm">
-        <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
+      <div className="mt-2.5 sm:mt-4 flex items-center text-xs sm:text-sm">
+        <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 mr-1" />
         <span className="text-green-500 font-semibold">{trend}</span>
-        <span className="text-muted-foreground ml-2">ce mois</span>
+        <span className="text-muted-foreground ml-1.5">ce mois</span>
       </div>
     )}
   </motion.div>
@@ -295,38 +295,40 @@ const Dashboard: React.FC = () => {
       ) : statsQuery.isError ? (
         <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500">Impossible de charger les statistiques.</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
           <StatCard title="Commandes" value={(stats?.totalOrders || 0).toLocaleString('fr-FR')} icon={ShoppingCart} trend="Suivi" accentClass="bg-accent-blue/10" iconClass="text-accent-blue" delay={0.05} />
           <StatCard title="Utilisateurs" value={(stats?.totalUsers || 0).toLocaleString('fr-FR')} icon={Users} trend={`+${stats?.newUsersThisMonth || 0} ce mois`} accentClass="bg-accent-yellow/20" iconClass="text-accent-yellow" delay={0.1} />
-          <StatCard title="Produits" value={(stats?.totalProducts || 0).toLocaleString('fr-FR')} icon={PackageX} accentClass="bg-muted" iconClass="text-muted-foreground" delay={0.15} />
+          <div className="sm:col-span-2 lg:col-span-1">
+            <StatCard title="Produits" value={(stats?.totalProducts || 0).toLocaleString('fr-FR')} icon={PackageX} accentClass="bg-muted" iconClass="text-muted-foreground" delay={0.15} />
+          </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.2 }} className="lg:col-span-2 bg-card p-6 rounded-2xl border border-border shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-foreground">Commandes par statut</h3>
-            <span className="text-xs font-semibold text-accent-blue bg-accent-blue/10 px-3 py-1 rounded-full">Temps réel</span>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.2 }} className="lg:col-span-2 bg-card p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-border shadow-xs">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h3 className="text-base sm:text-lg font-bold text-foreground">Commandes par statut</h3>
+            <span className="text-xs font-semibold text-accent-blue bg-accent-blue/10 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full">Temps réel</span>
           </div>
-          <div className="h-[300px] flex items-end gap-3 rounded-xl border border-border bg-muted/50 p-4">
+          <div className="h-[220px] sm:h-[300px] flex items-end gap-2 sm:gap-3 rounded-xl border border-border bg-muted/50 p-3 sm:p-4">
             {(stats?.ordersByStatus?.length ? stats.ordersByStatus : [{ status: 'Aucune', count: 0 }]).map((item) => (
-              <div key={item.status} className="flex flex-1 flex-col items-center gap-2 min-w-0">
+              <div key={item.status} className="flex flex-1 flex-col items-center gap-1.5 sm:gap-2 min-w-0">
                 <motion.div
                   initial={{ height: 0 }}
-                  animate={{ height: `${Math.max(8, (item.count / maxOrders) * 220)}px` }}
+                  animate={{ height: `${Math.max(8, (item.count / maxOrders) * 160)}px` }}
                   transition={{ duration: 0.7 }}
-                  className="w-full max-w-12 rounded-t-xl bg-gradient-to-t from-primary via-accent-yellow to-accent-blue shadow-sm"
+                  className="w-full max-w-10 sm:max-w-12 rounded-t-xl bg-gradient-to-t from-primary via-accent-yellow to-accent-blue shadow-xs"
                   title={`${item.count} commandes`}
                 />
-                <span className="text-[11px] font-medium text-muted-foreground truncate max-w-full text-center">{item.status}</span>
+                <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate max-w-full text-center">{item.status}</span>
               </div>
             ))}
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.25 }} className="bg-card p-6 rounded-2xl border border-border shadow-sm">
-          <h3 className="text-lg font-bold text-foreground mb-6">Produits les plus vendus</h3>
-          <div className="space-y-4">
+        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.25 }} className="bg-card p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-border shadow-xs">
+          <h3 className="text-base sm:text-lg font-bold text-foreground mb-4 sm:mb-6">Produits les plus vendus</h3>
+          <div className="space-y-3 sm:space-y-4">
             {topProductsQuery.isLoading ? [1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />) : (topProductsQuery.data || []).map((item) => {
               const image = item.product.images?.[0] || item.product.imageUrl;
               return (

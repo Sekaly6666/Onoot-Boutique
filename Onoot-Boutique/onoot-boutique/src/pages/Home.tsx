@@ -139,7 +139,7 @@ function HeroCarousel() {
   const slide = heroSlides[current];
 
   return (
-    <section className="relative overflow-hidden" style={{ minHeight: 480 }}>
+    <section className="relative overflow-hidden min-h-[420px] sm:min-h-[480px]">
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
           key={current}
@@ -152,32 +152,32 @@ function HeroCarousel() {
         />
       </AnimatePresence>
 
-      <div className="relative z-10 container mx-auto px-4 py-20 md:py-28 flex items-center">
-        <div className="flex-1 text-white max-w-2xl">
+      <div className="relative z-10 container mx-auto px-4 py-8 sm:py-14 md:py-24 flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-8 md:gap-12">
+        <div className="flex-1 text-white max-w-2xl text-center md:text-left">
           <AnimatePresence mode="wait">
             <motion.div
               key={`content-${current}`}
-              initial={{ y: 30, opacity: 0 }}
+              initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
             >
-              <span className={`inline-flex items-center py-1 px-3 rounded-full text-sm font-semibold tracking-wider uppercase mb-6 border ${slide.badgeColor}`}>
-                <slide.badgeIcon className="h-4 w-4 mr-1.5" />
+              <span className={`inline-flex items-center py-1 px-3 rounded-full text-xs sm:text-sm font-semibold tracking-wider uppercase mb-2.5 sm:mb-5 border ${slide.badgeColor}`}>
+                <slide.badgeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" />
                 {slide.badgeText}
               </span>
-              <h1 className="text-4xl md:text-6xl font-bold mb-4 leading-tight">
-                {slide.title} <br />
+              <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold mb-2.5 sm:mb-4 leading-tight">
+                {slide.title} <br className="hidden sm:inline" />
                 <span className={slide.highlightColor}>{slide.highlight}</span>
               </h1>
-              <p className="text-lg text-white/80 mb-8 max-w-lg">{slide.desc}</p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="w-full sm:w-auto bg-[#E87C2A] hover:bg-[#D06820] text-white font-semibold shadow-lg shadow-[#E87C2A]/30" asChild>
+              <p className="text-sm sm:text-base md:text-lg text-white/80 mb-4 sm:mb-7 max-w-lg mx-auto md:mx-0">{slide.desc}</p>
+              <div className="flex flex-row gap-2.5 sm:gap-4 justify-center md:justify-start">
+                <Button size="default" className="flex-1 sm:flex-none bg-[#E87C2A] hover:bg-[#D06820] text-white font-semibold shadow-lg shadow-[#E87C2A]/30 text-xs sm:text-sm md:text-base px-3 sm:px-6 py-2 sm:py-3" asChild>
                   <Link href={slide.ctaLink}>
-                    {slide.cta} <ArrowRight className="ml-2 h-5 w-5" />
+                    {slide.cta} <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" className="w-full sm:w-auto text-white border-white/40 hover:bg-white/10" asChild>
+                <Button size="default" variant="outline" className="flex-1 sm:flex-none text-white border-white/40 hover:bg-white/10 text-xs sm:text-sm md:text-base px-3 sm:px-6 py-2 sm:py-3" asChild>
                   <Link href={slide.cta2Link}>
                     {slide.cta2}
                   </Link>
@@ -194,9 +194,9 @@ function HeroCarousel() {
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
             exit={{ scale: 0.8, opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className={`hidden md:flex flex-1 items-center justify-center`}
+            className="flex flex-1 items-center justify-center my-2 md:my-0"
           >
-            <div className={`w-72 h-72 rounded-full ${slide.imageBg} flex items-center justify-center p-8 backdrop-blur-sm`}>
+            <div className={`w-36 h-36 sm:w-56 sm:h-56 md:w-80 md:h-80 rounded-full ${slide.imageBg} flex items-center justify-center p-4 sm:p-6 md:p-8 backdrop-blur-sm shadow-xl`}>
               <img src={slide.image} alt="" className="w-full h-full object-contain drop-shadow-2xl" />
             </div>
           </motion.div>
