@@ -5,7 +5,7 @@ services:
     runtime: node
     plan: free
     region: frankfurt
-    buildCommand: npx -y pnpm install && npx -y pnpm build:api
+    buildCommand: npx -y pnpm install --no-frozen-lockfile --config.confirmModulesPurge=false && npx -y pnpm build:api
     startCommand: node Onoot-Boutique/api-server/dist/index.mjs
     healthCheckPath: /api/health
     envVars:
