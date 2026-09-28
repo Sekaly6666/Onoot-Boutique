@@ -12,17 +12,15 @@ function getGoogleConfig(req?: any) {
   const clientId = process.env.GOOGLE_CLIENT_ID || "";
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
 
+  // Canonical backend URL for Google OAuth callback
   let apiBase = process.env.API_BASE_URL;
-  if (!apiBase && req) {
-    const proto = req.get("x-forwarded-proto") || req.protocol || "https";
-    const host = req.get("x-forwarded-host") || req.get("host") || "";
-    if (host && !host.includes("localhost") && !host.includes("127.0.0.1")) {
-      apiBase = `${proto}://${host}`;
-    }
-  }
-  if (!apiBase) {
+  if (!apiBase || apiBase.includes("localhost")) {
     if (process.env.NODE_ENV === "production" || process.env.RENDER) {
       apiBase = "https://onoot-boutique.onrender.com";
+    } else if (req) {
+      const proto = req.get("x-forwarded-proto") || req.protocol || "http";
+      const host = req.get("x-forwarded-host") || req.get("host") || `localhost:${process.env.PORT || 5005}`;
+      apiBase = `${proto}://${host}`;
     } else {
       apiBase = `http://localhost:${process.env.PORT || 5005}`;
     }
@@ -31,7 +29,7 @@ function getGoogleConfig(req?: any) {
   const redirectUri = `${apiBase.replace(/\/$/, "")}/api/auth/google/callback`;
   const boutiqueUrl =
     process.env.BOUTIQUE_URL ||
-    (process.env.NODE_ENV === "production"
+    (process.env.NODE_ENV === "production" || process.env.RENDER
       ? "https://onoot-boutique.vercel.app"
       : "http://localhost:5182");
 
@@ -277,9 +275,10 @@ router.get("/auth/google", (req, res): void => {
     return;
   }
 
-  // Preserve originating frontend URL if supplied
+  // Preserve originating frontend URL and source page if supplied
   const origin = (req.query.origin as string) || (req.query.returnUrl as string) || req.get("referer") || boutiqueUrl;
-  const stateData = JSON.stringify({ origin });
+  const from = (req.query.from as string) || (origin.includes("register") ? "register" : "login");
+  const stateData = JSON.stringify({ origin, from, redirectUri });
   const state = Buffer.from(stateData).toString("base64url");
 
   const params = new URLSearchParams({
@@ -297,35 +296,49 @@ router.get("/auth/google", (req, res): void => {
 
 /** Step 2: Google callback */
 router.get("/auth/google/callback", async (req, res): Promise<void> => {
-  const { code, state, error: oauthError } = req.query as Record<string, string>;
-  const { clientId, clientSecret, boutiqueUrl, redirectUri } = getGoogleConfig(req);
+  const { code, state, error: oauthError, error_description } = req.query as Record<string, string>;
+  const config = getGoogleConfig(req);
 
-  let returnOrigin = boutiqueUrl;
+  let returnOrigin = config.boutiqueUrl;
+  let fromPage = "login";
+  let step1RedirectUri = config.redirectUri;
+
   if (state) {
     try {
       const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
       if (decoded?.origin && typeof decoded.origin === "string") {
         returnOrigin = decoded.origin.replace(/\/$/, "");
       }
+      if (decoded?.from === "register") {
+        fromPage = "register";
+      }
+      if (decoded?.redirectUri) {
+        step1RedirectUri = decoded.redirectUri;
+      }
     } catch (e) {
       console.warn("[GOOGLE AUTH] Failed to parse state:", e);
     }
   }
 
+  const targetPath = fromPage === "register" ? "/auth/register" : "/auth/login";
+
   if (oauthError || !code) {
-    res.redirect(`${returnOrigin}/auth/login?error=google_cancelled`);
+    console.warn("[GOOGLE AUTH] OAuth rejected by user or Google:", oauthError, error_description);
+    res.redirect(`${returnOrigin}${targetPath}?error=google_cancelled`);
     return;
   }
 
   try {
-    // Exchange code for tokens
+    // Exchange code for tokens using EXACT redirect_uri from step 1
     const tokenBody = new URLSearchParams({
       code,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: redirectUri,
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      redirect_uri: step1RedirectUri,
       grant_type: "authorization_code",
     }).toString();
+
+    console.log("[GOOGLE AUTH] Exchanging code with redirect_uri:", step1RedirectUri);
 
     const tokenResponse = await httpsPost(
       "https://oauth2.googleapis.com/token",
@@ -334,7 +347,10 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     );
 
     if (!tokenResponse.access_token) {
-      throw new Error("No access token from Google");
+      console.error("[GOOGLE AUTH] Token exchange error response from Google:", JSON.stringify(tokenResponse));
+      const reason = tokenResponse.error_description || tokenResponse.error || "no_access_token";
+      res.redirect(`${returnOrigin}${targetPath}?error=google_failed&reason=${encodeURIComponent(reason)}`);
+      return;
     }
 
     // Get user info from Google
@@ -345,7 +361,9 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     const { id: googleId, email, name, picture, given_name, family_name } = googleUser;
 
     if (!email) {
-      throw new Error("Email not provided by Google");
+      console.error("[GOOGLE AUTH] Userinfo missing email:", JSON.stringify(googleUser));
+      res.redirect(`${returnOrigin}${targetPath}?error=google_failed&reason=${encodeURIComponent("email_manquant")}`);
+      return;
     }
 
     const now = new Date();
@@ -392,8 +410,8 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     // Redirect to boutique with token
     res.redirect(`${returnOrigin}/auth/callback?token=${token}`);
   } catch (err: any) {
-    console.error("[GOOGLE AUTH] Error:", err.message);
-    res.redirect(`${returnOrigin}/auth/login?error=google_failed`);
+    console.error("[GOOGLE AUTH] Exception:", err.message);
+    res.redirect(`${returnOrigin}${targetPath}?error=google_failed&reason=${encodeURIComponent(err.message || "erreur_serveur")}`);
   }
 });
 

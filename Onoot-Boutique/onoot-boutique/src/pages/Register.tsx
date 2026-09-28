@@ -47,10 +47,15 @@ export default function Register() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const error = params.get("error");
+    const reason = params.get("reason");
     if (error === "google_cancelled") {
       toast({ title: "Inscription annulée", description: "La connexion Google a été annulée.", variant: "destructive" });
     } else if (error === "google_failed") {
-      toast({ title: "Erreur Google", description: "Impossible de continuer avec Google. Réessayez.", variant: "destructive" });
+      toast({
+        title: "Erreur Google",
+        description: reason ? `Détail : ${reason}` : "Impossible de continuer avec Google. Réessayez.",
+        variant: "destructive"
+      });
     }
   }, []);
 
@@ -79,7 +84,7 @@ export default function Register() {
 
   const handleGoogleLogin = () => {
     setIsGoogleLoading(true);
-    window.location.href = `/api/auth/google?origin=${encodeURIComponent(window.location.origin)}`;
+    window.location.href = `/api/auth/google?origin=${encodeURIComponent(window.location.origin)}&from=register`;
   };
 
   return (

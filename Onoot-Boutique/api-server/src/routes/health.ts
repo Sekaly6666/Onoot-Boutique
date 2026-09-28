@@ -32,4 +32,32 @@ router.get(["/debug/db", "/api/debug/db"], async (_req, res) => {
   });
 });
 
+router.get(["/debug/google", "/api/debug/google"], (_req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID || "";
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+  const apiBase =
+    process.env.API_BASE_URL ||
+    (process.env.NODE_ENV === "production" || process.env.RENDER
+      ? "https://onoot-boutique.onrender.com"
+      : `http://localhost:${process.env.PORT || 5005}`);
+  const redirectUri = `${apiBase.replace(/\/$/, "")}/api/auth/google/callback`;
+  const boutiqueUrl =
+    process.env.BOUTIQUE_URL ||
+    (process.env.NODE_ENV === "production"
+      ? "https://onoot-boutique.vercel.app"
+      : "http://localhost:5182");
+
+  res.json({
+    googleClientIdConfigured: Boolean(clientId),
+    googleClientIdPrefix: clientId ? clientId.substring(0, 15) + "..." : null,
+    googleClientSecretConfigured: Boolean(clientSecret),
+    googleClientSecretPrefix: clientSecret ? clientSecret.substring(0, 8) + "..." : null,
+    apiBase,
+    redirectUri,
+    boutiqueUrl,
+    requiredGoogleConsoleRedirectUri: redirectUri,
+    tip: "Vérifiez que cette URL exacte est ajoutée dans Google Cloud Console > Identifiants OAuth > URI de redirection autorisés.",
+  });
+});
+
 export default router;
