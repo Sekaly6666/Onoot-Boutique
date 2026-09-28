@@ -159,7 +159,7 @@ export default function Register() {
                             {...field}
                             type="text"
                             className="appearance-none block w-full pl-9 sm:pl-10 pr-3 py-2 sm:py-2.5 border border-slate-200 dark:border-gray-700 rounded-xl shadow-sm bg-white dark:bg-gray-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-base sm:text-sm"
-                            placeholder="Votre nom et prenom(s)"
+                            placeholder="votre nom et prenom(s)"
                           />
                         </div>
                       </FormControl>

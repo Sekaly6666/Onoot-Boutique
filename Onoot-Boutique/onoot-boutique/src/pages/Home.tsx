@@ -83,7 +83,7 @@ const heroSlides = [
     image: "/images/smartwatch.png",
     imageBg: "bg-[#4BB5E8]/15",
     tagIcon: Star,
-    tagColor: "text-[#F5C430] fill-[#F5C430]",
+    tagColor: "text-[#F5C430]",
     tagText: "4.9/5 • Meilleure Vente",
   },
   {
@@ -103,7 +103,7 @@ const heroSlides = [
     image: "/images/earbuds.png",
     imageBg: "bg-white/10",
     tagIcon: Flame,
-    tagColor: "text-[#E87C2A] fill-[#E87C2A]",
+    tagColor: "text-[#E87C2A]",
     tagText: "-40% Remise Immédiate",
   },
   {
