@@ -1,0 +1,19 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="180" height="180" rx="38" fill="#FFFFFF"/>
+  <rect x="8" y="8" width="164" height="164" rx="34" fill="#FFF7ED"/>
+  <g transform="translate(24 34)">
+    <g transform="rotate(-14 38 78)">
+      <rect x="2" y="34" width="46" height="66" rx="8" fill="#4BB5E8"/>
+      <rect x="2" y="34" width="46" height="17" rx="4" fill="#3A9FD4"/>
+      <path d="M15 34C15 20 25 14 34 14C43 14 53 20 53 34" stroke="#1D3D6B" stroke-width="7" stroke-linecap="round" fill="none"/>
+    </g>
+    <rect x="42" y="20" width="50" height="82" rx="8" fill="#F5C430"/>
+    <rect x="42" y="20" width="50" height="20" rx="4" fill="#E0AF20"/>
+    <path d="M55 20C55 6 67 0 79 0C91 0 103 6 103 20" stroke="#1D3D6B" stroke-width="7" stroke-linecap="round" fill="none"/>
+    <g transform="rotate(14 96 74)">
+      <rect x="82" y="30" width="50" height="72" rx="8" fill="#E87C2A"/>
+      <rect x="82" y="30" width="50" height="19" rx="4" fill="#D06820"/>
+      <path d="M95 30C95 16 107 10 119 10C131 10 143 16 143 30" stroke="#1D3D6B" stroke-width="7" stroke-linecap="round" fill="none"/>
+    </g>
+  </g>
+</svg>

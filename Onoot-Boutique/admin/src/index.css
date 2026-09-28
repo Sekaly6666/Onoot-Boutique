@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-background: #F8FAFC; /* Slate 50 */
+    --color-foreground: #0F172A; /* Slate 900 */
+    --color-primary: #ea580c;    /* Orange 600 */
+    --color-primary-foreground: #FFFFFF;
+    --color-card: #FFFFFF;
+    --color-card-foreground: #0F172A;
+    --color-border: #E2E8F0;     /* Slate 200 */
+    --color-accent-blue: #2563EB; /* Blue 600 */
+    --color-accent-yellow: #EAB308; /* Yellow 500 */
+    --color-muted: #F1F5F9;
+    --color-muted-foreground: #64748B;
+    --font-sans: 'Inter', system-ui, sans-serif;
+  }
+
+  .dark {
+    --color-background: #0B0F19; /* Very dark blue/slate */
+    --color-foreground: #F8FAFC;
+    --color-primary: #f97316;    /* Orange 500 */
+    --color-primary-foreground: #FFFFFF;
+    --color-card: #111827;       /* Gray 900 */
+    --color-card-foreground: #F8FAFC;
+    --color-border: #1F2937;     /* Gray 800 */
+    --color-accent-blue: #3B82F6;
+    --color-accent-yellow: #FBBF24;
+    --color-muted: #1E293B;
+    --color-muted-foreground: #94A3B8;
+  }
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Scrollbar for a cleaner look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

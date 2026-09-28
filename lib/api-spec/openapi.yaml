@@ -178,7 +178,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string }
       responses:
         "200":
           description: Product
@@ -196,7 +196,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -218,7 +218,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string }
       responses:
         "204":
           description: Deleted
@@ -303,7 +303,7 @@ paths:
         - name: productId
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -325,7 +325,7 @@ paths:
         - name: productId
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -349,7 +349,7 @@ paths:
       parameters:
         - name: userId
           in: query
-          schema: { type: integer }
+          schema: { type: string }
         - name: status
           in: query
           schema: { type: string }
@@ -393,7 +393,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string }
       responses:
         "200":
           description: Order
@@ -409,7 +409,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -496,7 +496,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string }
       responses:
         "200":
           description: User
@@ -512,7 +512,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -537,7 +537,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string }
       responses:
         "200":
           description: Reviews
@@ -555,7 +555,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -636,7 +636,7 @@ components:
       type: object
       required: [id, name, slug, price, category, stock, images, rating, reviewCount, createdAt]
       properties:
-        id: { type: integer }
+        id: { type: string }
         name: { type: string }
         slug: { type: string }
         description: { type: ["string", "null"] }
@@ -707,7 +707,7 @@ components:
       type: object
       required: [id, name, slug]
       properties:
-        id: { type: integer }
+        id: { type: string }
         name: { type: string }
         slug: { type: string }
         description: { type: ["string", "null"] }
@@ -728,7 +728,7 @@ components:
       type: object
       required: [productId, quantity, price, product]
       properties:
-        productId: { type: integer }
+        productId: { type: string }
         quantity: { type: integer }
         price: { type: number }
         product: { $ref: "#/components/schemas/Product" }
@@ -749,7 +749,7 @@ components:
       required: [sessionId, productId, quantity]
       properties:
         sessionId: { type: string }
-        productId: { type: integer }
+        productId: { type: string }
         quantity: { type: integer }
         color: { type: string }
 
@@ -771,7 +771,7 @@ components:
       type: object
       required: [productId, quantity, price, productName]
       properties:
-        productId: { type: integer }
+        productId: { type: string }
         quantity: { type: integer }
         price: { type: number }
         productName: { type: string }
@@ -781,8 +781,8 @@ components:
       type: object
       required: [id, userId, items, totalAmount, paymentMethod, orderStatus, shippingAddress, createdAt]
       properties:
-        id: { type: integer }
-        userId: { type: integer }
+        id: { type: string }
+        userId: { type: string }
         items:
           type: array
           items: { $ref: "#/components/schemas/OrderItem" }
@@ -821,7 +821,7 @@ components:
       type: object
       required: [items, paymentMethod, shippingAddress]
       properties:
-        userId: { type: ["integer", "null"] }
+        userId: { type: ["string", "null"] }
         sessionId: { type: ["string", "null"] }
         items:
           type: array
@@ -843,7 +843,7 @@ components:
       type: object
       required: [id, email, name, role, createdAt]
       properties:
-        id: { type: integer }
+        id: { type: string }
         email: { type: string }
         name: { type: string }
         role: { type: string }
@@ -904,9 +904,9 @@ components:
       type: object
       required: [id, productId, rating, comment, userName, createdAt]
       properties:
-        id: { type: integer }
-        productId: { type: integer }
-        userId: { type: ["integer", "null"] }
+        id: { type: string }
+        productId: { type: string }
+        userId: { type: ["string", "null"] }
         userName: { type: string }
         rating: { type: integer }
         comment: { type: string }
@@ -916,7 +916,7 @@ components:
       type: object
       required: [rating, comment, userName]
       properties:
-        userId: { type: integer }
+        userId: { type: string }
         userName: { type: string }
         rating: { type: integer }
         comment: { type: string }

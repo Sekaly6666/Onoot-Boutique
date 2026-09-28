@@ -62,8 +62,8 @@ A premium tech e-commerce platform specializing in phone accessories — cases, 
 
 ## Admin credentials
 
-- Email: `admin@onoot.com`
-- Password: `admin123` (SHA-256 hashed)
+- Email: `adminboutique@onoot.com`
+- Password: `admin1234` (SHA-256 hashed)
 
 ## User preferences
 

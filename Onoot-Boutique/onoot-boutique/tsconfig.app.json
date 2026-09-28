@@ -1,0 +1,47 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "build",
+        "dist",
+        "**/*.test.ts"
+    ],
+    "compilerOptions": {
+        "incremental": true,
+        "tsBuildInfoFile": ".tsbuildinfo",
+        "noEmit": true,
+        "jsx": "react-jsx",
+        "skipLibCheck": true,
+        "lib": [
+            "esnext",
+            "dom",
+            "dom.iterable"
+        ],
+        "resolveJsonModule": true,
+        "allowImportingTsExtensions": true,
+        "strict": true,
+        "allowJs": true,
+        "moduleResolution": "bundler",
+        "types": [
+            "node",
+            "vite/client"
+        ],
+        "paths": {
+            "@/*": [
+                "./src/*"
+            ],
+            "react": [
+                "./node_modules/@types/react"
+            ],
+            "react-dom": [
+                "./node_modules/@types/react-dom"
+            ],
+            "react/jsx-runtime": [
+                "./node_modules/@types/react/jsx-runtime"
+            ]
+        }
+    }
+}
