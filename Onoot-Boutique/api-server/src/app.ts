@@ -4,6 +4,8 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import uploadRouter from "./routes/upload";
 import { logger } from "./lib/logger";
+import { connectDB } from "./lib/mongoose";
+import mongoose from "mongoose";
 import path from "path";
 import fs from "fs";
 
@@ -49,6 +51,17 @@ app.use('/uploads', express.static(uploadsDir, {
 
 app.get(["/", "/health", "/healthz", "/api/health"], (_req, res) => {
   res.json({ status: "ok", service: "onoot-boutique-api", timestamp: new Date().toISOString() });
+});
+
+app.use("/api", async (_req, _res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await connectDB();
+    } catch {
+      // Handled by route handlers
+    }
+  }
+  next();
 });
 
 app.use("/api", uploadRouter);
