@@ -9,6 +9,10 @@ services:
     startCommand: pnpm start:api
     healthCheckPath: /api/health
     envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
       - key: NODE_ENV
         value: production
       - key: PORT

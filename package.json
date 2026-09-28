@@ -1,7 +1,10 @@
 {
   "name": "workspace",
   "version": "0.0.0",
-  "license": "MIT",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "pnpm exec concurrently \"pnpm --filter @workspace/admin dev\" \"pnpm --filter @workspace/api-server dev\" \"pnpm --filter @workspace/onoot-boutique dev\"",
     "build:api": "pnpm --filter @workspace/api-server build",
