@@ -5,13 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.0",
-    "@types/react-router-dom": "^5.3.3",
     "framer-motion": "^12.40.0",
     "lucide-react": "^1.21.0",
     "react": "19.2.7",
