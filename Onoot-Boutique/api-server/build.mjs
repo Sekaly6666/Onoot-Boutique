@@ -113,6 +113,19 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  // Mirror dist to nested Onoot-Boutique/api-server/dist so Render starts regardless of Root Directory
+  try {
+    const fs = await import("node:fs/promises");
+    const nestedDist = path.resolve(artifactDir, "Onoot-Boutique", "api-server", "dist");
+    await fs.mkdir(path.dirname(nestedDist), { recursive: true });
+    await fs.cp(distDir, nestedDist, { recursive: true });
+
+    const rootDist = path.resolve(artifactDir, "..", "..", "dist");
+    await fs.cp(distDir, rootDist, { recursive: true });
+  } catch (copyErr) {
+    console.warn("Notice: could not mirror nested dist:", copyErr?.message);
+  }
 }
 
 buildAll().catch((err) => {
