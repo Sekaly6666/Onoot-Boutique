@@ -146,6 +146,8 @@ function HeroCarousel() {
   };
 
   const slide = heroSlides[current];
+  const BadgeIcon = slide.badgeIcon;
+  const TagIcon = slide.tagIcon;
 
   return (
     <section className="relative overflow-hidden min-h-[580px] sm:min-h-[540px] md:min-h-[620px] lg:min-h-[660px] flex items-center">
@@ -182,7 +184,7 @@ function HeroCarousel() {
             >
               {/* Badge */}
               <span className={`inline-flex items-center py-1.5 px-3.5 rounded-full text-xs sm:text-sm font-bold tracking-wider uppercase mb-3 sm:mb-5 border backdrop-blur-md shadow-sm ${slide.badgeColor}`}>
-                <slide.badgeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
+                <BadgeIcon className="h-4 w-4 mr-2 flex-shrink-0" />
                 {slide.badgeText}
               </span>
 
@@ -243,7 +245,7 @@ function HeroCarousel() {
 
                 {/* Floating mini badge for luxury trust */}
                 <div className="absolute -bottom-2 sm:bottom-4 -right-1 sm:right-2 bg-slate-900/85 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-xl text-[11px] sm:text-xs text-white font-medium select-none pointer-events-none">
-                  <slide.tagIcon className={`w-3.5 h-3.5 ${slide.tagColor} flex-shrink-0`} />
+                  <TagIcon className={`w-3.5 h-3.5 ${slide.tagColor} flex-shrink-0`} />
                   <span>{slide.tagText}</span>
                 </div>
               </div>
