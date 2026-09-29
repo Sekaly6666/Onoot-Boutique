@@ -151,11 +151,114 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     return;
   }
   const { email, password, name, phone } = parsed.data;
-  console.log("[REGISTER] données valides, email:", email);
+  console.log("[REGISTER] données reçues, email:", email);
+
+  // 1. Champ libre / vide interdit
+  if (!name || typeof name !== "string" || name.trim() === "") {
+    res.status(400).json({ error: "Le nom et prénom sont obligatoires et ne peuvent être vides." });
+    return;
+  }
+  if (!email || typeof email !== "string" || email.trim() === "") {
+    res.status(400).json({ error: "L'adresse email est obligatoire et ne peut être vide." });
+    return;
+  }
+  if (!password || typeof password !== "string" || password.trim() === "") {
+    res.status(400).json({ error: "Le mot de passe est obligatoire et ne peut être vide." });
+    return;
+  }
+
+  // 2. Validation Email:
+  // - Majuscules strictement interdites (ex: Sekou@gmail.com est refusé)
+  if (/[A-Z]/.test(email)) {
+    res.status(400).json({
+      error: "L'adresse email ne doit pas contenir de majuscules. Veuillez l'écrire entièrement en minuscules (ex: sekou@gmail.com).",
+    });
+    return;
+  }
+  // - Espaces strictement interdits dans l'email
+  if (/\s/.test(email)) {
+    res.status(400).json({
+      error: "L'adresse email ne doit contenir aucun espace.",
+    });
+    return;
+  }
+  // - Format d'email standard
+  const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
+  if (!emailRegex.test(email)) {
+    res.status(400).json({
+      error: "Le format de l'adresse email est invalide.",
+    });
+    return;
+  }
+
+  // 3. Validation Nom & Prénom:
+  // - Espace uniquement entre Nom et Prénom (pas d'espaces au début ou à la fin, pas de centrage)
+  if (name.startsWith(" ") || name.endsWith(" ")) {
+    res.status(400).json({
+      error: "Le nom et prénom ne doivent pas comporter d'espaces au début ou à la fin (aucun texte centré par des espaces).",
+    });
+    return;
+  }
+  // - Pas d'espaces consécutifs multiples
+  if (/\s{2,}/.test(name)) {
+    res.status(400).json({
+      error: "Un seul espace est autorisé pour séparer le nom et le prénom.",
+    });
+    return;
+  }
+  // - Au moins 2 mots (Nom ET Prénom)
+  const nameParts = name.split(" ");
+  if (nameParts.length < 2 || nameParts.some((part) => part.length < 2)) {
+    res.status(400).json({
+      error: "Veuillez renseigner votre nom et prénom complets séparés par un seul espace (ex: Sekou Amara).",
+    });
+    return;
+  }
+  // - Uniquement lettres, accents et tirets
+  const nameCharsRegex = /^[a-zA-ZÀ-ÿ]+(?:[-'][a-zA-ZÀ-ÿ]+)?(?:\s[a-zA-ZÀ-ÿ]+(?:[-'][a-zA-ZÀ-ÿ]+)?)+$/;
+  if (!nameCharsRegex.test(name)) {
+    res.status(400).json({
+      error: "Le nom et prénom ne doivent contenir que des lettres, accents et tirets.",
+    });
+    return;
+  }
+
+  // 4. Validation Mot de passe:
+  // - Aucun espace autorisé
+  if (/\s/.test(password)) {
+    res.status(400).json({
+      error: "Le mot de passe ne doit contenir aucun espace.",
+    });
+    return;
+  }
+  // - Au moins 8 caractères pour sécurité renforcée
+  if (password.length < 8) {
+    res.status(400).json({
+      error: "Le mot de passe doit contenir au moins 8 caractères pour assurer la sécurité de votre compte.",
+    });
+    return;
+  }
+  // - Au moins 1 lettre et 1 chiffre (les caractères spéciaux sont les bienvenus)
+  if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+    res.status(400).json({
+      error: "Le mot de passe doit comporter au moins une lettre et un chiffre (les caractères spéciaux sont autorisés).",
+    });
+    return;
+  }
+
+  // 5. Validation Téléphone (si fourni)
+  if (phone && phone.trim() !== "") {
+    if (/[a-zA-Z]/.test(phone)) {
+      res.status(400).json({
+        error: "Le numéro de téléphone ne doit contenir que des chiffres et un éventuel indicatif (+).",
+      });
+      return;
+    }
+  }
 
   const existing = await User.findOne({ email }).exec();
   if (existing) {
-    res.status(400).json({ error: "Un compte existe peut‑être déjà avec cet email." });
+    res.status(400).json({ error: "Un compte existe déjà avec cette adresse email." });
     return;
   }
 
