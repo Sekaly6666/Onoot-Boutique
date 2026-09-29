@@ -2,9 +2,12 @@ import nodemailer from 'nodemailer';
 import { logger } from './logger';
 
 // ─── Configuration Transporter ───────────────────────────────────────────────
-export function createTransporter() {
+export function createTransporter(forcedPort?: number) {
   const host = process.env.SMTP_HOST || 'smtp-relay.brevo.com';
-  const port = Number(process.env.SMTP_PORT) || 587;
+  // Cloud providers (Render, AWS) block port 587. Port 465 (SSL) is open and reliable.
+  const envPort = Number(process.env.SMTP_PORT);
+  const port = forcedPort || (envPort && envPort !== 587 ? envPort : 465);
+  const isSecure = port === 465;
   const user = (process.env.SMTP_USER || '').trim();
   const pass = (process.env.SMTP_PASS || '').trim();
 
@@ -12,11 +15,11 @@ export function createTransporter() {
     return nodemailer.createTransport({
       host,
       port,
-      secure: port === 465,
+      secure: isSecure,
       auth: { user, pass },
-      connectionTimeout: 8000,
-      greetingTimeout: 8000,
-      socketTimeout: 15000,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
     });
   }
 
@@ -31,7 +34,39 @@ export function createTransporter() {
   } as any;
 }
 
-const getFromAddress = () => {
+export async function sendMailWithFallback(mailOptions: nodemailer.SendMailOptions): Promise<any> {
+  const user = (process.env.SMTP_USER || '').trim();
+  const pass = (process.env.SMTP_PASS || '').trim();
+
+  if (!user || !pass) {
+    logger.warn('SMTP_USER or SMTP_PASS is missing. Email simulation mode active.');
+    return { messageId: 'simulated-' + Date.now() };
+  }
+
+  // 1st attempt: Port 465 (Direct SSL)
+  try {
+    const transporter465 = createTransporter(465);
+    const info = await transporter465.sendMail(mailOptions);
+    logger.info({ to: mailOptions.to, port: 465, messageId: info.messageId }, 'Email sent successfully via port 465');
+    return info;
+  } catch (err465: any) {
+    logger.warn({ err: err465.message }, 'Failed sending via port 465, attempting port 2525 fallback...');
+    // 2nd attempt: Port 2525 (Alternative STARTTLS)
+    try {
+      const transporter2525 = createTransporter(2525);
+      const info = await transporter2525.sendMail(mailOptions);
+      logger.info({ to: mailOptions.to, port: 2525, messageId: info.messageId }, 'Email sent successfully via port 2525');
+      return info;
+    } catch (err2525: any) {
+      logger.warn({ err: err2525.message }, 'Failed sending via port 2525, attempting port 587 as last resort...');
+      // 3rd attempt: Port 587
+      const transporter587 = createTransporter(587);
+      return await transporter587.sendMail(mailOptions);
+    }
+  }
+}
+
+export const getFromAddress = () => {
   const from = (process.env.SMTP_FROM || '').trim();
   if (from.includes('<') && from.includes('>') && from.includes('@')) return from;
   const cleanEmail =
@@ -279,7 +314,7 @@ export async function sendLoginNotification(
   const html = wrapInTicket(body, 'Connexion réussie sur votre compte Onoot Boutique');
 
   try {
-    await transporter.sendMail({ from: getFromAddress(), to: toEmail, subject: 'Connexion réussie – Onoot Boutique', html });
+    await sendMailWithFallback({ from: getFromAddress(), to: toEmail, subject: 'Connexion réussie – Onoot Boutique', html });
     logger.info({ to: toEmail }, 'Login notification email sent');
   } catch (err: any) {
     logger.error({ err: err.message, to: toEmail }, 'Failed to send login notification email');
@@ -363,7 +398,7 @@ export async function sendOrderConfirmation(order: any, customerEmail: string): 
 
   const html = wrapInTicket(body, `Confirmation de votre commande #${orderIdShort}`);
   try {
-    await transporter.sendMail({ from: getFromAddress(), to: customerEmail, subject: `✅ Commande #ORD-${orderIdShort} confirmée – Onoot Boutique`, html });
+    await sendMailWithFallback({ from: getFromAddress(), to: customerEmail, subject: `✅ Commande #ORD-${orderIdShort} confirmée – Onoot Boutique`, html });
     logger.info({ to: customerEmail, orderId: order._id }, 'Order confirmation email sent');
   } catch (err: any) {
     logger.error({ err: err.message, to: customerEmail }, 'Failed to send order confirmation email');
@@ -457,7 +492,7 @@ export async function sendShopNewOrderNotification(order: any, shopEmail: string
 
   const html = wrapInTicket(body, `[Boutique] Nouvelle commande #${orderIdShort} (${totalFormatted} FCFA)`);
   try {
-    await transporter.sendMail({
+    await sendMailWithFallback({
       from: getFromAddress(),
       to: shopEmail,
       subject: `[Nouvelle commande] Client #ORD-${orderIdShort} (${totalFormatted} FCFA) – Onoot Boutique`,
@@ -544,7 +579,7 @@ export async function sendOrderStatusUpdate(
 
   const html = wrapInTicket(body, `Mise à jour de votre commande #${orderIdShort} : ${s.label}`);
   try {
-    await transporter.sendMail({ from: getFromAddress(), to: customerEmail, subject: `${s.label} — Commande #ORD-${orderIdShort} · Onoot Boutique`, html });
+    await sendMailWithFallback({ from: getFromAddress(), to: customerEmail, subject: `${s.label} — Commande #ORD-${orderIdShort} · Onoot Boutique`, html });
     logger.info({ to: customerEmail, status: newStatus }, 'Order status update email sent');
   } catch (err: any) {
     logger.error({ err: err.message, to: customerEmail }, 'Failed to send order status update email');
@@ -641,7 +676,7 @@ export async function sendShopOrderCancelledNotification(
 
   const html = wrapInTicket(body, `[Commande Annulée] Client #${orderIdShort} (${totalFormatted} FCFA) - Motif : ${reasonText}`);
   try {
-    await transporter.sendMail({
+    await sendMailWithFallback({
       from: getFromAddress(),
       to: shopEmail,
       subject: `[Commande Annulée] Client #ORD-${orderIdShort} (${totalFormatted} FCFA) – Onoot Boutique`,

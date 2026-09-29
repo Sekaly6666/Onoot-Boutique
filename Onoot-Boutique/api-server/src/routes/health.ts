@@ -5,7 +5,7 @@ const router: IRouter = Router();
 
 import mongoose from "mongoose";
 import { getCleanMongoUri } from "../lib/mongoose";
-import { createTransporter } from "../lib/email";
+import { createTransporter, sendMailWithFallback } from "../lib/email";
 
 router.get(["/healthz", "/api/health", "/health"], (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
@@ -92,8 +92,7 @@ router.get(["/debug/email", "/api/debug/email"], async (_req, res) => {
 router.get(["/debug/test-send", "/api/debug/test-send"], async (req, res) => {
   const to = (req.query.to as string) || "onootboutique@gmail.com";
   try {
-    const transporter = createTransporter();
-    const info = await transporter.sendMail({
+    const info = await sendMailWithFallback({
       from: '"Onoot Boutique" <onootboutique@gmail.com>',
       to,
       subject: "Test Diagnostic Direct Render - Onoot Boutique",
