@@ -5,7 +5,14 @@ import { User } from "../models/User";
 import { AdminNotification } from "../models/AdminNotification";
 import crypto from "crypto";
 import https from "https";
-import { sendLoginNotification, sendShopNewUserRegisteredNotification, sendPasswordResetEmail, getBoutiqueUrl, SHOP_EMAIL } from "../lib/email";
+import {
+  sendLoginNotification,
+  sendShopNewUserRegisteredNotification,
+  sendPasswordResetEmail,
+  sendShopPasswordResetNotification,
+  getBoutiqueUrl,
+  SHOP_EMAIL,
+} from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -616,6 +623,23 @@ router.post("/auth/reset-password", async (req, res) => {
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
+
+    // 1. Notification par email professionnel pour la boutique (onootboutique@gmail.com)
+    sendShopPasswordResetNotification(user, SHOP_EMAIL).catch((err) =>
+      console.error("Shop password reset email error:", err)
+    );
+
+    // 2. Notification dans l'espace administration (Admin Dashboard)
+    try {
+      const notif = new AdminNotification({
+        type: "user",
+        title: "Mot de passe client réinitialisé",
+        desc: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() + ` (${user.email}) a réinitialisé son mot de passe avec succès.`,
+      });
+      await notif.save();
+    } catch (err) {
+      console.error("Failed to create admin notification for password reset:", err);
+    }
 
     res.json({
       success: true,

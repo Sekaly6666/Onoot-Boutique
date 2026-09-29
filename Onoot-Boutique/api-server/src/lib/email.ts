@@ -824,5 +824,69 @@ export async function sendPasswordResetEmail(
   }
 }
 
+// ─── 7. Notification pour la boutique lors d'une réinitialisation de mot de passe client ───
+export async function sendShopPasswordResetNotification(
+  user: any,
+  shopEmail: string = SHOP_EMAIL
+): Promise<void> {
+  if (!shopEmail) return;
+
+  const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.name || 'Client';
+  const email = user.email || 'Non renseigné';
+  const dateFormatted = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const body = `
+    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;font-weight:700;color:${C.orange};text-transform:uppercase;letter-spacing:2px;margin:0 0 8px;text-align:center;">Alerte Sécurité Boutique</p>
+    <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:24px;font-weight:900;color:${C.dark};margin:0 0 6px;text-align:center;">Mot de passe client réinitialisé</h1>
+    <p style="text-align:center;margin:0 0 20px;">
+      <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.muted};">
+        ${icon.calendar}${dateFormatted}
+      </span>
+    </p>
+
+    <!-- Badge alerte réinitialisation -->
+    <div style="text-align:center;margin-bottom:24px;">
+      <span style="display:inline-block;background-color:#FEF3C7;color:#B45309;border:1px solid #FDE68A;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:700;padding:6px 16px;border-radius:9999px;">
+        ${icon.key}&nbsp;Procédure de récupération terminée avec succès
+      </span>
+    </div>
+
+    ${DIVIDER}
+
+    ${sectionTitle(icon.user, 'Compte client concerné')}
+    <div style="background-color:${C.card};border:1px solid ${C.border};border-radius:12px;padding:16px 18px;margin-bottom:22px;">
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px;font-weight:800;color:${C.dark};margin:0 0 8px;">${fullName}</p>
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.body};margin:0 0 6px;">${icon.mail}<strong>Email :</strong> <a href="mailto:${email}" style="color:${C.blueDark};text-decoration:none;font-weight:600;">${email}</a></p>
+      ${user.phone ? `<p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.body};margin:0 0 6px;">${icon.phone}<strong>Téléphone :</strong> <a href="tel:${user.phone}" style="color:${C.dark};text-decoration:none;font-weight:600;">${user.phone}</a></p>` : ''}
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.muted};margin:0;">${icon.shield}<strong>Action :</strong> Mot de passe réinitialisé via le lien sécurisé envoyé par email.</p>
+    </div>
+
+    ${DIVIDER}
+
+    ${ctaButton('Consulter le compte dans l\'espace Admin', `${getAdminUrl()}/users`)}`;
+
+  const html = wrapInTicket(body, `[Sécurité] Réinitialisation de mot de passe par ${fullName} (${email})`);
+
+  try {
+    await sendMailWithFallback({
+      from: getFromAddress(),
+      to: shopEmail,
+      subject: `[Sécurité] Mot de passe réinitialisé – ${fullName} (${email})`,
+      html,
+    });
+    logger.info({ to: shopEmail, userEmail: email }, 'Shop password reset notification email sent');
+  } catch (err: any) {
+    logger.error({ err: err.message, to: shopEmail }, 'Failed to send shop password reset notification email');
+  }
+}
+
+
 
 

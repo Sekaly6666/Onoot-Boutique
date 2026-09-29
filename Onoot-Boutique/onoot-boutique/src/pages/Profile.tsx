@@ -74,8 +74,6 @@ export default function Profile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSavedSuccessfully, setIsSavedSuccessfully] = useState(false);
-  const [showClientId, setShowClientId] = useState(false);
-  const [copiedId, setCopiedId] = useState(false);
 
   const updateUser = useUpdateUser();
 
@@ -752,38 +750,7 @@ export default function Profile() {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div>
-                    <h4 className="text-sm font-semibold text-foreground">Identifiant Unique Client</h4>
-                    <div className="flex items-center gap-2 mt-1">
-                      <p className="text-xs text-muted-foreground font-mono bg-muted/60 px-2.5 py-1 rounded-md border border-border/50">
-                        {showClientId ? user.id : "••••••••••••••••••••••••"}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setShowClientId(!showClientId)}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        title={showClientId ? "Masquer l'identifiant" : "Afficher l'identifiant"}
-                      >
-                        {showClientId ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                      </button>
-                      {showClientId && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(user.id);
-                            setCopiedId(true);
-                            setTimeout(() => setCopiedId(false), 2000);
-                          }}
-                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                          title="Copier l'identifiant"
-                        >
-                          {copiedId ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
+                <div className="pt-4 border-t border-border/60 flex items-center justify-end">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" className="text-destructive hover:bg-destructive/10 rounded-xl gap-2">
