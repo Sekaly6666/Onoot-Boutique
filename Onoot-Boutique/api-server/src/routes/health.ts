@@ -89,4 +89,31 @@ router.get(["/debug/email", "/api/debug/email"], async (_req, res) => {
   });
 });
 
+router.get(["/debug/test-send", "/api/debug/test-send"], async (req, res) => {
+  const to = (req.query.to as string) || "onootboutique@gmail.com";
+  try {
+    const transporter = createTransporter();
+    const info = await transporter.sendMail({
+      from: '"Onoot Boutique" <onootboutique@gmail.com>',
+      to,
+      subject: "Test Diagnostic Direct Render - Onoot Boutique",
+      text: "Ceci est un test de diagnostic envoyé directement depuis le serveur Render.",
+    });
+    res.json({
+      success: true,
+      messageId: info.messageId,
+      response: info.response,
+      accepted: info.accepted,
+      rejected: info.rejected,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+      code: err.code,
+      command: err.command,
+    });
+  }
+});
+
 export default router;
