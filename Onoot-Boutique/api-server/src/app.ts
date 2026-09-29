@@ -173,12 +173,12 @@ app.use("/api", async (_req, _res, next) => {
 app.use("/api", uploadRouter);
 app.use("/api", router);
 
-// ─── 9. Global Error Handler (Hides Internal Details) ───
+// ─── 9. Global Error Handler ───
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error({ err }, "Unhandled application error");
-  const message = err.message || "Erreur interne du serveur";
-  const status = err.status || 500;
-  res.status(status).json({ error: status === 500 ? "Une erreur inattendue est survenue." : message });
+  const message = err?.message || "Erreur interne du serveur";
+  const status = err?.status || 500;
+  res.status(status).json({ error: message, code: err?.code || err?.name });
 });
 
 export default app;
