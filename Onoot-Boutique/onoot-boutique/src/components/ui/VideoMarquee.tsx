@@ -77,25 +77,27 @@ export function VideoMarquee() {
               ? Math.round((1 - item.discountPrice / item.price) * 100)
               : null;
 
+          const targetUrl = item.productLink && item.productLink !== "/products" 
+            ? item.productLink 
+            : (item.productId ? `/products/${item.productId}` : "/products");
+
+          const thumb = item.thumbnailUrl || "/images/smartwatch.png";
+
           return (
             <Link
               key={item._id}
-              href={item.productLink || "/products"}
-              className="group/card flex items-center gap-3.5 bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 hover:border-orange-500/40 p-2 pr-4 rounded-2xl backdrop-blur-md transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/10 cursor-pointer text-white"
+              href={targetUrl}
+              className="group/card flex items-center gap-3.5 bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 hover:border-orange-500/50 p-2 pr-4 rounded-2xl backdrop-blur-md transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/10 cursor-pointer text-white"
             >
-              {/* Mini Video Box */}
-              <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-black flex-shrink-0 border border-white/15 group-hover/card:border-orange-500/60 transition-colors shadow-sm">
-                <video
-                  src={item.videoUrl}
-                  poster={item.thumbnailUrl}
-                  muted
-                  loop
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500"
+              {/* Mini Video / Product Box */}
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-white/15 group-hover/card:border-orange-500 transition-colors shadow-sm p-1">
+                <img
+                  src={thumb}
+                  alt={item.title}
+                  className="w-full h-full object-contain group-hover/card:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute inset-0 bg-black/15 group-hover/card:bg-transparent transition-colors flex items-center justify-center">
-                  <div className="w-5 h-5 rounded-full bg-black/50 backdrop-blur-xs flex items-center justify-center text-white/90 group-hover/card:scale-110 group-hover/card:bg-orange-500 transition-all">
+                <div className="absolute inset-0 bg-black/20 group-hover/card:bg-transparent transition-colors flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full bg-black/60 backdrop-blur-xs flex items-center justify-center text-white/90 group-hover/card:scale-110 group-hover/card:bg-orange-500 transition-all shadow-md">
                     <Play className="w-2.5 h-2.5 ml-0.5 fill-current" />
                   </div>
                 </div>
@@ -106,7 +108,7 @@ export function VideoMarquee() {
                 {/* Badge */}
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full tracking-wider shadow-xs flex items-center gap-1">
-                    <Flame className="w-2.5 h-2.5 text-white" />
+                    <Flame className="w-2.5 h-2.5 text-white fill-white" />
                     <span>{cleanBadgeText(item.badge)}</span>
                   </span>
                   {discountPercent && (
@@ -123,7 +125,7 @@ export function VideoMarquee() {
 
                 {/* Subtitle / Product name */}
                 <p className="text-[11px] text-gray-400 truncate">
-                  {item.productName || item.subtitle || "Voir l'offre"}
+                  {item.productName || item.subtitle || "Voir le produit"}
                 </p>
 
                 {/* Pricing & CTA */}

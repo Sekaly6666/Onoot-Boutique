@@ -5,67 +5,88 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-// Seed initial demo promo videos if database is empty
+import mongoose from "mongoose";
+import { Product } from "../models/Product";
+
+// Seed initial demo promo videos and update broken mixkit URLs
 async function seedDemoPromoVideosIfEmpty() {
   try {
+    // Find matching real products from DB to create perfect direct links
+    const smartwatch = await Product.findOne({ name: new RegExp("Smartwatch", "i") });
+    const earbuds = await Product.findOne({ name: new RegExp("Écouteurs", "i") });
+    const powerbank = await Product.findOne({ name: new RegExp("Batterie", "i") });
+
+    const demoVideos = [
+      {
+        title: "Smartwatch Ultra Pro Séries",
+        subtitle: "Écran AMOLED HD & Autonomie 7 jours",
+        description: "La montre intelligente ultime pour vos activités sportives et professionnelles avec capteur cardiaque précis.",
+        videoUrl: "https://vjs.zencdn.net/v/oceans.mp4",
+        thumbnailUrl: "/images/smartwatch.png",
+        productLink: smartwatch ? `/products/${smartwatch._id}` : "/products",
+        productId: smartwatch ? smartwatch._id.toString() : undefined,
+        productName: smartwatch ? smartwatch.name : "Smartwatch Pro S8",
+        price: 45000,
+        discountPrice: 38000,
+        badge: "FLASH SALE -15%",
+        placement: "all",
+        isActive: true,
+        order: 1,
+        viewsCount: 1420,
+      },
+      {
+        title: "Écouteurs Sans Fil Bass Boost",
+        subtitle: "Réduction active de bruit & Son immersif",
+        description: "Plongez dans votre musique sans interruption avec la technologie ANC de pointe et basses profondes.",
+        videoUrl: "https://res.cloudinary.com/demo/video/upload/sea_turtle.mp4",
+        thumbnailUrl: "/images/earbuds.png",
+        productLink: earbuds ? `/products/${earbuds._id}` : "/products",
+        productId: earbuds ? earbuds._id.toString() : undefined,
+        productName: earbuds ? earbuds.name : "Écouteurs Bluetooth Pro ANC",
+        price: 25000,
+        discountPrice: 19000,
+        badge: "NOUVELLE SORTIE",
+        placement: "all",
+        isActive: true,
+        order: 2,
+        viewsCount: 980,
+      },
+      {
+        title: "Batterie Solaire & Rapide 20000mAh",
+        subtitle: "Ne soyez plus jamais à court d'énergie",
+        description: "Charge ultra rapide 65W compatible iPhone, Samsung et tous smartphones Android.",
+        videoUrl: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
+        thumbnailUrl: "/images/powerbank.png",
+        productLink: powerbank ? `/products/${powerbank._id}` : "/products",
+        productId: powerbank ? powerbank._id.toString() : undefined,
+        productName: powerbank ? powerbank.name : "Batterie Externe 20000mAh Ultra",
+        price: 22000,
+        discountPrice: 18500,
+        badge: "COUP DE CŒUR",
+        placement: "all",
+        isActive: true,
+        order: 3,
+        viewsCount: 2350,
+      }
+    ];
+
     const count = await PromoVideo.countDocuments();
     if (count === 0) {
-      const demoVideos = [
-        {
-          title: "Smartwatch Ultra Pro Séries",
-          subtitle: "Écran AMOLED HD & Autonomie 7 jours",
-          description: "La montre intelligente ultime pour vos activités sportives et professionnelles avec capteur cardiaque précis.",
-          videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-close-up-of-a-smartwatch-touchscreen-40742-large.mp4",
-          thumbnailUrl: "/images/smartwatch.png",
-          productLink: "/products",
-          productName: "Smartwatch Pro S8",
-          price: 45000,
-          discountPrice: 38000,
-          badge: "FLASH SALE -15%",
-          placement: "all",
-          isActive: true,
-          order: 1,
-          viewsCount: 1420,
-        },
-        {
-          title: "Écouteurs Sans Fil Bass Boost",
-          subtitle: "Réduction active de bruit & Son immersif",
-          description: "Plongez dans votre musique sans interruption avec la technologie ANC de pointe et basses profondes.",
-          videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-young-man-wearing-wireless-earphones-and-dancing-40733-large.mp4",
-          thumbnailUrl: "/images/earbuds.png",
-          productLink: "/products",
-          productName: "Écouteurs Bluetooth",
-          price: 18000,
-          discountPrice: 15000,
-          badge: "NOUVELLE SORTIE",
-          placement: "all",
-          isActive: true,
-          order: 2,
-          viewsCount: 980,
-        },
-        {
-          title: "Batterie Solaire & Rapide 20000mAh",
-          subtitle: "Ne soyez plus jamais à court d'énergie",
-          description: "Charge ultra rapide 65W compatible iPhone, Samsung et tous smartphones Android.",
-          videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-hands-holding-a-modern-smartphone-with-a-black-screen-40737-large.mp4",
-          thumbnailUrl: "/images/powerbank.png",
-          productLink: "/products",
-          productName: "PowerBank 20000mAh",
-          price: 25000,
-          discountPrice: 22000,
-          badge: "COUP DE CŒUR",
-          placement: "all",
-          isActive: true,
-          order: 3,
-          viewsCount: 2350,
-        }
-      ];
-
       await PromoVideo.insertMany(demoVideos);
       logger.info('Auto-seeded 3 demo promotional videos for Onoot Boutique');
+    } else {
+      // Fix broken mixkit URLs in existing documents
+      await PromoVideo.updateMany(
+        { videoUrl: new RegExp("mixkit\\.co", "i") },
+        { 
+          $set: { 
+            videoUrl: "https://vjs.zencdn.net/v/oceans.mp4" 
+          } 
+        }
+      );
     }
   } catch (err) {
-    logger.error({ err }, 'Failed to seed demo promo videos');
+    logger.error({ err }, 'Failed to seed or update demo promo videos');
   }
 }
 
@@ -74,7 +95,7 @@ seedDemoPromoVideosIfEmpty();
 
 /* ─── PUBLIC ROUTES (FOR BOUTIQUE) ─── */
 
-// GET active promo videos for the storefront
+// GET active promo videos for the storefront with smart product links
 router.get("/promo-videos", async (req, res): Promise<void> => {
   try {
     const { placement } = req.query;
@@ -83,7 +104,48 @@ router.get("/promo-videos", async (req, res): Promise<void> => {
       filter.$or = [{ placement: placement }, { placement: 'all' }];
     }
     const videos = await PromoVideo.find(filter).sort({ order: 1, createdAt: -1 }).lean();
-    res.json(videos);
+
+    // Enrich videos with accurate direct product links
+    const enriched = await Promise.all(videos.map(async (v: any) => {
+      let resolvedLink = v.productLink;
+      let matchedProduct = null;
+
+      if (v.productId && mongoose.isValidObjectId(v.productId)) {
+        matchedProduct = await Product.findById(v.productId);
+      }
+      
+      if (!matchedProduct && v.productName) {
+        matchedProduct = await Product.findOne({ name: new RegExp(v.productName.trim(), "i") });
+      }
+
+      if (!matchedProduct && v.title) {
+        // Try searching product by first word of title
+        const firstWord = v.title.split(" ")[0];
+        if (firstWord && firstWord.length > 3) {
+          matchedProduct = await Product.findOne({ name: new RegExp(firstWord, "i") });
+        }
+      }
+
+      if (matchedProduct) {
+        resolvedLink = `/products/${matchedProduct._id}`;
+      }
+
+      // Replace any remaining broken mixkit video URL
+      let cleanVideoUrl = v.videoUrl;
+      if (!cleanVideoUrl || cleanVideoUrl.includes("mixkit.co")) {
+        cleanVideoUrl = "https://vjs.zencdn.net/v/oceans.mp4";
+      }
+
+      return {
+        ...v,
+        videoUrl: cleanVideoUrl,
+        productLink: resolvedLink || "/products",
+        productId: matchedProduct ? matchedProduct._id.toString() : (v.productId || null),
+        productName: matchedProduct ? matchedProduct.name : (v.productName || v.title),
+      };
+    }));
+
+    res.json(enriched);
   } catch (err) {
     logger.error({ err }, "Failed to fetch promo videos for store");
     res.status(500).json({ error: "Erreur serveur lors de la récupération des vidéos publicitaires" });
