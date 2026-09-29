@@ -2,11 +2,16 @@ import { Router, type IRouter } from "express";
 import { Category } from "../models/Category";
 import { Product } from "../models/Product";
 import { CreateCategoryBody } from "@workspace/api-zod";
+import { seedDefaultCategoriesIfEmpty } from "./adminCategories";
 
 const router: IRouter = Router();
 
 router.get("/categories", async (_req, res): Promise<void> => {
-  const cats = await Category.find().sort({ name: 1 });
+  let cats = await Category.find().sort({ name: 1 });
+  if (cats.length === 0) {
+    await seedDefaultCategoriesIfEmpty();
+    cats = await Category.find().sort({ name: 1 });
+  }
 
   const result = await Promise.all(
     cats.map(async (cat) => {

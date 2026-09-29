@@ -18,7 +18,10 @@ import {
   Tv,
   Radio,
   Loader2,
-  X
+  X,
+  Link as LinkIcon,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 import DeleteConfirm from '../components/DeleteConfirm';
 
@@ -492,6 +495,52 @@ export default function AdsVideos() {
 }
 
 /* ─── Promo Video Modal Form ─── */
+function parseVideoSource(rawUrl: string) {
+  if (!rawUrl) return { url: '', isEmbed: false, embedUrl: '', thumbnail: '' };
+  const trimmed = rawUrl.trim();
+
+  // YouTube detection: standard watch, short URL, shorts, embed
+  const ytMatch = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    const videoId = ytMatch[1];
+    return {
+      url: `https://www.youtube.com/embed/${videoId}`,
+      embedUrl: `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1`,
+      isEmbed: true,
+      thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+    };
+  }
+
+  // Vimeo
+  const vimeoMatch = trimmed.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|)(\d+)/i);
+  if (vimeoMatch && vimeoMatch[3]) {
+    const vId = vimeoMatch[3];
+    return {
+      url: `https://player.vimeo.com/video/${vId}`,
+      embedUrl: `https://player.vimeo.com/video/${vId}?autoplay=1&muted=1`,
+      isEmbed: true,
+      thumbnail: '',
+    };
+  }
+
+  // Dropbox
+  if (trimmed.includes('dropbox.com') && trimmed.includes('dl=0')) {
+    return {
+      url: trimmed.replace('dl=0', 'raw=1'),
+      isEmbed: false,
+      embedUrl: '',
+      thumbnail: '',
+    };
+  }
+
+  return {
+    url: trimmed,
+    isEmbed: trimmed.includes('/embed/'),
+    embedUrl: trimmed.includes('/embed/') ? trimmed : '',
+    thumbnail: '',
+  };
+}
+
 function PromoVideoModal({
   initialVideo,
   onClose,
@@ -502,6 +551,9 @@ function PromoVideoModal({
   onSuccess: () => void;
 }) {
   const isEditing = Boolean(initialVideo);
+  const [videoSourceType, setVideoSourceType] = useState<'file' | 'url'>(
+    initialVideo?.videoUrl?.startsWith('http') && !initialVideo?.videoUrl?.includes('/uploads/') ? 'url' : 'file'
+  );
   const [title, setTitle] = useState(initialVideo?.title || '');
   const [subtitle, setSubtitle] = useState(initialVideo?.subtitle || '');
   const [description, setDescription] = useState(initialVideo?.description || '');
@@ -562,14 +614,21 @@ function PromoVideoModal({
       return;
     }
 
+    const parsed = parseVideoSource(videoUrl.trim());
+    const finalVideoUrl = parsed.isEmbed && parsed.embedUrl ? parsed.embedUrl : (parsed.url || videoUrl.trim());
+    let finalThumbnail = thumbnailUrl.trim() || undefined;
+    if (!finalThumbnail && parsed.thumbnail) {
+      finalThumbnail = parsed.thumbnail;
+    }
+
     setIsSubmitting(true);
     try {
       const payload: PromoVideoInput = {
         title: title.trim(),
         subtitle: subtitle.trim() || undefined,
         description: description.trim() || undefined,
-        videoUrl: videoUrl.trim(),
-        thumbnailUrl: thumbnailUrl.trim() || undefined,
+        videoUrl: finalVideoUrl,
+        thumbnailUrl: finalThumbnail,
         productName: productName.trim() || undefined,
         productLink: productLink.trim() || '/products',
         price: price ? Number(price) : undefined,
@@ -679,49 +738,136 @@ function PromoVideoModal({
             />
           </div>
 
-          {/* Video Upload / URL */}
-          <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3">
-            <label className="block text-xs font-semibold text-foreground uppercase tracking-wide flex items-center justify-between">
-              <span>Fichier Vidéo (MP4, WebM, MOV) *</span>
-              {isUploadingVideo && (
-                <span className="text-orange-500 flex items-center gap-1 normal-case text-xs">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Téléversement en cours...
-                </span>
-              )}
-            </label>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <label className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-border hover:border-orange-500/60 p-4 rounded-xl cursor-pointer transition-colors bg-background">
-                <Upload className="w-5 h-5 text-orange-500" />
-                <span className="text-xs font-medium text-foreground">
-                  {isUploadingVideo ? 'Envoi en cours...' : 'Choisir un fichier vidéo (jusqu’à 500 Mo)'}
-                </span>
-                <input
-                  type="file"
-                  accept="video/*"
-                  disabled={isUploadingVideo}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleFileUpload(f, 'video');
-                  }}
-                  className="hidden"
-                />
+          {/* Video Upload / URL - 2 OPTIONS DISTINCTES */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-muted/30 border border-border space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <label className="text-xs font-bold text-foreground uppercase tracking-wide">
+                Source de la Vidéo *
               </label>
-
-              <div className="flex-1">
-                <input
-                  type="text"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  placeholder="Ou collez une URL vidéo directe (ex: /uploads/... ou https://...)"
-                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-primary/20 focus:outline-none h-full"
-                />
+              {/* Option Selector Tabs */}
+              <div className="flex items-center gap-1.5 p-1 bg-background border border-border rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setVideoSourceType('file')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    videoSourceType === 'file'
+                      ? 'bg-orange-500 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Option 1 : Par fichier</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVideoSourceType('url')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    videoSourceType === 'url'
+                      ? 'bg-orange-500 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  <span>Option 2 : Par lien URL</span>
+                </button>
               </div>
             </div>
 
+            {/* Option 1: File Upload */}
+            {videoSourceType === 'file' && (
+              <div className="space-y-2">
+                <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border hover:border-orange-500/60 p-6 rounded-2xl cursor-pointer transition-colors bg-background text-center">
+                  <div className="p-3 rounded-full bg-orange-500/10 text-orange-500">
+                    {isUploadingVideo ? (
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : (
+                      <Upload className="w-6 h-6" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">
+                      {isUploadingVideo ? 'Téléversement de la vidéo en cours...' : 'Cliquez pour choisir un fichier vidéo'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Formats acceptés : MP4, WebM, MOV • Jusqu'à 500 Mo
+                    </p>
+                  </div>
+                  <input
+                    type="file"
+                    accept="video/*"
+                    disabled={isUploadingVideo}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleFileUpload(f, 'video');
+                    }}
+                    className="hidden"
+                  />
+                </label>
+                {videoUrl && videoUrl.includes('/uploads/') && (
+                  <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="w-4 h-4" /> Fichier vidéo prêt : <span className="font-mono truncate">{videoUrl}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Option 2: By URL Link */}
+            {videoSourceType === 'url' && (
+              <div className="space-y-2.5">
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-500">
+                    <LinkIcon className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="url"
+                    value={videoUrl}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setVideoUrl(val);
+                      const parsed = parseVideoSource(val);
+                      if (parsed.thumbnail && !thumbnailUrl) {
+                        setThumbnailUrl(parsed.thumbnail);
+                      }
+                    }}
+                    placeholder="Collez ici le lien de la vidéo (ex: https://.../video.mp4 ou lien YouTube)"
+                    className="w-full bg-background border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span className="font-bold uppercase tracking-wider text-[10px] text-foreground">Liens compatibles :</span>
+                  <span className="px-2 py-0.5 rounded-md bg-muted border border-border">Lien MP4 direct</span>
+                  <span className="px-2 py-0.5 rounded-md bg-muted border border-border">YouTube (Watch / Shorts)</span>
+                  <span className="px-2 py-0.5 rounded-md bg-muted border border-border">Cloudinary / CDN</span>
+                  <span className="px-2 py-0.5 rounded-md bg-muted border border-border">Vimeo / Dropbox</span>
+                </div>
+              </div>
+            )}
+
+            {/* Video Preview */}
             {videoUrl && (
-              <div className="relative aspect-video rounded-xl overflow-hidden bg-black max-h-48 mx-auto">
-                <video src={videoUrl} controls className="w-full h-full object-contain" />
+              <div className="pt-3 border-t border-border">
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5 text-orange-500" />
+                  <span>Aperçu de la vidéo :</span>
+                </p>
+                <div className="relative aspect-video rounded-xl overflow-hidden bg-black max-h-52 mx-auto border border-border shadow-inner">
+                  {parseVideoSource(videoUrl).embedUrl ? (
+                    <iframe
+                      src={parseVideoSource(videoUrl).embedUrl}
+                      className="w-full h-full border-0"
+                      allow="autoplay; encrypted-media; fullscreen"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      key={videoUrl}
+                      src={videoUrl}
+                      controls
+                      playsInline
+                      className="w-full h-full object-contain"
+                    />
+                  )}
+                </div>
               </div>
             )}
           </div>

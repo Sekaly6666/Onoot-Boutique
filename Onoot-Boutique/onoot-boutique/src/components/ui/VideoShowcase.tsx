@@ -62,6 +62,25 @@ function cleanBadgeText(badge?: string): string {
   );
 }
 
+function isEmbedVideo(url?: string): boolean {
+  if (!url) return false;
+  return url.includes("youtube.com") || url.includes("youtu.be") || url.includes("vimeo.com") || url.includes("/embed/");
+}
+
+function getEmbedAutoplayUrl(url: string, muted: boolean): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("autoplay", "1");
+    parsed.searchParams.set("mute", muted ? "1" : "0");
+    parsed.searchParams.set("rel", "0");
+    return parsed.toString();
+  } catch {
+    const sep = url.includes("?") ? "&" : "?";
+    return `${url}${sep}autoplay=1&mute=${muted ? "1" : "0"}&rel=0`;
+  }
+}
+
+
 export function VideoShowcase() {
   const [videos, setVideos] = useState<PromoVideo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,7 +190,15 @@ export function VideoShowcase() {
     setVideoError(false);
     setProgress(0);
 
-    if (videoRef.current && activeVideo) {
+    if (!activeVideo) return;
+
+    if (isEmbedVideo(activeVideo.videoUrl)) {
+      setIsPlaying(true);
+      fetch(`/api/promo-videos/${activeVideo._id}/view`, { method: "POST" }).catch(() => {});
+      return;
+    }
+
+    if (videoRef.current) {
       let sourceUrl = activeVideo.videoUrl;
       if (!sourceUrl || sourceUrl.includes("mixkit.co")) {
         sourceUrl = RELIABLE_CDN_VIDEOS[selectedIndex % RELIABLE_CDN_VIDEOS.length];
@@ -199,7 +226,7 @@ export function VideoShowcase() {
     }
 
     // Synchronize modal video if open
-    if (isModalOpen && modalVideoRef.current && activeVideo) {
+    if (isModalOpen && modalVideoRef.current && !isEmbedVideo(activeVideo.videoUrl)) {
       let sourceUrl = activeVideo.videoUrl;
       if (!sourceUrl || sourceUrl.includes("mixkit.co")) {
         sourceUrl = RELIABLE_CDN_VIDEOS[selectedIndex % RELIABLE_CDN_VIDEOS.length];
@@ -210,9 +237,7 @@ export function VideoShowcase() {
     }
 
     // View counter
-    if (activeVideo) {
-      fetch(`/api/promo-videos/${activeVideo._id}/view`, { method: "POST" }).catch(() => {});
-    }
+    fetch(`/api/promo-videos/${activeVideo._id}/view`, { method: "POST" }).catch(() => {});
   }, [selectedIndex, activeVideo, isModalOpen]);
 
   const handleTimeUpdate = () => {
@@ -319,32 +344,42 @@ export function VideoShowcase() {
           {/* Main Cinematic Video Player (8 Cols on large) */}
           <div className="lg:col-span-8 flex flex-col">
             <div 
-              onClick={togglePlay}
+              onClick={activeVideo && !isEmbedVideo(activeVideo.videoUrl) ? togglePlay : undefined}
               className="relative aspect-video rounded-3xl overflow-hidden bg-black border border-white/10 shadow-2xl shadow-black/90 group flex items-center justify-center cursor-pointer"
             >
-              {/* Single persistent Video element */}
-              <video
-                ref={videoRef}
-                poster={activeVideo.thumbnailUrl || displayImage}
-                autoPlay
-                playsInline
-                muted={isMuted}
-                onEnded={handleVideoEnded}
-                onTimeUpdate={handleTimeUpdate}
-                onError={handleVideoError}
-                className="w-full h-full object-cover sm:object-contain bg-black"
-              />
+              {/* Single persistent Video element or Iframe */}
+              {activeVideo && isEmbedVideo(activeVideo.videoUrl) ? (
+                <iframe
+                  src={getEmbedAutoplayUrl(activeVideo.videoUrl, isMuted)}
+                  title={activeVideo.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full border-0 pointer-events-auto"
+                />
+              ) : (
+                <video
+                  ref={videoRef}
+                  poster={activeVideo?.thumbnailUrl || displayImage}
+                  autoPlay
+                  playsInline
+                  muted={isMuted}
+                  onEnded={handleVideoEnded}
+                  onTimeUpdate={handleTimeUpdate}
+                  onError={handleVideoError}
+                  className="w-full h-full object-cover sm:object-contain bg-black"
+                />
+              )}
 
               {/* Top Controls Overlay */}
               <div className="absolute top-3 sm:top-4 left-3 sm:left-4 right-3 sm:right-4 flex items-center justify-between z-20 pointer-events-none">
                 <div className="flex items-center gap-2">
                   <span className="bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[10px] sm:text-xs font-black uppercase px-2.5 sm:px-3 py-1 rounded-full shadow-lg backdrop-blur-md flex items-center gap-1.5">
                     <Flame className="w-3.5 h-3.5 fill-white" />
-                    <span>{cleanBadgeText(activeVideo.badge)}</span>
+                    <span>{cleanBadgeText(activeVideo?.badge)}</span>
                   </span>
                   <span className="bg-black/60 backdrop-blur-md text-slate-300 text-[11px] px-2.5 py-1 rounded-full flex items-center gap-1 font-medium border border-white/10">
                     <Eye className="w-3 h-3 text-orange-400" />
-                    {(activeVideo.viewsCount || 1240).toLocaleString("fr-FR")} vues
+                    {(activeVideo?.viewsCount || 1240).toLocaleString("fr-FR")} vues
                   </span>
                 </div>
 
@@ -369,15 +404,17 @@ export function VideoShowcase() {
                     <SkipForward className="w-4 h-4 text-orange-400 hover:text-orange-300" />
                   </button>
 
-                  {/* Sound toggle button */}
-                  <button
-                    type="button"
-                    onClick={toggleMute}
-                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center transition-all transform hover:scale-105 border border-white/20 shadow-lg"
-                    title={isMuted ? "Activer le son" : "Couper le son"}
-                  >
-                    {isMuted ? <VolumeX className="w-4 h-4 text-slate-400" /> : <Volume2 className="w-4 h-4 text-orange-400" />}
-                  </button>
+                  {/* Sound toggle button (for native video) */}
+                  {activeVideo && !isEmbedVideo(activeVideo.videoUrl) && (
+                    <button
+                      type="button"
+                      onClick={toggleMute}
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center transition-all transform hover:scale-105 border border-white/20 shadow-lg"
+                      title={isMuted ? "Activer le son" : "Couper le son"}
+                    >
+                      {isMuted ? <VolumeX className="w-4 h-4 text-slate-400" /> : <Volume2 className="w-4 h-4 text-orange-400" />}
+                    </button>
+                  )}
 
                   {/* Fullscreen modal trigger */}
                   <button
@@ -394,29 +431,33 @@ export function VideoShowcase() {
                 </div>
               </div>
 
-              {/* Big Center Play / Pause Indicator */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <AnimatePresence>
-                  {!isPlaying && (
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.8, opacity: 0 }}
-                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-2xl shadow-orange-500/50 backdrop-blur-sm pointer-events-auto cursor-pointer"
-                    >
-                      <Play className="w-8 h-8 ml-1 fill-white" />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              {/* Big Center Play / Pause Indicator (native video) */}
+              {activeVideo && !isEmbedVideo(activeVideo.videoUrl) && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <AnimatePresence>
+                    {!isPlaying && (
+                      <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.8, opacity: 0 }}
+                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-2xl shadow-orange-500/50 backdrop-blur-sm pointer-events-auto cursor-pointer"
+                      >
+                        <Play className="w-8 h-8 ml-1 fill-white" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
 
               {/* Bottom Progress Bar */}
-              <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20 z-20">
-                <div
-                  className="h-full bg-gradient-to-r from-orange-500 via-amber-400 to-[#F5C430] transition-all duration-150"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
+              {activeVideo && !isEmbedVideo(activeVideo.videoUrl) && (
+                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20 z-20">
+                  <div
+                    className="h-full bg-gradient-to-r from-orange-500 via-amber-400 to-[#F5C430] transition-all duration-150"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Product Card Directly Below Video (Jumia Live Shopping Style) */}
@@ -633,14 +674,24 @@ export function VideoShowcase() {
                 <X className="w-5 h-5" />
               </button>
 
-              <video
-                ref={modalVideoRef}
-                src={videoRef.current?.src || activeVideo.videoUrl}
-                autoPlay
-                controls
-                onEnded={handleVideoEnded}
-                className="w-full h-full object-contain"
-              />
+              {activeVideo && isEmbedVideo(activeVideo.videoUrl) ? (
+                <iframe
+                  src={getEmbedAutoplayUrl(activeVideo.videoUrl, false)}
+                  title={activeVideo.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full border-0"
+                />
+              ) : (
+                <video
+                  ref={modalVideoRef}
+                  src={videoRef.current?.src || activeVideo?.videoUrl}
+                  autoPlay
+                  controls
+                  onEnded={handleVideoEnded}
+                  className="w-full h-full object-contain"
+                />
+              )}
 
               {/* Direct Buy Bar inside modal */}
               <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-md p-3 rounded-2xl border border-white/20 flex items-center justify-between gap-4 z-30">

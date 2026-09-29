@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Edit2, ImageIcon, Package, Plus, Tag, Trash2, X } from 'lucide-react';
+import { Edit2, ImageIcon, Package, Plus, RefreshCw, Tag, Trash2, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import DeleteConfirm from '../components/DeleteConfirm';
@@ -190,6 +190,15 @@ const Categories: React.FC = () => {
     onError: () => toast.error('Impossible de supprimer la categorie'),
   });
 
+  const syncDefaults = useMutation({
+    mutationFn: () => adminFetch<Category[]>('/api/admin/categories/sync-defaults', { method: 'POST' }),
+    onSuccess: (data) => {
+      toast.success(`${data.length} catégories synchronisées avec succès !`);
+      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+    },
+    onError: () => toast.error('Erreur lors de la synchronisation'),
+  });
+
   const categories = useMemo(() => categoriesQuery.data || [], [categoriesQuery.data]);
 
   const handleSubmit = async (data: CategoryInput) => {
@@ -219,13 +228,26 @@ const Categories: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-900">Catégories</h1>
           <p className="text-slate-500 mt-1">Organisez votre catalogue par catégories dynamiques</p>
         </div>
-        <button
-          className="w-full sm:w-auto min-h-[46px] sm:min-h-[40px] flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary/90 active:scale-[0.98] transition-all text-sm sm:text-base"
-          onClick={() => { setEditingCategory(null); setShowForm(true); }}
-        >
-          <Plus className="w-5 h-5 flex-shrink-0" />
-          <span>Nouvelle catégorie</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+          <button
+            type="button"
+            disabled={syncDefaults.isPending}
+            onClick={() => syncDefaults.mutate()}
+            className="w-full sm:w-auto min-h-[46px] sm:min-h-[42px] flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all text-sm border border-slate-200"
+            title="Synchroniser avec toutes les catégories de la boutique"
+          >
+            <RefreshCw className={`w-4 h-4 text-slate-600 ${syncDefaults.isPending ? 'animate-spin' : ''}`} />
+            <span>Synchroniser boutique</span>
+          </button>
+
+          <button
+            className="w-full sm:w-auto min-h-[46px] sm:min-h-[42px] flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary/90 active:scale-[0.98] transition-all text-sm sm:text-base"
+            onClick={() => { setEditingCategory(null); setShowForm(true); }}
+          >
+            <Plus className="w-5 h-5 flex-shrink-0" />
+            <span>Nouvelle catégorie</span>
+          </button>
+        </div>
       </div>
 
       {categoriesQuery.isError && <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-600">Impossible de charger les categories.</div>}
