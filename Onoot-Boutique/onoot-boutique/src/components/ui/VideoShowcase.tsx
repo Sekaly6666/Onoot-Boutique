@@ -20,6 +20,7 @@ import {
   Tag,
   Plus,
   Check,
+  ShoppingCart,
   SkipForward,
   SkipBack,
 } from "lucide-react";
@@ -70,6 +71,7 @@ export function VideoShowcase() {
   const [progress, setProgress] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [videoError, setVideoError] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
   const [, setLocation] = useLocation();
 
   const { addItem } = useCartContext();
@@ -267,7 +269,10 @@ export function VideoShowcase() {
       addItem(activeVideo.productId, 1);
     } else {
       setLocation(targetProductUrl);
+      return;
     }
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 2000);
   };
 
   if (loading || !activeVideo) {
@@ -464,16 +469,29 @@ export function VideoShowcase() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Quick Add To Cart */}
+                  {/* Quick Add To Cart with ShoppingCart icon */}
                   <Button
                     type="button"
                     variant="outline"
                     onClick={handleAddToCart}
-                    className="border-white/20 bg-white/5 hover:bg-white/15 text-white rounded-xl px-3 py-2 text-xs font-bold gap-1.5"
+                    className={`border-white/20 transition-all rounded-xl px-3.5 py-2 text-xs font-bold gap-1.5 shadow-sm ${
+                      justAdded
+                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
+                        : "bg-white/5 hover:bg-white/15 text-white hover:border-orange-500/50"
+                    }`}
                     title="Ajouter au panier directement"
                   >
-                    <Plus className="w-4 h-4 text-orange-400" />
-                    <span className="hidden sm:inline">Ajouter</span>
+                    {justAdded ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span>Ajouté !</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="w-4 h-4 text-orange-400" />
+                        <span>Ajouter</span>
+                      </>
+                    )}
                   </Button>
 
                   {/* Commander / Direct to Product */}
@@ -491,20 +509,28 @@ export function VideoShowcase() {
             </div>
           </div>
 
-          {/* Playlist Sidebar (4 Cols on large) */}
+          {/* Playlist Sidebar (4 Cols on large) - 5 vidéos visibles max, le reste défilable */}
           <div className="lg:col-span-4 flex flex-col space-y-3">
             <div className="flex items-center justify-between px-1 mb-1">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
                 <Radio className="w-3.5 h-3.5 text-orange-400" />
                 <span>Sélection Vidéos ({videos.length})</span>
               </h4>
-              <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Lecture auto enchaînée</span>
-              </span>
+              <div className="flex items-center gap-1.5">
+                {videos.length > 5 && (
+                  <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                    (5 visibles • Défiler ↓)
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Lecture auto</span>
+                </span>
+              </div>
             </div>
 
-            <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1 scrollbar-none">
+            {/* Exactement 5 vidéos visibles à la fois (466px), défilement fluide pour les suivantes */}
+            <div className="space-y-2 max-h-[466px] overflow-y-auto pr-1.5 scroll-smooth [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.25)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-orange-500/50">
               {videos.map((item, idx) => {
                 const isCurrent = idx === selectedIndex;
                 const itemThumb = item.thumbnailUrl || "/images/smartwatch.png";
@@ -518,14 +544,14 @@ export function VideoShowcase() {
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                     onClick={() => selectVideo(idx)}
-                    className={`flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl cursor-pointer transition-all duration-200 border relative ${
+                    className={`flex items-center gap-3 p-2.5 rounded-2xl cursor-pointer transition-all duration-200 border relative ${
                       isCurrent
                         ? "bg-white/[0.08] border-orange-500 shadow-lg shadow-orange-500/10 ring-1 ring-orange-500/30"
                         : "bg-white/[0.02] hover:bg-white/[0.06] border-white/10"
                     }`}
                   >
                     {/* Thumbnail Image with Play overlay (fast, no heavy video loading) */}
-                    <div className="relative w-20 h-16 sm:w-24 sm:h-18 rounded-xl overflow-hidden bg-black flex-shrink-0 border border-white/10">
+                    <div className="relative w-20 h-16 sm:w-22 sm:h-16 rounded-xl overflow-hidden bg-black flex-shrink-0 border border-white/10">
                       <img
                         src={itemThumb}
                         alt={item.title}
