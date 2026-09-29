@@ -527,6 +527,8 @@ export const ListOrdersResponse = zod.object({
   "productImage": zod.string().nullish()
 })),
   "totalAmount": zod.number(),
+  "shippingCost": zod.number().nullish(),
+  "itemsTotal": zod.number().nullish(),
   "paymentMethod": zod.string(),
   "orderStatus": zod.string(),
   "shippingAddress": zod.object({
@@ -561,6 +563,8 @@ export const CreateOrderBody = zod.object({
   "productImage": zod.string().nullish()
 })),
   "totalAmount": zod.number().optional(),
+  "shippingCost": zod.number().optional(),
+  "itemsTotal": zod.number().optional(),
   "paymentMethod": zod.string(),
   "shippingAddress": zod.object({
   "fullName": zod.string(),
@@ -584,6 +588,8 @@ export const CreateOrderResponse = zod.object({
   "productImage": zod.string().nullish()
 })),
   "totalAmount": zod.number(),
+  "shippingCost": zod.number().nullish(),
+  "itemsTotal": zod.number().nullish(),
   "paymentMethod": zod.string(),
   "orderStatus": zod.string(),
   "shippingAddress": zod.object({
@@ -618,6 +624,8 @@ export const GetOrderResponse = zod.object({
   "productImage": zod.string().nullish()
 })),
   "totalAmount": zod.number(),
+  "shippingCost": zod.number().nullish(),
+  "itemsTotal": zod.number().nullish(),
   "paymentMethod": zod.string(),
   "orderStatus": zod.string(),
   "shippingAddress": zod.object({

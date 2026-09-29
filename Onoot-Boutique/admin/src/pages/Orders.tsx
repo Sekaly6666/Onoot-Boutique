@@ -294,8 +294,9 @@ const Orders: React.FC = () => {
                           <StatusIcon className="w-3 h-3" /> {s.label}
                         </span>
                       </div>
-                      <div className="font-semibold text-slate-800 mt-0.5 truncate">{customerName}</div>
-                      <div className="text-xs text-slate-400">{date} · {totalItems} art. · {o.totalAmount.toLocaleString()} FCFA</div>
+                      <div className="text-xs text-slate-400">
+                        {date} · {totalItems} art. · Colis: {((o as any).itemsTotal ?? (o.totalAmount - ((o as any).shippingCost || 0))).toLocaleString()} FCFA + Livr: {(((o as any).shippingCost ?? 0)).toLocaleString()} FCFA &bull; <strong className="text-slate-700">{o.totalAmount.toLocaleString()} FCFA</strong>
+                      </div>
                     </div>
                   </div>
                   <ChevronRight className={`w-5 h-5 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
@@ -384,9 +385,23 @@ const Orders: React.FC = () => {
                                 </div>
                               ))}
                             </div>
-                            <div className="border-t border-slate-200 mt-2 pt-2 flex justify-between font-bold text-slate-800 text-sm">
-                              <span>Total</span>
-                              <span>{o.totalAmount.toLocaleString()} FCFA</span>
+                            <div className="border-t border-slate-200 mt-2.5 pt-2.5 space-y-1.5 text-xs">
+                              <div className="flex justify-between text-slate-500">
+                                <span>Prix colis (Articles) :</span>
+                                <span className="font-semibold text-slate-800">
+                                  {((o as any).itemsTotal ?? (o.totalAmount - ((o as any).shippingCost || 0))).toLocaleString()} FCFA
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-slate-500">
+                                <span>Frais de livraison :</span>
+                                <span className="font-semibold text-orange-600">
+                                  +{(((o as any).shippingCost ?? 0)).toLocaleString()} FCFA
+                                </span>
+                              </div>
+                              <div className="border-t border-slate-200 pt-1.5 flex justify-between font-bold text-slate-900 text-sm">
+                                <span>Total à encaisser :</span>
+                                <span className="text-emerald-700 font-extrabold">{o.totalAmount.toLocaleString()} FCFA</span>
+                              </div>
                             </div>
                           </div>
                         </div>

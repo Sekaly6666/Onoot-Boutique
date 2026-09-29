@@ -21,13 +21,46 @@ import {
 
 const router: IRouter = Router();
 
+export function getShippingFeeForCity(cityStr?: string): number {
+  if (!cityStr) return 1500;
+  const lower = cityStr.toLowerCase();
+  if (lower.includes("bassam")) return 3000;
+  if (lower.includes("cocody")) return 1000;
+  if (lower.includes("bingerville") && (lower.includes("eloign") || lower.includes("intérieur") || lower.includes("interieur"))) return 2000;
+  if (lower.includes("bingerville")) return 1500;
+  if (lower.includes("anyama") || lower.includes("gonzague") || lower.includes("songon")) return 2000;
+  if (lower.includes("intérieur") || lower.includes("interieur") || lower.includes("gare") || lower.includes("expedition") || lower.includes("expédition")) return 2500;
+  if (
+    lower.includes("koumassi") ||
+    lower.includes("marcory") ||
+    lower.includes("treichville") ||
+    lower.includes("yopougon") ||
+    lower.includes("abobo") ||
+    lower.includes("port-bouet") ||
+    lower.includes("port bouet") ||
+    lower.includes("plateau") ||
+    lower.includes("adjame") ||
+    lower.includes("adjamé") ||
+    lower.includes("attecoube") ||
+    lower.includes("attécoubé")
+  ) {
+    return 1500;
+  }
+  return 1500;
+}
+
 function formatOrder(order: any) {
+  const shippingCost = typeof order.shippingCost === "number" ? order.shippingCost : (order.shippingCost ?? 0);
+  const itemsTotal = typeof order.itemsTotal === "number" && order.itemsTotal > 0 ? order.itemsTotal : (order.totalAmount - shippingCost);
+
   return {
     id: order._id,
     userId: order.userId ?? null,
     customerEmail: order.customerEmail ?? null,
     items: order.items,
     totalAmount: order.totalAmount,
+    shippingCost,
+    itemsTotal,
     paymentMethod: order.paymentMethod,
     orderStatus: order.orderStatus,
     cancelReason: order.cancelReason ?? null,
@@ -135,7 +168,15 @@ router.post("/orders", async (req, res): Promise<void> => {
     });
   }
 
-  const totalAmount = calculatedTotal;
+  const itemsTotal = calculatedTotal;
+
+  // Single fixed shipping fee per order, determined from commune/city
+  const rawShippingCost = (req.body as any).shippingCost;
+  const shippingCost = typeof rawShippingCost === "number" && rawShippingCost >= 0
+    ? rawShippingCost
+    : getShippingFeeForCity(shipping.city);
+
+  const totalAmount = itemsTotal + shippingCost;
 
   // Determine customer email
   let customerEmail = (req.body as any).customerEmail || null;
@@ -149,6 +190,8 @@ router.post("/orders", async (req, res): Promise<void> => {
     sessionId: parsed.data.sessionId ?? null,
     customerEmail,
     items: verifiedItems,
+    itemsTotal,
+    shippingCost,
     totalAmount,
     paymentMethod: parsed.data.paymentMethod,
     orderStatus: "pending",
@@ -162,7 +205,7 @@ router.post("/orders", async (req, res): Promise<void> => {
     const notif = new AdminNotification({
       type: "order",
       title: "Nouvelle commande reçue",
-      desc: `#${order._id.toString().slice(-6)} — ${parsed.data.shippingAddress.fullName} — ${totalAmount.toLocaleString('fr-FR')} FCFA`,
+      desc: `#${order._id.toString().slice(-6)} — ${parsed.data.shippingAddress.fullName} — Colis: ${itemsTotal.toLocaleString('fr-FR')} FCFA + Livr: ${shippingCost.toLocaleString('fr-FR')} FCFA = Total: ${totalAmount.toLocaleString('fr-FR')} FCFA`,
     });
     await notif.save();
   } catch (err) {

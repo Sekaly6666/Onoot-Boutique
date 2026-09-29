@@ -23,6 +23,8 @@ export interface IOrder extends Document {
   customerEmail?: string;
   items: IOrderItem[];
   totalAmount: number;
+  shippingCost?: number;
+  itemsTotal?: number;
   paymentMethod: string;
   orderStatus: string;
   cancelReason?: string;
@@ -57,6 +59,8 @@ const OrderSchema = new Schema<IOrder>(
     customerEmail: String,
     items: { type: [OrderItemSchema], default: [] },
     totalAmount: { type: Number, required: true },
+    shippingCost: { type: Number, default: 0 },
+    itemsTotal: { type: Number, default: 0 },
     paymentMethod: { type: String, required: true },
     orderStatus: { type: String, required: true },
     cancelReason: String,

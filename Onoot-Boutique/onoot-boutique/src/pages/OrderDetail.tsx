@@ -194,9 +194,27 @@ export default function OrderDetail() {
               ))}
             </div>
             <Separator className="my-4" />
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center text-muted-foreground">
+                <span>Sous-total articles</span>
+                <span className="font-semibold text-foreground">
+                  {((order as any).itemsTotal ?? (order.totalAmount - ((order as any).shippingCost || 0))).toLocaleString()} FCFA
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-muted-foreground">
+                <span>Frais de livraison ({order.shippingAddress?.city || 'Standard'})</span>
+                <span className="font-semibold text-primary">
+                  +{(((order as any).shippingCost ?? 0)).toLocaleString()} FCFA
+                </span>
+              </div>
+            </div>
+            <Separator className="my-3" />
             <div className="flex justify-between items-center font-bold text-lg">
-              <span>Total</span>
-              <span className="text-accent">{order.totalAmount.toLocaleString()} FCFA</span>
+              <div>
+                <span>Total à payer</span>
+                <p className="text-xs font-normal text-muted-foreground">À régler au livreur en espèces</p>
+              </div>
+              <span className="text-accent text-xl">{order.totalAmount.toLocaleString()} FCFA</span>
             </div>
 
             {/* Actions contextuelles (Annuler / Supprimer) */}

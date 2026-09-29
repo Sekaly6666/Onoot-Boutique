@@ -147,6 +147,8 @@ export interface Order {
   userId: string;
   items: OrderItem[];
   totalAmount: number;
+  shippingCost?: number;
+  itemsTotal?: number;
   paymentMethod: string;
   orderStatus: string;
   shippingAddress: ShippingAddress;

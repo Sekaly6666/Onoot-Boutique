@@ -355,6 +355,11 @@ export async function sendOrderConfirmation(order: any, customerEmail: string): 
   });
   const shipping = order.shippingAddress || {};
 
+  const shippingCost = typeof order.shippingCost === "number" ? order.shippingCost : 0;
+  const itemsTotal = typeof order.itemsTotal === "number" && order.itemsTotal > 0 ? order.itemsTotal : ((order.totalAmount || 0) - shippingCost);
+  const itemsTotalFormatted = itemsTotal.toLocaleString('fr-FR');
+  const shippingCostFormatted = shippingCost.toLocaleString('fr-FR');
+
   const itemsHtml = (order.items || []).map((item: any) => `
     <tr style="border-bottom:1px solid ${C.dash};">
       <td style="padding:12px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
@@ -398,9 +403,21 @@ export async function sendOrderConfirmation(order: any, customerEmail: string): 
 
     ${DIVIDER}
 
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:${C.card};border:1px solid ${C.border};border-radius:12px;padding:4px 16px;margin-bottom:20px;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:${C.card};border:1px solid ${C.border};border-radius:12px;padding:4px 16px;margin-bottom:14px;">
       ${dataRow(icon.creditCard, 'Paiement',  order.paymentMethod || 'Paiement à la livraison')}
       ${dataRow(icon.package,    'Statut',    'En attente de validation')}
+    </table>
+
+    <!-- Détail des montants -->
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:${C.card};border:1px solid ${C.border};border-radius:12px;padding:8px 16px;margin-bottom:16px;">
+      <tr>
+        <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.muted};padding:6px 0;">Sous-total articles :</td>
+        <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:700;color:${C.dark};text-align:right;">${itemsTotalFormatted}&nbsp;FCFA</td>
+      </tr>
+      <tr>
+        <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.muted};padding:6px 0;border-top:1px dashed ${C.dash};">Frais de livraison (${shipping.city || 'Standard'}) :</td>
+        <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:700;color:${C.orange};text-align:right;border-top:1px dashed ${C.dash};">+ ${shippingCostFormatted}&nbsp;FCFA</td>
+      </tr>
     </table>
 
     <!-- Total sombre -->
@@ -409,7 +426,7 @@ export async function sendOrderConfirmation(order: any, customerEmail: string): 
         <td style="background-color:${C.dark};border-radius:14px;padding:18px 22px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
             <tr>
-              <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:500;color:#9CA3AF;letter-spacing:1px;text-transform:uppercase;">TOTAL À PAYER</td>
+              <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:500;color:#9CA3AF;letter-spacing:1px;text-transform:uppercase;">TOTAL À PAYER AU LIVREUR</td>
               <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:24px;font-weight:900;color:${C.white};text-align:right;">${totalFormatted}&nbsp;FCFA</td>
             </tr>
           </table>
@@ -492,9 +509,21 @@ export async function sendShopNewOrderNotification(order: any, shopEmail: string
 
     ${DIVIDER}
 
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:${C.card};border:1px solid ${C.border};border-radius:12px;padding:4px 16px;margin-bottom:20px;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:${C.card};border:1px solid ${C.border};border-radius:12px;padding:4px 16px;margin-bottom:14px;">
       ${dataRow(icon.creditCard, 'Mode de règlement', order.paymentMethod || 'Paiement à la livraison')}
       ${dataRow(icon.package,    'Statut initial',    'En attente de traitement')}
+    </table>
+
+    <!-- Détail des montants -->
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:${C.card};border:1px solid ${C.border};border-radius:12px;padding:8px 16px;margin-bottom:16px;">
+      <tr>
+        <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.muted};padding:6px 0;">Prix colis (Articles) :</td>
+        <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:700;color:${C.dark};text-align:right;">${((order.itemsTotal ?? (order.totalAmount - (order.shippingCost || 0))) || 0).toLocaleString('fr-FR')}&nbsp;FCFA</td>
+      </tr>
+      <tr>
+        <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.muted};padding:6px 0;border-top:1px dashed ${C.dash};">Frais de livraison (${shipping.city || 'Standard'}) :</td>
+        <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:700;color:${C.orange};text-align:right;border-top:1px dashed ${C.dash};">+ ${((order.shippingCost || 0)).toLocaleString('fr-FR')}&nbsp;FCFA</td>
+      </tr>
     </table>
 
     <!-- Total sombre -->
@@ -503,7 +532,7 @@ export async function sendShopNewOrderNotification(order: any, shopEmail: string
         <td style="background-color:${C.dark};border-radius:14px;padding:18px 22px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
             <tr>
-              <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:500;color:#9CA3AF;letter-spacing:1px;text-transform:uppercase;">MONTANT TOTAL</td>
+              <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:500;color:#9CA3AF;letter-spacing:1px;text-transform:uppercase;">MONTANT TOTAL À ENCAISSER</td>
               <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:24px;font-weight:900;color:${C.white};text-align:right;">${totalFormatted}&nbsp;FCFA</td>
             </tr>
           </table>

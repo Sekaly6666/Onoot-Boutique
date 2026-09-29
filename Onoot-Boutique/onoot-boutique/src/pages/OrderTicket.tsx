@@ -167,20 +167,35 @@ export default function OrderTicket() {
 
           <Separator className="border-dashed border-slate-200 my-6" />
 
-          {/* Mode de paiement */}
-          <div className="mb-6 flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <span className="text-sm font-bold text-slate-800 flex items-center">
-              Paiement
-            </span>
-            <span className="text-sm font-medium text-slate-700 capitalize">
-              {order.paymentMethod === 'card' ? 'Carte bancaire' : order.paymentMethod === 'mobile_money' ? 'Mobile Money' : order.paymentMethod}
-            </span>
+          {/* Mode de paiement & Détail de livraison */}
+          <div className="mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="font-medium text-slate-500">Sous-total articles :</span>
+              <span className="font-bold text-slate-800">
+                {((order as any).itemsTotal ?? (order.totalAmount - ((order as any).shippingCost || 0))).toLocaleString()} FCFA
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="font-medium text-slate-500">Frais de livraison :</span>
+              <span className="font-bold text-orange-600">
+                +{(((order as any).shippingCost ?? 0)).toLocaleString()} FCFA
+              </span>
+            </div>
+            <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+              <span className="font-bold text-slate-800">Règlement :</span>
+              <span className="font-medium text-slate-700 capitalize">
+                {order.paymentMethod === 'card' ? 'Carte bancaire' : order.paymentMethod === 'mobile_money' ? 'Mobile Money' : order.paymentMethod}
+              </span>
+            </div>
           </div>
 
           {/* Total */}
           <div className="bg-slate-900 text-white p-4 rounded-2xl flex justify-between items-center shadow-md mb-8">
-            <span className="font-medium text-slate-300">TOTAL À PAYER</span>
-            <span className="text-2xl font-black">{order.totalAmount.toLocaleString()} FCFA</span>
+            <div>
+              <span className="font-medium text-slate-300 block text-xs">TOTAL À PAYER</span>
+              <span className="text-[10px] text-slate-400">Au livreur en espèces</span>
+            </div>
+            <span className="text-2xl font-black text-amber-400">{order.totalAmount.toLocaleString()} FCFA</span>
           </div>
           
 
