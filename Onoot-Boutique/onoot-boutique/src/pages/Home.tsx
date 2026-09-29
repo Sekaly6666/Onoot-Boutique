@@ -64,64 +64,73 @@ const exampleProducts = [
     featured: true,
   },
 ];
-/* ─── Hero Carousel ─── */
+/* ─── Hero Carousel (Couleurs de marque : 1. Bleu, 2. Jaune, 3. Orange) ─── */
 const heroSlides = [
   {
     id: 0,
-    bg: "from-[#0a0f1d] via-[#111c35] to-[#1e293b]",
+    name: "Bleu",
+    bg: "from-[#034f75] via-[#0284c7] to-[#0ea5e9]",
     badgeText: "NOUVEAUTÉ 2026",
     badgeIcon: Zap,
-    badgeColor: "bg-[#F5C430]/20 text-[#F5C430] border-[#F5C430]/40",
+    badgeColor: "bg-white/20 text-white border-white/30 backdrop-blur-md",
     title: "L'excellence tech,",
     highlight: "livrée chez vous.",
-    highlightColor: "text-[#F5C430]",
+    highlightColor: "text-[#F5C430] drop-shadow-sm",
     desc: "Découvrez notre sélection premium d'accessoires pour smartphones. Qualité garantie, garantie 1 an & paiement à la livraison.",
     cta: "Acheter maintenant",
     ctaLink: "/products",
+    ctaClass: "bg-[#E87C2A] hover:bg-[#D06820] text-white shadow-lg shadow-[#E87C2A]/40",
     cta2: "Voir les promotions",
     cta2Link: "/products?onSale=true",
+    cta2Class: "text-white border-white/30 hover:bg-white/15",
     image: "/images/smartwatch.png",
-    imageBg: "bg-[#4BB5E8]/15",
+    imageBg: "bg-white/15",
     tagIcon: Star,
     tagColor: "text-[#F5C430]",
     tagText: "4.9/5 • Meilleure Vente",
   },
   {
     id: 1,
-    bg: "from-[#451003] via-[#7c2d12] to-[#9a3412]",
+    name: "Jaune",
+    bg: "from-[#78350f] via-[#b45309] to-[#f59e0b]",
     badgeText: "VENTE FLASH DU JOUR",
     badgeIcon: Flame,
-    badgeColor: "bg-white/20 text-white border-white/30",
-    title: "Flash Sale",
+    badgeColor: "bg-black/30 text-white border-white/40 backdrop-blur-md",
+    title: "Flash Sale,",
     highlight: "jusqu'à -40% !",
-    highlightColor: "text-[#F5C430]",
+    highlightColor: "text-white drop-shadow-md",
     desc: "Offres exceptionnelles limitées sur le son et la haute technologie. Stocks réduits, profitez-en avant rupture !",
     cta: "Profiter des offres",
     ctaLink: "/products?onSale=true",
+    ctaClass: "bg-slate-950 hover:bg-slate-900 text-white shadow-xl shadow-black/25",
     cta2: "Voir le catalogue",
     cta2Link: "/products",
+    cta2Class: "text-white border-white/40 hover:bg-white/20",
     image: "/images/earbuds.png",
-    imageBg: "bg-white/10",
+    imageBg: "bg-white/25",
     tagIcon: Flame,
-    tagColor: "text-[#E87C2A]",
+    tagColor: "text-amber-300",
     tagText: "-40% Remise Immédiate",
   },
   {
     id: 2,
-    bg: "from-[#082f49] via-[#0c4a6e] to-[#0369a1]",
+    name: "Orange",
+    bg: "from-[#7c2d12] via-[#c2410c] to-[#ea580c]",
     badgeText: "NOUVEAUX ARRIVAGES",
     badgeIcon: Sparkles,
-    badgeColor: "bg-white/20 text-white border-white/30",
+    badgeColor: "bg-white/20 text-white border-white/30 backdrop-blur-md",
     title: "Découvrez les",
     highlight: "dernières tendances.",
-    highlightColor: "text-[#F5C430]",
+    highlightColor: "text-[#F5C430] drop-shadow-sm",
     desc: "Smartphones, montres connectées, écouteurs sans fil... Restez à la pointe de l'innovation avec Onoot Boutique.",
     cta: "Explorer maintenant",
     ctaLink: "/products",
+    ctaClass: "bg-slate-950 hover:bg-slate-900 text-white shadow-xl shadow-black/30",
     cta2: "Nos catégories",
     cta2Link: "/products",
+    cta2Class: "text-white border-white/30 hover:bg-white/15",
     image: "/images/speaker.png",
-    imageBg: "bg-white/10",
+    imageBg: "bg-white/15",
     tagIcon: Sparkles,
     tagColor: "text-[#F5C430]",
     tagText: "100% Produit Original",
@@ -203,13 +212,26 @@ function HeroCarousel() {
 
               {/* CTAs */}
               <div className="flex flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto justify-center md:justify-start">
-                <Button size="default" className="flex-1 sm:flex-none bg-[#E87C2A] hover:bg-[#D06820] active:scale-[0.98] text-white font-bold shadow-lg shadow-[#E87C2A]/40 text-xs sm:text-sm md:text-base px-4 sm:px-7 py-2.5 sm:py-3.5 rounded-xl transition-all" asChild>
+                <Button
+                  size="default"
+                  className={`flex-1 sm:flex-none active:scale-[0.98] font-bold text-xs sm:text-sm md:text-base px-4 sm:px-7 py-2.5 sm:py-3.5 rounded-xl transition-all ${
+                    slide.ctaClass || "bg-[#E87C2A] hover:bg-[#D06820] text-white shadow-lg shadow-[#E87C2A]/40"
+                  }`}
+                  asChild
+                >
                   <Link href={slide.ctaLink}>
                     <span>{slide.cta}</span>
                     <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Link>
                 </Button>
-                <Button size="default" variant="outline" className="flex-1 sm:flex-none text-white border-white/30 hover:bg-white/15 active:scale-[0.98] backdrop-blur-md text-xs sm:text-sm md:text-base px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-xl font-semibold transition-all" asChild>
+                <Button
+                  size="default"
+                  variant="outline"
+                  className={`flex-1 sm:flex-none active:scale-[0.98] backdrop-blur-md text-xs sm:text-sm md:text-base px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-xl font-semibold transition-all ${
+                    slide.cta2Class || "text-white border-white/30 hover:bg-white/15"
+                  }`}
+                  asChild
+                >
                   <Link href={slide.cta2Link}>
                     {slide.cta2}
                   </Link>
@@ -277,7 +299,9 @@ function HeroCarousel() {
             key={i}
             onClick={() => go(i)}
             aria-label={`Aller au slide ${i + 1}`}
-            className={`rounded-full transition-all duration-300 ${i === current ? "bg-[#F5C430] w-6 h-2" : "bg-white/40 hover:bg-white/70 w-2 h-2"}`}
+            className={`rounded-full transition-all duration-300 ${
+              i === current ? "bg-white w-7 h-2 shadow-sm" : "bg-white/40 hover:bg-white/70 w-2 h-2"
+            }`}
           />
         ))}
       </div>
