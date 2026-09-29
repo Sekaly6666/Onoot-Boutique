@@ -688,3 +688,68 @@ export async function sendShopOrderCancelledNotification(
   }
 }
 
+// ─── 5. Email de notification pour la boutique lors d'une inscription standard (sans Google) ───
+export async function sendShopNewUserRegisteredNotification(
+  user: any,
+  shopEmail: string = SHOP_EMAIL
+): Promise<void> {
+  if (!shopEmail) return;
+
+  const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.name || 'Nouveau client';
+  const email = user.email || 'Non renseigné';
+  const phone = user.phone || 'Non renseigné';
+  const dateFormatted = (user.createdAt ? new Date(user.createdAt) : new Date()).toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const body = `
+    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;font-weight:700;color:${C.blue};text-transform:uppercase;letter-spacing:2px;margin:0 0 8px;text-align:center;">Alerte Boutique &bull; Nouveau Compte</p>
+    <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:24px;font-weight:900;color:${C.dark};margin:0 0 6px;text-align:center;">Nouveau client inscrit !</h1>
+    <p style="text-align:center;margin:0 0 20px;">
+      <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.muted};">
+        ${icon.calendar}${dateFormatted}
+      </span>
+    </p>
+
+    <!-- Badge inscription naturelle (site web) -->
+    <div style="text-align:center;margin-bottom:24px;">
+      <span style="display:inline-block;background-color:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:700;padding:6px 16px;border-radius:9999px;">
+        ${icon.user}Inscription standard (formulaire boutique sans Google)
+      </span>
+    </div>
+
+    ${DIVIDER}
+
+    ${sectionTitle(icon.user, 'Coordonnées du nouveau client')}
+    <div style="background-color:${C.card};border:1px solid ${C.border};border-radius:12px;padding:16px 18px;margin-bottom:22px;">
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px;font-weight:800;color:${C.dark};margin:0 0 8px;">${fullName}</p>
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.body};margin:0 0 6px;">${icon.mail}<strong>Email :</strong> <a href="mailto:${email}" style="color:${C.blueDark};text-decoration:none;font-weight:600;">${email}</a></p>
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.body};margin:0 0 6px;">${icon.phone}<strong>Téléphone :</strong> <a href="tel:${phone}" style="color:${C.dark};text-decoration:none;font-weight:600;">${phone}</a></p>
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.muted};margin:0;">${icon.key}<strong>Type d'authentification :</strong> Inscription locale (Email + Mot de passe)</p>
+    </div>
+
+    ${DIVIDER}
+
+    ${ctaButton('Consulter dans le Panel Admin', `${process.env.ADMIN_URL || 'https://onoot-boutique-admin.vercel.app'}/users`)}`;
+
+  const html = wrapInTicket(body, `[Boutique] Nouveau compte client créé par ${fullName} (${email})`);
+
+  try {
+    await sendMailWithFallback({
+      from: getFromAddress(),
+      to: shopEmail,
+      subject: `[Nouveau Client] ${fullName} vient de créer son compte – Onoot Boutique`,
+      html,
+    });
+    logger.info({ to: shopEmail, userEmail: email }, 'Shop new user registration notification email sent');
+  } catch (err: any) {
+    logger.error({ err: err.message, to: shopEmail }, 'Failed to send shop new user registration notification email');
+  }
+}
+
+

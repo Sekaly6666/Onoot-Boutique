@@ -2,9 +2,10 @@ import { Router, type IRouter } from "express";
 import { RegisterUserBody, LoginUserBody } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
 import { User } from "../models/User";
+import { AdminNotification } from "../models/AdminNotification";
 import crypto from "crypto";
 import https from "https";
-import { sendLoginNotification } from "../lib/email";
+import { sendLoginNotification, sendShopNewUserRegisteredNotification, SHOP_EMAIL } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -177,11 +178,28 @@ router.post("/auth/register", async (req, res): Promise<void> => {
 
   const token = generateToken(newUser._id.toString());
 
-  // Send registration welcome notification email asynchronously
+  // 1. Send registration welcome notification email to the client
   sendLoginNotification(newUser.email, newUser.firstName || `${newUser.firstName ?? ''} ${newUser.lastName ?? ''}`.trim(), {
     provider: 'local',
     date: now,
   }).catch((err) => console.error("Email register notification error:", err));
+
+  // 2. Alert the shop pro email (onootboutique@gmail.com) ONLY for natural/standard registration (without Google)
+  sendShopNewUserRegisteredNotification(newUser, SHOP_EMAIL).catch((err) =>
+    console.error("Shop new user registration email error:", err)
+  );
+
+  // 3. Create Admin Dashboard Notification
+  try {
+    const notif = new AdminNotification({
+      type: "user",
+      title: "Nouveau compte client inscrit",
+      desc: `${newUser.firstName ?? ''} ${newUser.lastName ?? ''}`.trim() + ` (${newUser.email}) vient de créer un compte.`,
+    });
+    await notif.save();
+  } catch (err) {
+    console.error("Failed to create admin notification for new user:", err);
+  }
 
   res.status(201).json({ user: formatUser(newUser, 0), token });
 });
