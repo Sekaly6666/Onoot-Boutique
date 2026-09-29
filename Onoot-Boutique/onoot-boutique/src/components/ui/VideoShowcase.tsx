@@ -140,6 +140,8 @@ export function VideoShowcase() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const modalVideoRef = useRef<HTMLVideoElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const playlistContainerRef = useRef<HTMLDivElement>(null);
+  const isInitialMount = useRef(true);
 
   // Fetch showcase videos
   useEffect(() => {
@@ -216,13 +218,25 @@ export function VideoShowcase() {
     nextVideo();
   };
 
-  // Smoothly scroll active video in playlist sidebar into view
+  // Smoothly scroll active video inside the playlist sidebar container ONLY (NEVER scroll the browser window)
   useEffect(() => {
-    if (itemRefs.current[selectedIndex]) {
-      itemRefs.current[selectedIndex]?.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-      });
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    const container = playlistContainerRef.current;
+    const item = itemRefs.current[selectedIndex];
+    if (container && item) {
+      const containerTop = container.scrollTop;
+      const containerHeight = container.clientHeight;
+      const itemTop = item.offsetTop - container.offsetTop;
+      const itemHeight = item.clientHeight;
+
+      if (itemTop < containerTop) {
+        container.scrollTo({ top: itemTop, behavior: "smooth" });
+      } else if (itemTop + itemHeight > containerTop + containerHeight) {
+        container.scrollTo({ top: itemTop + itemHeight - containerHeight, behavior: "smooth" });
+      }
     }
   }, [selectedIndex]);
 
@@ -619,7 +633,10 @@ export function VideoShowcase() {
             </div>
 
             {/* Exactement 5 vidéos visibles à la fois (466px), défilement fluide pour les suivantes */}
-            <div className="space-y-2 max-h-[466px] overflow-y-auto pr-1.5 scroll-smooth [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.25)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-orange-500/50">
+            <div
+              ref={playlistContainerRef}
+              className="space-y-2 max-h-[466px] overflow-y-auto pr-1.5 scroll-smooth [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.25)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-orange-500/50"
+            >
               {videos.map((item, idx) => {
                 const isCurrent = idx === selectedIndex;
                 const itemThumb = item.thumbnailUrl || (allProducts.find((p) => p.id === item.productId || p.name === item.productName)?.images?.[0]) || "/images/zfold_case.jpg";

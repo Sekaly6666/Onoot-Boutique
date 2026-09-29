@@ -37,11 +37,11 @@ const exampleProducts = [
 ];
 
 const PRICE_PRESETS = [
-  { label: "Tous", min: 0, max: 100000 },
-  { label: "< 20.000 F", min: 0, max: 20000 },
-  { label: "20.000 - 40.000 F", min: 20000, max: 40000 },
-  { label: "40.000 - 70.000 F", min: 40000, max: 70000 },
-  { label: "> 70.000 F", min: 70000, max: 100000 },
+  { label: "Tous", min: 0, max: 500000 },
+  { label: "< 15 000 F", min: 0, max: 15000 },
+  { label: "15 000 - 30 000 F", min: 15000, max: 30000 },
+  { label: "30 000 - 60 000 F", min: 30000, max: 60000 },
+  { label: "> 60 000 F", min: 60000, max: 500000 },
 ];
 
 export default function Products() {
@@ -58,7 +58,7 @@ export default function Products() {
       bestSeller: sp.get("bestSeller") === "true",
       sortBy: sp.get("sortBy") || "createdAt_desc",
       minPrice: sp.get("minPrice") ? Number(sp.get("minPrice")) : 0,
-      maxPrice: sp.get("maxPrice") ? Number(sp.get("maxPrice")) : 100000,
+      maxPrice: sp.get("maxPrice") ? Number(sp.get("maxPrice")) : 500000,
     };
   };
 
@@ -71,8 +71,8 @@ export default function Products() {
   const [bestSeller, setBestSeller] = useState<boolean>(initial.bestSeller);
   const [sortBy, setSortBy] = useState<string>(initial.sortBy);
   const [priceRange, setPriceRange] = useState<[number, number]>([initial.minPrice, initial.maxPrice]);
-  const [minInput, setMinInput] = useState<string>(String(initial.minPrice));
-  const [maxInput, setMaxInput] = useState<string>(String(initial.maxPrice));
+  const [minInput, setMinInput] = useState<string>(initial.minPrice > 0 ? String(initial.minPrice) : "");
+  const [maxInput, setMaxInput] = useState<string>(initial.maxPrice < 500000 ? String(initial.maxPrice) : "");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   // Sync state if URL changes (e.g. clicking banner "Profiter des offres" or browser back/forward)
@@ -85,8 +85,8 @@ export default function Products() {
     setBestSeller(params.bestSeller);
     setSortBy(params.sortBy);
     setPriceRange([params.minPrice, params.maxPrice]);
-    setMinInput(String(params.minPrice));
-    setMaxInput(String(params.maxPrice));
+    setMinInput(params.minPrice > 0 ? String(params.minPrice) : "");
+    setMaxInput(params.maxPrice < 500000 ? String(params.maxPrice) : "");
   }, [location]);
 
   // Keep min/max text inputs synced with priceRange slider
@@ -126,7 +126,7 @@ export default function Products() {
     if (current.bestSeller) sp.set("bestSeller", "true");
     if (current.sortBy && current.sortBy !== "createdAt_desc") sp.set("sortBy", current.sortBy);
     if (current.minPrice > 0) sp.set("minPrice", String(current.minPrice));
-    if (current.maxPrice < 100000) sp.set("maxPrice", String(current.maxPrice));
+    if (current.maxPrice < 500000) sp.set("maxPrice", String(current.maxPrice));
 
     const newQuery = sp.toString();
     const newUrl = `${window.location.pathname}${newQuery ? `?${newQuery}` : ""}`;
@@ -135,13 +135,16 @@ export default function Products() {
 
   const handlePriceRangeChange = (val: [number, number]) => {
     setPriceRange(val);
+    setMinInput(val[0] === 0 ? "" : String(val[0]));
+    setMaxInput(val[1] >= 500000 ? "" : String(val[1]));
     syncToUrl({ minPrice: val[0], maxPrice: val[1] });
   };
 
   const applyManualPriceInputs = () => {
-    let min = Math.max(0, Number(minInput) || 0);
-    let max = Math.max(min, Number(maxInput) || 100000);
-    if (max > 100000) max = 100000;
+    const rawMin = minInput.trim() ? Number(minInput) : 0;
+    const rawMax = maxInput.trim() ? Number(maxInput) : 500000;
+    const min = isNaN(rawMin) || rawMin < 0 ? 0 : rawMin;
+    const max = isNaN(rawMax) || rawMax <= 0 ? 500000 : Math.max(min, rawMax);
     setPriceRange([min, max]);
     syncToUrl({ minPrice: min, maxPrice: max });
   };
@@ -155,7 +158,7 @@ export default function Products() {
     bestSeller: bestSeller ? true : undefined,
     sortBy,
     minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
-    maxPrice: priceRange[1] < 100000 ? priceRange[1] : undefined,
+    maxPrice: priceRange[1] < 500000 ? priceRange[1] : undefined,
   }, {
     query: {
       queryKey: getListProductsQueryKey({ 
@@ -195,9 +198,9 @@ export default function Products() {
     setInStock(false);
     setOnSale(false);
     setBestSeller(false);
-    setPriceRange([0, 100000]);
-    setMinInput("0");
-    setMaxInput("100000");
+    setPriceRange([0, 500000]);
+    setMinInput("");
+    setMaxInput("");
     setSortBy("createdAt_desc");
     window.history.replaceState(null, "", window.location.pathname);
   };
@@ -225,7 +228,7 @@ export default function Products() {
     if (priceRange[0] > 0) {
       list = list.filter(p => (p.discountPrice ?? p.price) >= priceRange[0]);
     }
-    if (priceRange[1] < 100000) {
+    if (priceRange[1] < 500000) {
       list = list.filter(p => (p.discountPrice ?? p.price) <= priceRange[1]);
     }
 
@@ -257,7 +260,7 @@ export default function Products() {
     Boolean(inStock),
     Boolean(onSale),
     Boolean(bestSeller),
-    priceRange[0] > 0 || priceRange[1] < 100000,
+    priceRange[0] > 0 || priceRange[1] < 500000,
   ].filter(Boolean).length;
 
   // Filter Sidebar Content (shared between desktop aside and mobile sheet)
@@ -354,15 +357,16 @@ export default function Products() {
         </div>
       </div>
 
-      {/* Prix (FCFA) - Jumia Style avec Raccourcis + Saisie Directe + Slider Fluide */}
-      <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/70 dark:border-slate-800">
-        <div className="flex items-center justify-between mb-3">
+      {/* Prix (FCFA) - Simple, rapide et facile */}
+      <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/70 dark:border-slate-800 space-y-3">
+        <div className="flex items-center justify-between">
           <h3 className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Prix (FCFA)
           </h3>
-          {(priceRange[0] > 0 || priceRange[1] < 100000) && (
+          {(priceRange[0] > 0 || priceRange[1] < 500000) && (
             <button
-              onClick={() => handlePriceRangeChange([0, 100000])}
+              type="button"
+              onClick={() => handlePriceRangeChange([0, 500000])}
               className="text-[11px] text-primary hover:underline font-semibold"
             >
               Réinitialiser
@@ -370,8 +374,49 @@ export default function Products() {
           )}
         </div>
 
-        {/* Quick price chips (1-clic) */}
-        <div className="grid grid-cols-2 gap-1.5 mb-4">
+        {/* Saisie Min (F) - Max (F) */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <span className="text-[10px] text-slate-500 font-bold uppercase block mb-1">Min (FCFA)</span>
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              placeholder="0"
+              value={minInput}
+              onChange={(e) => setMinInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && applyManualPriceInputs()}
+              className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-xs"
+            />
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-500 font-bold uppercase block mb-1">Max (FCFA)</span>
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              placeholder="Ex: 50 000"
+              value={maxInput}
+              onChange={(e) => setMaxInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && applyManualPriceInputs()}
+              className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-xs"
+            />
+          </div>
+        </div>
+
+        {/* Bouton Appliquer */}
+        <Button
+          type="button"
+          size="sm"
+          onClick={applyManualPriceInputs}
+          className="w-full h-9 text-xs font-bold rounded-xl bg-primary hover:bg-primary/90 text-white shadow-xs"
+        >
+          Appliquer le prix
+        </Button>
+
+        {/* Raccourcis budget 1-clic */}
+        <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex flex-wrap gap-1.5">
+          <span className="text-[10px] text-slate-400 font-medium block w-full mb-0.5">Budget rapide :</span>
           {PRICE_PRESETS.map((preset) => {
             const isPresetActive = priceRange[0] === preset.min && priceRange[1] === preset.max;
             return (
@@ -379,7 +424,7 @@ export default function Products() {
                 key={preset.label}
                 type="button"
                 onClick={() => handlePriceRangeChange([preset.min, preset.max])}
-                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all text-center border ${
+                className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all text-center border ${
                   isPresetActive
                     ? "bg-primary text-white border-primary shadow-xs"
                     : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-primary/40"
@@ -389,56 +434,6 @@ export default function Products() {
               </button>
             );
           })}
-        </div>
-
-        {/* Smooth Slider */}
-        <div className="px-1 py-1">
-          <Slider
-            min={0}
-            max={100000}
-            step={2500}
-            value={priceRange}
-            onValueChange={(v) => handlePriceRangeChange(v as [number, number])}
-            className="mb-3"
-          />
-        </div>
-
-        {/* Min / Max direct inputs */}
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-800">
-          <div className="flex-1">
-            <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Min (F)</span>
-            <input
-              type="number"
-              min={0}
-              max={100000}
-              step={1000}
-              value={minInput}
-              onChange={(e) => setMinInput(e.target.value)}
-              onBlur={applyManualPriceInputs}
-              onKeyDown={(e) => e.key === "Enter" && applyManualPriceInputs()}
-              className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <span className="text-slate-400 font-bold text-xs mt-4">-</span>
-          <div className="flex-1">
-            <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Max (F)</span>
-            <input
-              type="number"
-              min={0}
-              max={100000}
-              step={1000}
-              value={maxInput}
-              onChange={(e) => setMaxInput(e.target.value)}
-              onBlur={applyManualPriceInputs}
-              onKeyDown={(e) => e.key === "Enter" && applyManualPriceInputs()}
-              className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-between items-center text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-2">
-          <span>{priceRange[0].toLocaleString()} FCFA</span>
-          <span>{priceRange[1] >= 100000 ? "100.000+ FCFA" : `${priceRange[1].toLocaleString()} FCFA`}</span>
         </div>
       </div>
 

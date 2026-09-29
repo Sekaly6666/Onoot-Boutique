@@ -85,6 +85,22 @@ function Router() {
   );
 }
 
+function ScrollToTop() {
+  const [location] = useLocation();
+
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    if (document.documentElement) {
+      document.documentElement.scrollTop = 0;
+    }
+    if (document.body) {
+      document.body.scrollTop = 0;
+    }
+  }, [location]);
+
+  return null;
+}
+
 function App() {
   return (
     <ErrorBoundary>
@@ -93,6 +109,7 @@ function App() {
           <AuthProvider>
             <TooltipProvider>
               <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <ScrollToTop />
                 <CartProvider>
                   <Router />
                 </CartProvider>
