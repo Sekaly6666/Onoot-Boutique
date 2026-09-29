@@ -19,7 +19,9 @@ import {
   Radio,
   Tag,
   Plus,
-  Check
+  Check,
+  SkipForward,
+  SkipBack,
 } from "lucide-react";
 import { Button } from "./button";
 import { VideoMarquee } from "./VideoMarquee";
@@ -76,6 +78,7 @@ export function VideoShowcase() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const modalVideoRef = useRef<HTMLVideoElement>(null);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Fetch showcase videos
   useEffect(() => {
@@ -133,13 +136,40 @@ export function VideoShowcase() {
     ? `/products/${resolvedProduct.id}` 
     : (activeVideo?.productId ? `/products/${activeVideo.productId}` : (activeVideo?.productLink && activeVideo.productLink !== "/products" ? activeVideo.productLink : "/products"));
 
+  // Sequential playlist controls: 1 -> 2 -> 3... -> loops back to 1
+  const nextVideo = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (videos.length === 0) return;
+    setSelectedIndex((prev) => (prev + 1) % videos.length);
+  };
+
+  const prevVideo = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (videos.length === 0) return;
+    setSelectedIndex((prev) => (prev - 1 + videos.length) % videos.length);
+  };
+
+  // Called automatically when current video reaches the end
+  const handleVideoEnded = () => {
+    nextVideo();
+  };
+
+  // Smoothly scroll active video in playlist sidebar into view
+  useEffect(() => {
+    if (itemRefs.current[selectedIndex]) {
+      itemRefs.current[selectedIndex]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [selectedIndex]);
+
   // Update video playback when selectedIndex changes
   useEffect(() => {
     setVideoError(false);
     setProgress(0);
 
     if (videoRef.current && activeVideo) {
-      // Pick reliable URL if previous gave error or contains mixkit
       let sourceUrl = activeVideo.videoUrl;
       if (!sourceUrl || sourceUrl.includes("mixkit.co")) {
         sourceUrl = RELIABLE_CDN_VIDEOS[selectedIndex % RELIABLE_CDN_VIDEOS.length];
@@ -147,20 +177,41 @@ export function VideoShowcase() {
 
       videoRef.current.src = sourceUrl;
       videoRef.current.load();
-      videoRef.current
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch(() => {
-          // Autoplay policy prevented playback, keep paused
-          setIsPlaying(false);
-        });
+      
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => setIsPlaying(true))
+          .catch((err) => {
+            console.warn("Autoplay notice, falling back to muted playback:", err);
+            // If browser blocks unmuted playback during sequential transitions, mute and resume
+            if (videoRef.current && !videoRef.current.muted) {
+              videoRef.current.muted = true;
+              setIsMuted(true);
+              videoRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+            } else {
+              setIsPlaying(false);
+            }
+          });
+      }
+    }
+
+    // Synchronize modal video if open
+    if (isModalOpen && modalVideoRef.current && activeVideo) {
+      let sourceUrl = activeVideo.videoUrl;
+      if (!sourceUrl || sourceUrl.includes("mixkit.co")) {
+        sourceUrl = RELIABLE_CDN_VIDEOS[selectedIndex % RELIABLE_CDN_VIDEOS.length];
+      }
+      modalVideoRef.current.src = sourceUrl;
+      modalVideoRef.current.load();
+      modalVideoRef.current.play().catch(() => {});
     }
 
     // View counter
     if (activeVideo) {
       fetch(`/api/promo-videos/${activeVideo._id}/view`, { method: "POST" }).catch(() => {});
     }
-  }, [selectedIndex, activeVideo]);
+  }, [selectedIndex, activeVideo, isModalOpen]);
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
@@ -273,7 +324,7 @@ export function VideoShowcase() {
                 autoPlay
                 playsInline
                 muted={isMuted}
-                loop
+                onEnded={handleVideoEnded}
                 onTimeUpdate={handleTimeUpdate}
                 onError={handleVideoError}
                 className="w-full h-full object-cover sm:object-contain bg-black"
@@ -293,6 +344,26 @@ export function VideoShowcase() {
                 </div>
 
                 <div className="flex items-center gap-2 pointer-events-auto">
+                  {/* Skip to previous video */}
+                  <button
+                    type="button"
+                    onClick={prevVideo}
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center transition-all transform hover:scale-105 border border-white/20 shadow-lg"
+                    title="Vidéo précédente"
+                  >
+                    <SkipBack className="w-4 h-4 text-slate-300 hover:text-white" />
+                  </button>
+
+                  {/* Skip to next video */}
+                  <button
+                    type="button"
+                    onClick={nextVideo}
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center transition-all transform hover:scale-105 border border-white/20 shadow-lg"
+                    title="Vidéo suivante (1 ➔ 2 ➔ 3...)"
+                  >
+                    <SkipForward className="w-4 h-4 text-orange-400 hover:text-orange-300" />
+                  </button>
+
                   {/* Sound toggle button */}
                   <button
                     type="button"
@@ -427,10 +498,13 @@ export function VideoShowcase() {
                 <Radio className="w-3.5 h-3.5 text-orange-400" />
                 <span>Sélection Vidéos ({videos.length})</span>
               </h4>
-              <span className="text-[11px] text-orange-400 font-semibold">Cliquez pour lire</span>
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Lecture auto enchaînée</span>
+              </span>
             </div>
 
-            <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1 scrollbar-none">
               {videos.map((item, idx) => {
                 const isCurrent = idx === selectedIndex;
                 const itemThumb = item.thumbnailUrl || "/images/smartwatch.png";
@@ -438,10 +512,13 @@ export function VideoShowcase() {
                 return (
                   <motion.div
                     key={item._id}
+                    ref={(el) => {
+                      itemRefs.current[idx] = el;
+                    }}
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                     onClick={() => selectVideo(idx)}
-                    className={`flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl cursor-pointer transition-all duration-200 border ${
+                    className={`flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl cursor-pointer transition-all duration-200 border relative ${
                       isCurrent
                         ? "bg-white/[0.08] border-orange-500 shadow-lg shadow-orange-500/10 ring-1 ring-orange-500/30"
                         : "bg-white/[0.02] hover:bg-white/[0.06] border-white/10"
@@ -465,20 +542,26 @@ export function VideoShowcase() {
                           <Play className="w-3.5 h-3.5 ml-0.5 fill-current" />
                         </div>
                       </div>
-                      {isCurrent && (
-                        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-orange-500 text-[8px] font-black text-white uppercase tracking-wider">
-                          En cours
+                      {isCurrent ? (
+                        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-orange-500 text-[8px] font-black text-white uppercase tracking-wider flex items-center gap-1 shadow">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                          <span>N° {idx + 1} • En cours</span>
+                        </div>
+                      ) : (
+                        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-xs text-[9px] font-bold text-slate-300 border border-white/10">
+                          N° {idx + 1}
                         </div>
                       )}
                     </div>
 
                     {/* Metadata */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1 mb-0.5">
+                      <div className="flex items-center gap-1.5 mb-0.5">
                         <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 flex items-center gap-1">
                           <Flame className="w-2.5 h-2.5" />
                           <span>{cleanBadgeText(item.badge)}</span>
                         </span>
+                        <span className="text-[10px] text-slate-400 font-mono">Vidéo {idx + 1}/{videos.length}</span>
                       </div>
                       <h5
                         className={`text-xs sm:text-sm font-bold truncate ${
@@ -529,6 +612,7 @@ export function VideoShowcase() {
                 src={videoRef.current?.src || activeVideo.videoUrl}
                 autoPlay
                 controls
+                onEnded={handleVideoEnded}
                 className="w-full h-full object-contain"
               />
 
