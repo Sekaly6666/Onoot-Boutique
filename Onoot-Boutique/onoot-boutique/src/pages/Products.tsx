@@ -499,26 +499,35 @@ export default function Products() {
 
       <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Horizontal Quick Category Chips (Style Jumia / E-commerce Moderne) */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none">
-          {categories.map((c) => {
-            const isSelected = category === c.value;
-            return (
-              <button
-                key={c.value}
-                onClick={() => {
-                  setCategory(c.value);
-                  syncToUrl({ category: c.value });
-                }}
-                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                  isSelected
-                    ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-sm"
-                    : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-slate-50"
-                }`}
-              >
-                {c.label}
-              </button>
-            );
-          })}
+        <div className="relative mb-6">
+          <div 
+            className="flex items-center gap-2 overflow-x-auto py-1 px-0.5 scrollbar-none scroll-smooth touch-pan-x"
+            style={{
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+              WebkitOverflowScrolling: "touch",
+            }}
+          >
+            {categories.map((c) => {
+              const isSelected = category === c.value;
+              return (
+                <button
+                  key={c.value}
+                  onClick={() => {
+                    setCategory(c.value);
+                    syncToUrl({ category: c.value });
+                  }}
+                  className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border whitespace-nowrap active:scale-95 ${
+                    isSelected
+                      ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-sm"
+                      : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-slate-50"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
@@ -608,11 +617,11 @@ export default function Products() {
                         <SelectValue placeholder="Trier par..." />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">
-                        <SelectItem value="createdAt_desc" className="text-xs font-medium">✨ Plus récents</SelectItem>
-                        <SelectItem value="price_asc" className="text-xs font-medium">↗️ Prix croissant (Moins cher)</SelectItem>
-                        <SelectItem value="price_desc" className="text-xs font-medium">↘️ Prix décroissant (Plus cher)</SelectItem>
-                        <SelectItem value="rating_desc" className="text-xs font-medium">⭐ Meilleures notes</SelectItem>
-                        <SelectItem value="sales_desc" className="text-xs font-medium">🔥 Plus populaires</SelectItem>
+                        <SelectItem value="price_asc" className="text-xs font-medium">Prix croissant (Moins cher d'abord)</SelectItem>
+                        <SelectItem value="price_desc" className="text-xs font-medium">Prix décroissant (Plus cher d'abord)</SelectItem>
+                        <SelectItem value="createdAt_desc" className="text-xs font-medium">Nouveautés (Plus récents)</SelectItem>
+                        <SelectItem value="rating_desc" className="text-xs font-medium">Meilleures notes clients</SelectItem>
+                        <SelectItem value="sales_desc" className="text-xs font-medium">Plus populaires (Top ventes)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
