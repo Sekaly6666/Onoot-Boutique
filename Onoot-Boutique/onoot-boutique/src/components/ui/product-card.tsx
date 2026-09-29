@@ -87,23 +87,32 @@ export function ProductCard({ product, className }: ProductCardProps) {
           className="object-contain w-full h-full mix-blend-multiply transition-transform duration-500 group-hover:scale-110"
           onError={(e) => { e.currentTarget.src = "/images/smartwatch.png"; }}
         />
-        {/* Quick action overlay */}
+        {/* Quick action overlay (desktop/hover) */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100">
           <motion.div initial={{ y: 10, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} className="flex gap-2">
             <Button
               size="sm"
-              className="bg-[#E87C2A] hover:bg-[#D06820] text-white shadow-lg font-semibold text-xs"
+              className="bg-[#E87C2A] hover:bg-[#D06820] text-white shadow-lg font-semibold text-xs px-2.5 md:px-3"
               onClick={handleAddToCart}
               disabled={isOutOfStock}
+              title="Ajouter au panier"
             >
-              <ShoppingCart className="h-3.5 w-3.5 mr-1" /> Ajouter
+              <ShoppingCart className="h-3.5 w-3.5" />
+              <span className="hidden md:inline ml-1.5">Ajouter</span>
             </Button>
             <Button
               size="sm"
               variant="secondary"
-              className="bg-white dark:bg-gray-800 dark:text-white text-[#111827] hover:bg-gray-100 dark:hover:bg-gray-700 shadow-lg text-xs"
+              className="bg-white dark:bg-gray-800 dark:text-white text-[#111827] hover:bg-gray-100 dark:hover:bg-gray-700 shadow-lg text-xs px-2.5 md:px-3"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setLocation(`/products/${product.id}`);
+              }}
+              title="Voir le produit"
             >
-              <Eye className="h-3.5 w-3.5 mr-1" /> Voir
+              <Eye className="h-3.5 w-3.5" />
+              <span className="hidden md:inline ml-1.5">Voir</span>
             </Button>
           </motion.div>
         </div>
@@ -119,31 +128,54 @@ export function ProductCard({ product, className }: ProductCardProps) {
         </h3>
         <div className="mt-auto pt-2">
           <StarRating rating={product.rating} count={product.reviewCount} className="mb-3" />
-          <div className="flex items-end justify-between gap-2">
-            <div className="min-w-0">
+          <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+            <div className="min-w-0 pr-1">
               {hasDiscount ? (
                 <div>
-                  <span className="text-[11px] text-muted-foreground line-through block">
+                  <span className="text-[10px] sm:text-[11px] text-muted-foreground line-through block leading-tight">
                     {product.price.toLocaleString()} FCFA
                   </span>
-                  <span className="text-base font-bold text-[#E87C2A]">
+                  <span className="text-sm sm:text-base font-bold text-[#E87C2A] leading-tight">
                     {product.discountPrice?.toLocaleString()} FCFA
                   </span>
                 </div>
               ) : (
-                <span className="text-base font-bold text-foreground">
+                <span className="text-sm sm:text-base font-bold text-foreground leading-tight">
                   {product.price.toLocaleString()} FCFA
                 </span>
               )}
             </div>
-            <Button
-              size="icon"
-              className="h-9 w-9 rounded-full bg-[#111827] text-white hover:bg-[#E87C2A] transition-colors shrink-0 shadow-md"
-              onClick={handleAddToCart}
-              disabled={isOutOfStock}
-            >
-              <ShoppingCart className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Bouton Voir: Icône seule sur mobile, Icône + Texte sur tablette et PC */}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 w-8 md:h-8 md:w-auto p-0 md:px-2.5 rounded-full md:rounded-lg border-border/80 bg-background/80 hover:bg-muted text-foreground transition-all duration-200 shadow-xs flex items-center justify-center active:scale-95"
+                title="Voir le produit"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setLocation(`/products/${product.id}`);
+                }}
+              >
+                <Eye className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground group-hover:text-foreground" />
+                <span className="hidden md:inline text-xs font-medium ml-1.5">Voir</span>
+              </Button>
+
+              {/* Bouton Panier: Icône seule sur mobile, Icône + Texte sur tablette et PC */}
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 w-8 md:h-8 md:w-auto p-0 md:px-3 rounded-full md:rounded-lg bg-[#E87C2A] hover:bg-[#D06820] text-white transition-all duration-200 shadow-sm flex items-center justify-center font-medium active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                title="Ajouter au panier"
+                onClick={handleAddToCart}
+                disabled={isOutOfStock}
+              >
+                <ShoppingCart className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                <span className="hidden md:inline text-xs font-semibold ml-1.5">Ajouter</span>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
