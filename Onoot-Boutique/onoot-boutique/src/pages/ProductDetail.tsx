@@ -52,7 +52,7 @@ export default function ProductDetail() {
 
   const { data: reviews, isLoading: isReviewsLoading } = useListProductReviews(productId, {
     query: {
-      enabled: !!productId && !isExample,
+      enabled: !!productId,
       queryKey: getListProductReviewsQueryKey(productId)
     }
   });
@@ -481,7 +481,7 @@ function ReviewForm({
     createReviewMutation.mutate(
       {
         id: productId,
-        data: { rating, comment, userName, userId },
+        data: { rating, comment, userName, ...(userId ? { userId } : {}) },
       },
       {
         onSuccess: () => {

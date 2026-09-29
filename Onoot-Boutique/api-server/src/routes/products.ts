@@ -105,13 +105,20 @@ router.get("/products/on-sale", async (_req, res): Promise<void> => {
   res.json(products.map(formatProduct));
 });
 
+import mongoose from "mongoose";
+
 router.get("/products/:id", async (req, res): Promise<void> => {
   const params = GetProductParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const product = await Product.findById(params.data.id);
+  let product = null;
+  if (mongoose.isValidObjectId(params.data.id)) {
+    product = await Product.findById(params.data.id);
+  } else {
+    product = await Product.findOne({ $or: [{ slug: params.data.id }, { name: params.data.id }] });
+  }
   if (!product || product.status !== 'Publié') {
     res.status(404).json({ error: "Product not found" });
     return;
@@ -130,7 +137,12 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const updated = await Product.findByIdAndUpdate(params.data.id, parsed.data, { new: true });
+  let updated = null;
+  if (mongoose.isValidObjectId(params.data.id)) {
+    updated = await Product.findByIdAndUpdate(params.data.id, parsed.data, { new: true });
+  } else {
+    updated = await Product.findOneAndUpdate({ slug: params.data.id }, parsed.data, { new: true });
+  }
   if (!updated) {
     res.status(404).json({ error: "Product not found" });
     return;
@@ -144,7 +156,12 @@ router.delete("/products/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const deleted = await Product.findByIdAndDelete(params.data.id);
+  let deleted = null;
+  if (mongoose.isValidObjectId(params.data.id)) {
+    deleted = await Product.findByIdAndDelete(params.data.id);
+  } else {
+    deleted = await Product.findOneAndDelete({ slug: params.data.id });
+  }
   if (!deleted) {
     res.status(404).json({ error: "Product not found" });
     return;

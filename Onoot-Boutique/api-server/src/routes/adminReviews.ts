@@ -46,7 +46,12 @@ router.get('/', async (req, res): Promise<void> => {
 router.delete('/:id', async (req, res): Promise<void> => {
   try {
     const { id } = req.params;
-    const deleted = await Review.findByIdAndDelete(id);
+    let deleted = null;
+    if (mongoose.isValidObjectId(id)) {
+      deleted = await Review.findByIdAndDelete(id);
+    } else {
+      deleted = await Review.findOneAndDelete({ _id: id });
+    }
     if (!deleted) {
       res.status(404).json({ error: 'Review not found' });
       return;
@@ -59,11 +64,16 @@ router.delete('/:id', async (req, res): Promise<void> => {
       { $group: { _id: null, avgRating: { $avg: "$rating" }, reviewCount: { $sum: 1 } } },
     ]);
     const { avgRating = 0, reviewCount = 0 } = agg[0] || {};
+    const rating = parseFloat(avgRating.toFixed(2));
   
-    await Product.findByIdAndUpdate(productId, {
-      rating: parseFloat(avgRating.toFixed(2)),
-      reviewCount,
-    });
+    if (mongoose.isValidObjectId(productId)) {
+      await Product.findByIdAndUpdate(productId, { rating, reviewCount });
+    } else {
+      await Product.findOneAndUpdate(
+        { $or: [{ slug: productId }, { name: productId }] },
+        { rating, reviewCount }
+      );
+    }
 
     res.json({ message: 'Review deleted successfully' });
   } catch (err) {
