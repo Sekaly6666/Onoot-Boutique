@@ -91,25 +91,21 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-function sanitizeData(data: any): any {
-  if (!data || typeof data !== "object") return data;
-  if (Array.isArray(data)) {
-    return data.map(sanitizeData);
-  }
-  const sanitized: any = {};
-  for (const [key, value] of Object.entries(data)) {
+function sanitizeInPlace(data: any): void {
+  if (!data || typeof data !== "object") return;
+  for (const key of Object.keys(data)) {
     if (key.startsWith("$") || key.includes(".")) {
-      continue;
+      delete data[key];
+    } else if (typeof data[key] === "object") {
+      sanitizeInPlace(data[key]);
     }
-    sanitized[key] = sanitizeData(value);
   }
-  return sanitized;
 }
 
 app.use((req, _res, next) => {
-  if (req.body) req.body = sanitizeData(req.body);
-  if (req.query) req.query = sanitizeData(req.query);
-  if (req.params) req.params = sanitizeData(req.params);
+  if (req.body) sanitizeInPlace(req.body);
+  if (req.query) sanitizeInPlace(req.query);
+  if (req.params) sanitizeInPlace(req.params);
   next();
 });
 
