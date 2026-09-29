@@ -64,10 +64,30 @@ function cleanBadgeText(badge?: string): string {
 
 function isEmbedVideo(url?: string): boolean {
   if (!url) return false;
-  return url.includes("youtube.com") || url.includes("youtu.be") || url.includes("vimeo.com") || url.includes("/embed/");
+  return (
+    url.includes("youtube.com") ||
+    url.includes("youtu.be") ||
+    url.includes("vimeo.com") ||
+    url.includes("facebook.com") ||
+    url.includes("fb.watch") ||
+    url.includes("plugins/video.php") ||
+    url.includes("tiktok.com") ||
+    url.includes("/embed/")
+  );
 }
 
 function getEmbedAutoplayUrl(url: string, muted: boolean): string {
+  if (!url) return "";
+
+  // Facebook video & reels plugin
+  if (url.includes("facebook.com") || url.includes("fb.watch")) {
+    if (url.includes("plugins/video.php")) {
+      const sep = url.includes("?") ? "&" : "?";
+      return `${url}${sep}autoplay=1&mute=${muted ? "1" : "0"}`;
+    }
+    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0&width=734&autoplay=1&mute=${muted ? "1" : "0"}`;
+  }
+
   try {
     const parsed = new URL(url);
     parsed.searchParams.set("autoplay", "1");
@@ -149,7 +169,7 @@ export function VideoShowcase() {
       if (match) return match;
     }
 
-    return allProducts[0] || null;
+    return null;
   }, [activeVideo, allProducts]);
 
   // Direct product target URL
@@ -249,6 +269,9 @@ export function VideoShowcase() {
   };
 
   const handleVideoError = () => {
+    if (activeVideo && isEmbedVideo(activeVideo.videoUrl)) {
+      return;
+    }
     console.warn("Video failed to play, switching to reliable fallback stream");
     setVideoError(true);
     if (videoRef.current) {
@@ -304,12 +327,12 @@ export function VideoShowcase() {
     return null;
   }
 
-  // Displayed prices
-  const displayPrice = resolvedProduct?.price ?? activeVideo.price ?? 25000;
-  const displayDiscount = resolvedProduct?.discountPrice ?? activeVideo.discountPrice ?? null;
+  // Displayed prices & metadata: prioritize activeVideo's own data, then fallback to matched product
+  const displayPrice = activeVideo.price ?? resolvedProduct?.price ?? 25000;
+  const displayDiscount = activeVideo.discountPrice ?? resolvedProduct?.discountPrice ?? null;
   const hasDiscount = Boolean(displayDiscount && displayDiscount < displayPrice);
-  const displayTitle = resolvedProduct?.name ?? activeVideo.productName ?? activeVideo.title;
-  const displayImage = resolvedProduct?.images?.[0] ?? activeVideo.thumbnailUrl ?? "/images/smartwatch.png";
+  const displayTitle = activeVideo.title || activeVideo.productName || resolvedProduct?.name || "Produit Démo";
+  const displayImage = activeVideo.thumbnailUrl || resolvedProduct?.images?.[0] || "/images/zfold_case.jpg";
 
   return (
     <section className="py-12 sm:py-16 bg-gradient-to-b from-slate-950 via-[#0a0f1d] to-slate-950 text-white relative overflow-hidden select-none">
@@ -574,7 +597,7 @@ export function VideoShowcase() {
             <div className="space-y-2 max-h-[466px] overflow-y-auto pr-1.5 scroll-smooth [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.25)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-orange-500/50">
               {videos.map((item, idx) => {
                 const isCurrent = idx === selectedIndex;
-                const itemThumb = item.thumbnailUrl || "/images/smartwatch.png";
+                const itemThumb = item.thumbnailUrl || (allProducts.find((p) => p.id === item.productId || p.name === item.productName)?.images?.[0]) || "/images/zfold_case.jpg";
 
                 return (
                   <motion.div
@@ -596,7 +619,7 @@ export function VideoShowcase() {
                       <img
                         src={itemThumb}
                         alt={item.title}
-                        className="w-full h-full object-contain p-1 bg-slate-900"
+                        className="w-full h-full object-cover bg-slate-900"
                       />
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                         <div

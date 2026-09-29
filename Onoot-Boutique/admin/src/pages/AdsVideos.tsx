@@ -21,7 +21,9 @@ import {
   X,
   Link as LinkIcon,
   Check,
-  ExternalLink
+  ExternalLink,
+  Image as ImageIcon,
+  Camera
 } from 'lucide-react';
 import DeleteConfirm from '../components/DeleteConfirm';
 
@@ -511,6 +513,26 @@ function parseVideoSource(rawUrl: string) {
     };
   }
 
+  // Facebook Video & Reels (facebook.com/reel/..., facebook.com/watch/..., fb.watch/..., plugins/video.php)
+  if (trimmed.includes('facebook.com') || trimmed.includes('fb.watch')) {
+    if (trimmed.includes('plugins/video.php')) {
+      return {
+        url: trimmed,
+        embedUrl: trimmed,
+        isEmbed: true,
+        thumbnail: '',
+      };
+    }
+    const cleanFb = trimmed;
+    const embedPluginUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(cleanFb)}&show_text=0&width=734`;
+    return {
+      url: cleanFb,
+      embedUrl: embedPluginUrl,
+      isEmbed: true,
+      thumbnail: '',
+    };
+  }
+
   // Vimeo
   const vimeoMatch = trimmed.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|)(\d+)/i);
   if (vimeoMatch && vimeoMatch[3]) {
@@ -518,6 +540,18 @@ function parseVideoSource(rawUrl: string) {
     return {
       url: `https://player.vimeo.com/video/${vId}`,
       embedUrl: `https://player.vimeo.com/video/${vId}?autoplay=1&muted=1`,
+      isEmbed: true,
+      thumbnail: '',
+    };
+  }
+
+  // TikTok
+  const tiktokMatch = trimmed.match(/tiktok\.com\/@?[^\/]+\/video\/(\d+)/i);
+  if (tiktokMatch && tiktokMatch[1]) {
+    const ttId = tiktokMatch[1];
+    return {
+      url: `https://www.tiktok.com/embed/v2/${ttId}`,
+      embedUrl: `https://www.tiktok.com/embed/v2/${ttId}`,
       isEmbed: true,
       thumbnail: '',
     };
@@ -535,8 +569,8 @@ function parseVideoSource(rawUrl: string) {
 
   return {
     url: trimmed,
-    isEmbed: trimmed.includes('/embed/'),
-    embedUrl: trimmed.includes('/embed/') ? trimmed : '',
+    isEmbed: trimmed.includes('/embed/') || trimmed.includes('plugins/video.php'),
+    embedUrl: trimmed.includes('/embed/') || trimmed.includes('plugins/video.php') ? trimmed : '',
     thumbnail: '',
   };
 }
@@ -572,6 +606,45 @@ function PromoVideoModal({
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Helper to extract a snapshot frame from a video file
+  const captureVideoFrame = (videoFile: File): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.src = URL.createObjectURL(videoFile);
+      video.muted = true;
+      video.playsInline = true;
+      video.currentTime = 1;
+      video.onloadeddata = () => {
+        video.currentTime = 1;
+      };
+      video.onseeked = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth || 640;
+          canvas.height = video.videoHeight || 360;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+              URL.revokeObjectURL(video.src);
+              resolve(blob);
+            }, 'image/jpeg', 0.85);
+            return;
+          }
+        } catch {
+          // ignore
+        }
+        URL.revokeObjectURL(video.src);
+        resolve(null);
+      };
+      video.onerror = () => {
+        URL.revokeObjectURL(video.src);
+        resolve(null);
+      };
+    });
+  };
+
   // File upload handler
   const handleFileUpload = async (file: File, type: 'video' | 'image') => {
     const token = localStorage.getItem('adminToken');
@@ -595,6 +668,32 @@ function PromoVideoModal({
       if (type === 'video') {
         setVideoUrl(data.url);
         toast.success('Vidéo uploadée avec succès !');
+
+        // Automatically extract frame for thumbnail if not already set
+        if (!thumbnailUrl) {
+          try {
+            const frameBlob = await captureVideoFrame(file);
+            if (frameBlob) {
+              const frameFile = new File([frameBlob], `thumb-${Date.now()}.jpg`, { type: 'image/jpeg' });
+              const thumbFormData = new FormData();
+              thumbFormData.append('file', frameFile);
+              const thumbRes = await fetch('/api/admin/upload', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: thumbFormData,
+              });
+              if (thumbRes.ok) {
+                const thumbData = await thumbRes.json();
+                if (thumbData.url) {
+                  setThumbnailUrl(thumbData.url);
+                  toast.success('Capture de la vidéo extraite automatiquement !');
+                }
+              }
+            }
+          } catch (snapErr) {
+            console.warn('Auto-frame extraction skipped:', snapErr);
+          }
+        }
       } else {
         setThumbnailUrl(data.url);
         toast.success('Miniature uploadée !');
@@ -836,7 +935,9 @@ function PromoVideoModal({
                 <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
                   <span className="font-bold uppercase tracking-wider text-[10px] text-foreground">Liens compatibles :</span>
                   <span className="px-2 py-0.5 rounded-md bg-muted border border-border">Lien MP4 direct</span>
-                  <span className="px-2 py-0.5 rounded-md bg-muted border border-border">YouTube (Watch / Shorts)</span>
+                  <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold border border-blue-500/20">Facebook (Reels & Vidéos)</span>
+                  <span className="px-2 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 font-semibold border border-red-500/20">YouTube (Watch & Shorts)</span>
+                  <span className="px-2 py-0.5 rounded-md bg-muted border border-border">TikTok</span>
                   <span className="px-2 py-0.5 rounded-md bg-muted border border-border">Cloudinary / CDN</span>
                   <span className="px-2 py-0.5 rounded-md bg-muted border border-border">Vimeo / Dropbox</span>
                 </div>
@@ -872,36 +973,83 @@ function PromoVideoModal({
             )}
           </div>
 
-          {/* Thumbnail / Poster */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-                Miniature / Poster (Optionnel)
-              </label>
-              <div className="flex gap-2">
-                <label className="flex-shrink-0 px-3 py-2 bg-muted hover:bg-muted/80 rounded-xl border border-border text-xs cursor-pointer flex items-center gap-1.5">
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Image</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={isUploadingThumbnail}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleFileUpload(f, 'image');
-                    }}
-                    className="hidden"
-                  />
+          {/* Miniature / Capture d'écran de la vidéo (Ce que l'on verra sur la boutique) */}
+          <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-bold text-foreground uppercase tracking-wide">
+                  📸 Capture d'écran / Image de la vidéo (Miniature Boutique)
                 </label>
-                <input
-                  type="text"
-                  value={thumbnailUrl}
-                  onChange={(e) => setThumbnailUrl(e.target.value)}
-                  placeholder="URL de l'image de couverture"
-                  className="flex-1 bg-background border border-border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-primary/20"
-                />
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  C'est cette capture qui apparaîtra sur la page boutique dans la liste et sur le lecteur.
+                </p>
+              </div>
+              {thumbnailUrl && (
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> Capture prête
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              {/* Preview Box */}
+              <div className="w-28 h-20 rounded-xl overflow-hidden bg-black/60 border border-border flex items-center justify-center shrink-0 relative group">
+                {thumbnailUrl ? (
+                  <img src={thumbnailUrl} alt="Capture" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="text-center p-2">
+                    <ImageIcon className="w-6 h-6 mx-auto text-muted-foreground/60" />
+                    <span className="text-[9px] text-muted-foreground block mt-1">Aucune capture</span>
+                  </div>
+                )}
+                {thumbnailUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setThumbnailUrl('')}
+                    className="absolute top-1 right-1 p-1 rounded-md bg-black/80 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Supprimer la miniature"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              {/* Upload & URL Input */}
+              <div className="flex-1 w-full space-y-2">
+                <div className="flex gap-2">
+                  <label className="flex-shrink-0 px-3.5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm transition-all">
+                    {isUploadingThumbnail ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isUploadingThumbnail ? 'Téléversement...' : 'Téléverser une capture'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploadingThumbnail}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleFileUpload(f, 'image');
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={thumbnailUrl}
+                    onChange={(e) => setThumbnailUrl(e.target.value)}
+                    placeholder="Ou collez l'URL d'une image (https://...)"
+                    className="flex-1 bg-background border border-border rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  💡 <strong>Pour Facebook / Reels :</strong> Prenez une capture d'écran de la vidéo sur votre téléphone ou PC et cliquez sur <em>Téléverser une capture</em> pour un rendu net et professionnel sur la boutique !
+                </p>
               </div>
             </div>
+          </div>
 
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
@@ -915,7 +1063,6 @@ function PromoVideoModal({
                 className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
               />
             </div>
-          </div>
 
           {/* Product Link & Name */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
