@@ -13,6 +13,14 @@ import fs from "fs";
 
 const app: Express = express();
 
+// Trust reverse proxies (Render, Cloudflare, etc.)
+app.set("trust proxy", 1);
+
+// ─── 0. Immediate Health Checks (Exempt from CORS and Rate Limiting for UptimeRobot) ───
+app.get(["/", "/health", "/healthz", "/api/health"], (_req, res) => {
+  res.json({ status: "ok", service: "onoot-boutique-api", timestamp: new Date().toISOString() });
+});
+
 // ─── 1. Cybersecurity: Hide Server Signature & Add Security Headers ───
 app.disable("x-powered-by");
 app.use(
@@ -41,7 +49,7 @@ app.use(
       }
 
       // Allow Vercel preview environments
-      if (origin.endsWith(".vercel.app") && origin.includes("onoot-boutique")) {
+      if (origin.endsWith(".vercel.app") && (origin.includes("onoot-boutique") || origin.includes("seka"))) {
         return callback(null, true);
       }
 
@@ -49,7 +57,8 @@ app.use(
         return callback(null, true);
       }
 
-      callback(new Error("Accès bloqué par la politique de sécurité (CORS)"));
+      // Safe reject without crashing Express with a 500 error
+      callback(null, false);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -110,6 +119,13 @@ const globalLimiter = rateLimit({
   max: 500,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false, default: false },
+  skip: (req) =>
+    req.path === "/health" ||
+    req.path === "/api/health" ||
+    req.path === "/healthz" ||
+    req.path.startsWith("/debug") ||
+    req.path.startsWith("/api/debug"),
   message: { error: "Trop de requêtes. Veuillez réessayer dans quelques minutes." },
 });
 app.use("/api", globalLimiter);
@@ -119,6 +135,7 @@ const authLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false, default: false },
   message: { error: "Trop de tentatives. Par mesure de sécurité, veuillez patienter 15 minutes." },
 });
 app.use("/api/auth/login", authLimiter);
@@ -140,10 +157,6 @@ app.use('/uploads', express.static(uploadsDir, {
   },
 }));
 
-// ─── 7. Health Check ───
-app.get(["/", "/health", "/healthz", "/api/health"], (_req, res) => {
-  res.json({ status: "ok", service: "onoot-boutique-api", timestamp: new Date().toISOString() });
-});
 
 // ─── 8. Database Connection Middleware ───
 app.use("/api", async (_req, _res, next) => {

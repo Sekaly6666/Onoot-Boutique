@@ -5,6 +5,7 @@ const router: IRouter = Router();
 
 import mongoose from "mongoose";
 import { getCleanMongoUri } from "../lib/mongoose";
+import { createTransporter } from "../lib/email";
 
 router.get(["/healthz", "/api/health", "/health"], (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
@@ -66,6 +67,46 @@ router.get(["/debug/google", "/api/debug/google"], (_req, res) => {
     boutiqueUrl,
     requiredGoogleConsoleRedirectUri: redirectUri,
     tip: "Dans Google Cloud Console (console.cloud.google.com > APIs & Services > Credentials > Identifiants OAuth), vérifiez que 'URI de redirection autorisés' contient EXACTEMENT : " + redirectUri,
+  });
+});
+
+router.get(["/debug/email", "/api/debug/email"], async (req, res) => {
+  const host = process.env.SMTP_HOST || "smtp-relay.brevo.com";
+  const user = (process.env.SMTP_USER || "").trim();
+  const pass = (process.env.SMTP_PASS || "").trim();
+
+  const to = (req.query.to as string) || "onootboutique@gmail.com";
+  const shouldSend = req.query.send === "true";
+
+  let verifyResult = null;
+  let sendResult = null;
+
+  try {
+    const transporter = createTransporter();
+    if (transporter.verify) {
+      await transporter.verify();
+      verifyResult = "SMTP connection verified successfully";
+    }
+    if (shouldSend) {
+      const info = await transporter.sendMail({
+        from: '"Onoot Boutique" <onootboutique@gmail.com>',
+        to,
+        subject: "Test Diagnostic Email Onoot Boutique",
+        text: "Ceci est un test de diagnostic direct.",
+      });
+      sendResult = { messageId: info.messageId, response: info.response };
+    }
+  } catch (err: any) {
+    verifyResult = `Error: ${err.message}`;
+  }
+
+  res.json({
+    host,
+    userConfigured: Boolean(user),
+    userPrefix: user ? user.substring(0, 5) + "..." : null,
+    passConfigured: Boolean(pass),
+    verifyResult,
+    sendResult,
   });
 });
 
