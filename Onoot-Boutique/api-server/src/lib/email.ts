@@ -78,6 +78,29 @@ export const getFromAddress = () => {
 // ─── Email professionnel de la boutique ─────────────────────────────────────
 export const SHOP_EMAIL = (process.env.SHOP_EMAIL || process.env.BOUTIQUE_EMAIL || 'onootboutique@gmail.com').trim();
 
+// ─── Base URLs dynamiques (Production Vercel vs Local) ────────────────────────
+export function getBoutiqueUrl(): string {
+  const url = process.env.BOUTIQUE_URL || process.env.CLIENT_URL || process.env.FRONTEND_URL;
+  if (url && !url.includes('localhost') && !url.includes('127.0.0.1')) {
+    return url.replace(/\/+$/, '');
+  }
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+    return 'https://onoot-boutique.vercel.app';
+  }
+  return (url || 'http://localhost:5182').replace(/\/+$/, '');
+}
+
+export function getAdminUrl(): string {
+  const url = process.env.ADMIN_URL;
+  if (url && !url.includes('localhost') && !url.includes('127.0.0.1')) {
+    return url.replace(/\/+$/, '');
+  }
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+    return 'https://onoot-boutique-admin.vercel.app';
+  }
+  return (url || 'http://localhost:5181').replace(/\/+$/, '');
+}
+
 // ─── Design System ────────────────────────────────────────────────────────────
 const C = {
   orange:      '#E87C2A',
@@ -309,7 +332,7 @@ export async function sendLoginNotification(
       </p>
     </div>
 
-    ${ctaButton('Accéder à la boutique', process.env.BOUTIQUE_URL || 'http://localhost:5182')}`;
+    ${ctaButton('Accéder à la boutique', getBoutiqueUrl())}`;
 
   const html = wrapInTicket(body, 'Connexion réussie sur votre compte Onoot Boutique');
 
@@ -394,7 +417,7 @@ export async function sendOrderConfirmation(order: any, customerEmail: string): 
       </tr>
     </table>
 
-    ${ctaButton('Suivre ma commande', `${process.env.BOUTIQUE_URL || 'http://localhost:5182'}/orders/${order._id}`)}`;
+    ${ctaButton('Suivre ma commande', `${getBoutiqueUrl()}/orders/${order._id}`)}`;
 
   const html = wrapInTicket(body, `Confirmation de votre commande #${orderIdShort}`);
   try {
@@ -488,7 +511,7 @@ export async function sendShopNewOrderNotification(order: any, shopEmail: string
       </tr>
     </table>
 
-    ${ctaButton('Ouvrir dans l\'espace Admin', `${process.env.ADMIN_URL || 'http://localhost:5181'}/orders`)}`;
+    ${ctaButton('Ouvrir dans l\'espace Admin', `${getAdminUrl()}/orders`)}`;
 
   const html = wrapInTicket(body, `[Boutique] Nouvelle commande #${orderIdShort} (${totalFormatted} FCFA)`);
   try {
@@ -575,7 +598,7 @@ export async function sendOrderStatusUpdate(
       </tr>
     </table>
 
-    ${ctaButton('Voir ma commande', `${process.env.BOUTIQUE_URL || 'http://localhost:5182'}/orders/${order._id}`)}`;
+    ${ctaButton('Voir ma commande', `${getBoutiqueUrl()}/orders/${order._id}`)}`;
 
   const html = wrapInTicket(body, `Mise à jour de votre commande #${orderIdShort} : ${s.label}`);
   try {
@@ -672,7 +695,7 @@ export async function sendShopOrderCancelledNotification(
       </tr>
     </table>
 
-    ${ctaButton('Gérer dans l\'espace Admin', `${process.env.ADMIN_URL || 'http://localhost:5181'}/orders`)}`;
+    ${ctaButton('Gérer dans l\'espace Admin', `${getAdminUrl()}/orders`)}`;
 
   const html = wrapInTicket(body, `[Commande Annulée] Client #${orderIdShort} (${totalFormatted} FCFA) - Motif : ${reasonText}`);
   try {
@@ -735,7 +758,7 @@ export async function sendShopNewUserRegisteredNotification(
 
     ${DIVIDER}
 
-    ${ctaButton('Consulter dans le Panel Admin', `${process.env.ADMIN_URL || 'https://onoot-boutique-admin.vercel.app'}/users`)}`;
+    ${ctaButton('Consulter dans le Panel Admin', `${getAdminUrl()}/users`)}`;
 
   const html = wrapInTicket(body, `[Boutique] Nouveau compte client créé par ${fullName} (${email})`);
 
@@ -751,5 +774,55 @@ export async function sendShopNewUserRegisteredNotification(
     logger.error({ err: err.message, to: shopEmail }, 'Failed to send shop new user registration notification email');
   }
 }
+
+// ─── 6. Email de réinitialisation de mot de passe ────────────────────────────
+export async function sendPasswordResetEmail(
+  toEmail: string,
+  resetLink: string,
+  userName?: string
+): Promise<void> {
+  if (!toEmail) return;
+
+  const body = `
+    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;font-weight:700;color:${C.orange};text-transform:uppercase;letter-spacing:2px;margin:0 0 8px;text-align:center;">Sécurité du compte</p>
+    <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:24px;font-weight:900;color:${C.dark};margin:0 0 10px;text-align:center;">Mot de passe oublié ?</h1>
+    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;color:${C.body};text-align:center;margin:0 0 6px;">Bonjour <strong>${userName || 'cher(e) client(e)'}</strong>,</p>
+    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:${C.muted};text-align:center;margin:0 0 24px;line-height:1.6;">
+      Une demande de réinitialisation de votre mot de passe pour votre compte Onoot Boutique a été effectuée.
+    </p>
+
+    ${DIVIDER}
+
+    <div style="background-color:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:16px 18px;margin-bottom:20px;">
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:#92400E;font-weight:500;margin:0;line-height:1.6;text-align:center;">
+        Cliquez sur le bouton ci-dessous pour choisir votre nouveau mot de passe en toute sécurité. <strong>Ce lien expire dans 1 heure.</strong>
+      </p>
+    </div>
+
+    ${ctaButton('Réinitialiser mon mot de passe', resetLink)}
+
+    ${DIVIDER}
+
+    <div style="background-color:${C.card};border:1px solid ${C.border};border-radius:12px;padding:14px 16px;margin-top:20px;">
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:${C.muted};margin:0;line-height:1.5;text-align:center;">
+        Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email en toute tranquillité. Votre compte reste parfaitement protégé.
+      </p>
+    </div>`;
+
+  const html = wrapInTicket(body, 'Réinitialisation de votre mot de passe Onoot Boutique');
+
+  try {
+    await sendMailWithFallback({
+      from: getFromAddress(),
+      to: toEmail,
+      subject: '🔑 Réinitialisation de votre mot de passe – Onoot Boutique',
+      html,
+    });
+    logger.info({ to: toEmail }, 'Password reset email sent');
+  } catch (err: any) {
+    logger.error({ err: err.message, to: toEmail }, 'Failed to send password reset email');
+  }
+}
+
 
 

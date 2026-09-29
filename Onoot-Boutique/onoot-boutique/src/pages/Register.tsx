@@ -45,7 +45,7 @@ const registerSchema = z
         },
         {
           message:
-            "Veuillez renseigner à la fois votre Nom et votre Prénom séparés par un espace (ex: Sekou Amara).",
+            "Veuillez renseigner à la fois votre Nom et votre Prénom séparés par un seul espace.",
         }
       )
       .refine(
@@ -64,7 +64,7 @@ const registerSchema = z
       })
       .refine((val) => !/[A-Z]/.test(val), {
         message:
-          "L'adresse email ne doit pas contenir de majuscules. Veuillez l'écrire entièrement en minuscules (ex: sekou@gmail.com).",
+          "L'adresse email ne doit pas contenir de majuscules. Veuillez l'écrire entièrement en minuscules (ex: boutique@gmail.com).",
       })
       .refine((val) => /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(val), {
         message: "Le format de l'adresse email est invalide.",
@@ -312,7 +312,7 @@ export default function Register() {
                         <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300">
                           Nom et prénom <span className="text-red-500">*</span>
                         </label>
-                        <span className="text-[11px] text-muted-foreground">Ex: Sekou Amara</span>
+                        <span className="text-[11px] text-muted-foreground">Nom & prénom séparés par un espace</span>
                       </div>
                       <FormControl>
                         <div className="relative">
@@ -377,7 +377,7 @@ export default function Register() {
                                 ? "border-red-500 focus:ring-red-200 dark:focus:ring-red-950"
                                 : "border-slate-200 dark:border-gray-700 focus:ring-[#E87C2A]/20 focus:border-[#E87C2A]"
                             }`}
-                            placeholder="exemple: sekou@gmail.com"
+                            placeholder="exemple: boutique@gmail.com"
                           />
                         </div>
                       </FormControl>
@@ -386,7 +386,7 @@ export default function Register() {
                       {emailHasUppercase && (
                         <div className="flex items-center gap-1 text-[11px] text-red-600 dark:text-red-400 font-semibold bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-900 mt-1">
                           <XCircle className="h-3.5 w-3.5 shrink-0" />
-                          <span>Erreur : Les majuscules sont interdites dans l'email (ex: sekou@gmail.com).</span>
+                          <span>Erreur : Les majuscules sont interdites dans l'email (ex: boutique@gmail.com).</span>
                         </div>
                       )}
                       {emailHasSpaces && (
@@ -558,7 +558,7 @@ export default function Register() {
                     <ShieldCheck className="h-3.5 w-3.5 text-[#E87C2A]" /> Règles de sécurité Onoot :
                   </div>
                   <ul className="list-disc pl-4 space-y-0.5 text-muted-foreground">
-                    <li>Email : lettres minuscules uniquement (ex: <code className="text-xs text-foreground">sekou@gmail.com</code>).</li>
+                    <li>Email : lettres minuscules uniquement (ex: <code className="text-xs text-foreground">boutique@gmail.com</code>).</li>
                     <li>Nom et prénom : un seul espace entre les deux, aucun espace au début ou à la fin.</li>
                     <li>Mot de passe : sans espace, au moins 8 caractères, caractères spéciaux autorisés.</li>
                   </ul>

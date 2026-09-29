@@ -21,6 +21,7 @@ import OrderTicket from "@/pages/OrderTicket";
 import Profile from "@/pages/Profile";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import ResetPassword from "@/pages/ResetPassword";
 import AuthCallback from "@/pages/AuthCallback";
 
 // Admin
@@ -72,6 +73,7 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/auth/login" component={Login} />
       <Route path="/auth/register" component={Register} />
+      <Route path="/auth/reset-password" component={ResetPassword} />
       <Route path="/auth/callback" component={AuthCallback} />
       {/* Admin Routes */}
       <Route path="/admin" component={AdminDashboard} />

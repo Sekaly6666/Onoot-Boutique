@@ -5,7 +5,7 @@ import { User } from "../models/User";
 import { AdminNotification } from "../models/AdminNotification";
 import crypto from "crypto";
 import https from "https";
-import { sendLoginNotification, sendShopNewUserRegisteredNotification, SHOP_EMAIL } from "../lib/email";
+import { sendLoginNotification, sendShopNewUserRegisteredNotification, sendPasswordResetEmail, getBoutiqueUrl, SHOP_EMAIL } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -168,10 +168,10 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   }
 
   // 2. Validation Email:
-  // - Majuscules strictement interdites (ex: Sekou@gmail.com est refusé)
+  // - Majuscules strictement interdites (ex: boutique@gmail.com)
   if (/[A-Z]/.test(email)) {
     res.status(400).json({
-      error: "L'adresse email ne doit pas contenir de majuscules. Veuillez l'écrire entièrement en minuscules (ex: sekou@gmail.com).",
+      error: "L'adresse email ne doit pas contenir de majuscules. Veuillez l'écrire entièrement en minuscules (ex: boutique@gmail.com).",
     });
     return;
   }
@@ -210,7 +210,7 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const nameParts = name.split(" ");
   if (nameParts.length < 2 || nameParts.some((part) => part.length < 2)) {
     res.status(400).json({
-      error: "Veuillez renseigner votre nom et prénom complets séparés par un seul espace (ex: Sekou Amara).",
+      error: "Veuillez renseigner votre nom et prénom complets séparés par un seul espace.",
     });
     return;
   }
@@ -533,6 +533,97 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
   } catch (err: any) {
     console.error("[GOOGLE AUTH] Exception:", err.message);
     res.redirect(`${returnOrigin}${targetPath}?error=google_failed&reason=${encodeURIComponent(err.message || "erreur_serveur")}`);
+  }
+});
+
+// ─── 7. Mot de passe oublié ──────────────────────────────────────────────────
+router.post("/auth/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== "string") {
+      res.status(400).json({ error: "L'adresse email est requise." });
+      return;
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail }).exec();
+
+    if (user) {
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+      user.resetPasswordToken = hashedToken;
+      user.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 heure
+      await user.save();
+
+      const boutiqueUrl = getBoutiqueUrl();
+      const resetLink = `${boutiqueUrl}/auth/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
+
+      sendPasswordResetEmail(user.email, resetLink, user.firstName || `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim())
+        .catch((err) => console.error("[PASSWORD RESET] Failed to send email:", err));
+    }
+
+    res.json({
+      success: true,
+      message: "Si un compte est associé à cette adresse email, vous recevrez un lien de réinitialisation sous peu.",
+    });
+  } catch (err: any) {
+    console.error("[FORGOT PASSWORD] Error:", err);
+    res.status(500).json({ error: "Une erreur est survenue lors de la demande de réinitialisation." });
+  }
+});
+
+// ─── 8. Réinitialisation de mot de passe ──────────────────────────────────────
+router.post("/auth/reset-password", async (req, res) => {
+  try {
+    const { token, email, password } = req.body;
+
+    if (!token || !email || !password) {
+      res.status(400).json({ error: "Tous les champs sont requis." });
+      return;
+    }
+
+    if (/\s/.test(password)) {
+      res.status(400).json({ error: "Le mot de passe ne doit contenir aucun espace." });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caractères." });
+      return;
+    }
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      res.status(400).json({ error: "Le mot de passe doit comporter au moins une lettre et un chiffre." });
+      return;
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      email: cleanEmail,
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: new Date() },
+    }).exec();
+
+    if (!user) {
+      res.status(400).json({
+        error: "Le lien de réinitialisation est invalide ou a expiré. Veuillez refaire une demande.",
+      });
+      return;
+    }
+
+    user.passwordHash = await hashPassword(password);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.",
+    });
+  } catch (err: any) {
+    console.error("[RESET PASSWORD] Error:", err);
+    res.status(500).json({ error: "Une erreur est survenue lors de la réinitialisation du mot de passe." });
   }
 });
 

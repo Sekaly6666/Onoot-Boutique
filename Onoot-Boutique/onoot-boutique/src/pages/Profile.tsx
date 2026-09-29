@@ -50,6 +50,11 @@ import {
   ShoppingBag,
   Lock,
   ExternalLink,
+  Crown,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -69,6 +74,8 @@ export default function Profile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSavedSuccessfully, setIsSavedSuccessfully] = useState(false);
+  const [showClientId, setShowClientId] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
 
   const updateUser = useUpdateUser();
 
@@ -234,9 +241,19 @@ export default function Profile() {
                     <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-1">
                       <Badge
                         variant="secondary"
-                        className="bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-200 border-amber-300 dark:border-amber-800 text-xs font-semibold px-2.5 py-0.5"
+                        className="bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-200 border-amber-300 dark:border-amber-800 text-xs font-semibold px-2.5 py-0.5 inline-flex items-center gap-1.5"
                       >
-                        {user.role === "admin" ? "🛡️ Administrateur" : "⭐ Client Onoot Privilégié"}
+                        {user.role === "admin" ? (
+                          <>
+                            <ShieldCheck className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                            <span>Administrateur</span>
+                          </>
+                        ) : (
+                          <>
+                            <Crown className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                            <span>Client Onoot Privilégié</span>
+                          </>
+                        )}
                       </Badge>
 
                       {isGoogleAccount ? (
@@ -738,7 +755,33 @@ export default function Profile() {
                 <div className="pt-4 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div>
                     <h4 className="text-sm font-semibold text-foreground">Identifiant Unique Client</h4>
-                    <p className="text-xs text-muted-foreground font-mono mt-0.5">{user.id}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-xs text-muted-foreground font-mono bg-muted/60 px-2.5 py-1 rounded-md border border-border/50">
+                        {showClientId ? user.id : "••••••••••••••••••••••••"}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowClientId(!showClientId)}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        title={showClientId ? "Masquer l'identifiant" : "Afficher l'identifiant"}
+                      >
+                        {showClientId ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                      {showClientId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(user.id);
+                            setCopiedId(true);
+                            setTimeout(() => setCopiedId(false), 2000);
+                          }}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          title="Copier l'identifiant"
+                        >
+                          {copiedId ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <AlertDialog>

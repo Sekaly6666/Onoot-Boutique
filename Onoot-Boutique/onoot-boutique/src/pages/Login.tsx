@@ -9,7 +9,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
-import { Lock, Mail, ArrowRight, Eye, EyeOff } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Lock, Mail, ArrowRight, Eye, EyeOff, CheckCircle2, AlertCircle, KeyRound, Loader2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { OnootLogo } from "@/components/ui/OnootLogo";
 import { useState, useEffect } from "react";
@@ -40,6 +48,44 @@ export default function Login() {
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [isForgotLoading, setIsForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [forgotError, setForgotError] = useState("");
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError("");
+
+    const cleanEmail = forgotEmail.toLowerCase().trim();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      setForgotError("Veuillez renseigner une adresse email valide.");
+      return;
+    }
+
+    setIsForgotLoading(true);
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Impossible d'envoyer le lien.");
+      }
+      setForgotSuccess(true);
+      toast({
+        title: "Demande envoyée",
+        description: "Vérifiez votre boîte de réception pour réinitialiser votre mot de passe.",
+      });
+    } catch (err: any) {
+      setForgotError(err.message || "Erreur de connexion au serveur.");
+    } finally {
+      setIsForgotLoading(false);
+    }
+  };
 
   // Show toast if redirected from failed Google auth
   useEffect(() => {
@@ -211,9 +257,18 @@ export default function Login() {
                     </label>
                   </div>
                   <div>
-                    <a href="#" className="font-medium text-primary hover:text-primary/80 transition-colors">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotEmail(form.getValues("email") || "");
+                        setForgotSuccess(false);
+                        setForgotError("");
+                        setIsForgotModalOpen(true);
+                      }}
+                      className="font-medium text-primary hover:text-primary/80 transition-colors focus:outline-none cursor-pointer"
+                    >
                       Mot de passe oublié ?
-                    </a>
+                    </button>
                   </div>
                 </div>
 
@@ -244,6 +299,93 @@ export default function Login() {
             </div>
           </div>
         </motion.div>
+
+        {/* Modal Mot de passe oublié */}
+        <Dialog open={isForgotModalOpen} onOpenChange={setIsForgotModalOpen}>
+          <DialogContent className="sm:max-w-md rounded-2xl">
+            <DialogHeader>
+              <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-[#E87C2A] flex items-center justify-center mb-2">
+                <KeyRound className="h-5 w-5" />
+              </div>
+              <DialogTitle className="text-lg font-bold">
+                Mot de passe oublié ?
+              </DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
+                Renseignez votre adresse email. Nous vous enverrons immédiatement un lien sécurisé pour définir un nouveau mot de passe.
+              </DialogDescription>
+            </DialogHeader>
+
+            {forgotSuccess ? (
+              <div className="py-4 space-y-4 text-center">
+                <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-foreground">Email de réinitialisation envoyé !</h4>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Si un compte correspond à <strong className="text-foreground font-mono">{forgotEmail}</strong>, vous recevrez un email contenant votre lien valable pendant 1 heure.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsForgotModalOpen(false)}
+                  className="w-full py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-[#E87C2A] hover:bg-[#D06820] transition-colors"
+                >
+                  J'ai compris
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotSubmit} className="space-y-4 py-2">
+                {forgotError && (
+                  <div className="flex items-start gap-2 p-3 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 rounded-xl border border-red-200 dark:border-red-900">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{forgotError}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1">
+                    Adresse Email
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <input
+                      type="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      required
+                      placeholder="boutique@gmail.com"
+                      className="appearance-none block w-full pl-9 pr-3 py-2.5 border rounded-xl bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#E87C2A]/20 focus:border-[#E87C2A]"
+                    />
+                  </div>
+                </div>
+
+                <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotModalOpen(false)}
+                    className="py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isForgotLoading}
+                    className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-[#E87C2A] hover:bg-[#D06820] transition-all disabled:opacity-60"
+                  >
+                    {isForgotLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <span>Envoyer le lien</span>
+                    )}
+                  </button>
+                </DialogFooter>
+              </form>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
