@@ -41,36 +41,108 @@ router.get("/products", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const { category, brand, search, minPrice, maxPrice, minRating, inStock, featured, bestSeller, onSale, page = 1, limit = 20, sortBy, status } = (params.data as any);
+  const { 
+    category, 
+    brand, 
+    search, 
+    minPrice, 
+    maxPrice, 
+    minRating, 
+    inStock, 
+    featured, 
+    bestSeller, 
+    onSale, 
+    page = 1, 
+    limit = 24, 
+    sortBy 
+  } = (params.data as any);
 
-  const filter: any = {};
-  if (category) filter.category = category;
-  if (brand) filter.brand = brand;
-  if (search) filter.$or = [{ name: new RegExp(search, "i") }, { description: new RegExp(search, "i") }];
-  if (minPrice != null) filter.price = { ...(filter.price || {}), $gte: Number(minPrice) };
-  if (maxPrice != null) filter.price = { ...(filter.price || {}), $lte: Number(maxPrice) };
-  if (minRating != null) filter.rating = { ...(filter.rating || {}), $gte: Number(minRating) };
-  if (inStock) filter.stock = { $gt: 0 };
-  if (featured) filter.featured = true;
-  if (bestSeller) filter.bestSeller = true;
-  if (onSale) filter.discountPrice = { $lt: "$price" };
-  
-  // Ensure we only show published products on the public storefront
-  filter.status = 'Publié';
+  const conditions: any[] = [{ status: 'Publié' }];
 
+  if (category && category !== "all" && category.trim() !== "") {
+    const catClean = category.trim();
+    conditions.push({
+      $or: [
+        { category: new RegExp(`^${catClean}$`, "i") },
+        { category: new RegExp(catClean.replace(/-/g, " "), "i") },
+        { subCategory: new RegExp(catClean, "i") },
+        { tags: { $in: [new RegExp(catClean, "i")] } }
+      ]
+    });
+  }
+
+  if (brand && brand.trim() !== "") {
+    conditions.push({ brand: new RegExp(brand.trim(), "i") });
+  }
+
+  if (search && search.trim() !== "") {
+    const s = search.trim();
+    conditions.push({
+      $or: [
+        { name: new RegExp(s, "i") },
+        { description: new RegExp(s, "i") },
+        { category: new RegExp(s, "i") },
+        { tags: { $in: [new RegExp(s, "i")] } }
+      ]
+    });
+  }
+
+  if (minPrice != null && !isNaN(Number(minPrice)) && Number(minPrice) > 0) {
+    conditions.push({ price: { $gte: Number(minPrice) } });
+  }
+
+  if (maxPrice != null && !isNaN(Number(maxPrice)) && Number(maxPrice) < 100000) {
+    conditions.push({ price: { $lte: Number(maxPrice) } });
+  }
+
+  if (minRating != null && !isNaN(Number(minRating)) && Number(minRating) > 0) {
+    conditions.push({ rating: { $gte: Number(minRating) } });
+  }
+
+  if (inStock === true || inStock === "true") {
+    conditions.push({ stock: { $gt: 0 } });
+  }
+
+  if (featured === true || featured === "true") {
+    conditions.push({ featured: true });
+  }
+
+  if (bestSeller === true || bestSeller === "true") {
+    conditions.push({ bestSeller: true });
+  }
+
+  if (onSale === true || onSale === "true") {
+    conditions.push({
+      $or: [
+        { discountPrice: { $gt: 0, $ne: null } },
+        { flashSale: true }
+      ]
+    });
+  }
+
+  const filter = conditions.length === 1 ? conditions[0] : { $and: conditions };
+
+  // Support both underscore and colon syntax for sorting
   let sort: any = { createdAt: -1 };
-  if (sortBy === "price_asc") sort = { price: 1 };
-  else if (sortBy === "price_desc") sort = { price: -1 };
-  else if (sortBy === "rating") sort = { rating: -1 };
-  else if (sortBy === "sales") sort = { salesCount: -1 };
+  if (sortBy === "price_asc" || sortBy === "price:asc") {
+    sort = { price: 1 };
+  } else if (sortBy === "price_desc" || sortBy === "price:desc") {
+    sort = { price: -1 };
+  } else if (sortBy === "rating" || sortBy === "rating_desc" || sortBy === "rating:desc") {
+    sort = { rating: -1 };
+  } else if (sortBy === "sales" || sortBy === "sales_desc" || sortBy === "sales:desc" || sortBy === "bestSeller") {
+    sort = { salesCount: -1 };
+  } else if (sortBy === "newest" || sortBy === "createdAt_desc" || sortBy === "createdAt:desc") {
+    sort = { createdAt: -1 };
+  }
 
-  const skip = (page - 1) * limit;
+  const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
   const [products, total] = await Promise.all([
-    Product.find(filter).sort(sort).skip(skip).limit(limit),
+    Product.find(filter).sort(sort).skip(skip).limit(Number(limit)),
     Product.countDocuments(filter),
   ]);
 
-  res.json({ products: products.map(formatProduct), total, page, limit });
+  res.json({ products: products.map(formatProduct), total, page: Number(page), limit: Number(limit) });
 });
 
 router.post("/products", async (req, res): Promise<void> => {
