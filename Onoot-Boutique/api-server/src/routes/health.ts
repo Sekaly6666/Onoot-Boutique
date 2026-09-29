@@ -70,43 +70,22 @@ router.get(["/debug/google", "/api/debug/google"], (_req, res) => {
   });
 });
 
-router.get(["/debug/email", "/api/debug/email"], async (req, res) => {
+router.get(["/debug/email", "/api/debug/email"], async (_req, res) => {
   const host = process.env.SMTP_HOST || "smtp-relay.brevo.com";
   const user = (process.env.SMTP_USER || "").trim();
   const pass = (process.env.SMTP_PASS || "").trim();
-
-  const to = (req.query.to as string) || "onootboutique@gmail.com";
-  const shouldSend = req.query.send === "true";
-
-  let verifyResult = null;
-  let sendResult = null;
-
-  try {
-    const transporter = createTransporter();
-    if (transporter.verify) {
-      await transporter.verify();
-      verifyResult = "SMTP connection verified successfully";
-    }
-    if (shouldSend) {
-      const info = await transporter.sendMail({
-        from: '"Onoot Boutique" <onootboutique@gmail.com>',
-        to,
-        subject: "Test Diagnostic Email Onoot Boutique",
-        text: "Ceci est un test de diagnostic direct.",
-      });
-      sendResult = { messageId: info.messageId, response: info.response };
-    }
-  } catch (err: any) {
-    verifyResult = `Error: ${err.message}`;
-  }
+  const from = (process.env.SMTP_FROM || "").trim();
 
   res.json({
     host,
     userConfigured: Boolean(user),
     userPrefix: user ? user.substring(0, 5) + "..." : null,
     passConfigured: Boolean(pass),
-    verifyResult,
-    sendResult,
+    fromConfigured: Boolean(from),
+    fromValue: from || null,
+    tip: (!user || !pass)
+      ? "ATTENTION: Les variables SMTP_USER et/ou SMTP_PASS ne sont pas renseignées dans les paramètres Render. Veuillez les ajouter dans Render Dashboard > Environment."
+      : "SMTP est entièrement configuré sur ce serveur.",
   });
 });
 
