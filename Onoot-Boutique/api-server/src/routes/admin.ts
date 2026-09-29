@@ -2,6 +2,11 @@ import { Router, type IRouter } from "express";
 import { Order } from "../models/Order";
 import { Product } from "../models/Product";
 import { User } from "../models/User";
+import { DeliveryDriver } from "../models/DeliveryDriver";
+import { PromoVideo } from "../models/PromoVideo";
+import { Category } from "../models/Category";
+import { Review } from "../models/Review";
+import { AdminNotification } from "../models/AdminNotification";
 import { GetTopProductsQueryParams } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -9,9 +14,26 @@ const router: IRouter = Router();
 router.get("/admin/stats", async (_req, res): Promise<void> => {
   const totalRevenueAgg = await Order.aggregate([ { $group: { _id: null, totalRevenue: { $sum: "$totalAmount" } } } ]);
   const totalRevenue = (totalRevenueAgg[0] as any)?.totalRevenue ?? 0;
-  const totalOrders = await Order.countDocuments();
-  const totalProducts = await Product.countDocuments();
-  const totalUsers = await User.countDocuments();
+
+  const [
+    totalOrders,
+    totalProducts,
+    totalUsers,
+    totalDrivers,
+    totalAds,
+    totalCategories,
+    totalReviews,
+    totalNotifications,
+  ] = await Promise.all([
+    Order.countDocuments(),
+    Product.countDocuments(),
+    User.countDocuments(),
+    DeliveryDriver.countDocuments().catch(() => 0),
+    PromoVideo.countDocuments().catch(() => 0),
+    Category.countDocuments().catch(() => 0),
+    Review.countDocuments().catch(() => 0),
+    AdminNotification.countDocuments().catch(() => 0),
+  ]);
 
   const recentOrders = await Order.find().sort({ createdAt: -1 }).limit(5);
 
@@ -33,6 +55,11 @@ router.get("/admin/stats", async (_req, res): Promise<void> => {
     totalOrders,
     totalProducts,
     totalUsers,
+    totalDrivers,
+    totalAds,
+    totalCategories,
+    totalReviews,
+    totalNotifications,
     recentOrders: recentOrders.map(o => ({
       id: o.id,
       userId: o.userId ?? 0,

@@ -81,6 +81,53 @@ export const AdminLayout: React.FC = () => {
 
   const unreadCount = notifications.filter((n: any) => !n.read).length;
 
+  // Poll stats every 15 seconds to display item totals
+  const { data: stats } = useQuery<{
+    totalOrders?: number;
+    totalProducts?: number;
+    totalUsers?: number;
+    totalDrivers?: number;
+    totalAds?: number;
+    totalCategories?: number;
+    totalReviews?: number;
+    totalNotifications?: number;
+  }>({
+    queryKey: ['admin-stats-counts'],
+    queryFn: () => adminFetch<any>('/api/admin/stats'),
+    refetchInterval: 15000,
+    retry: 1,
+  });
+
+  const formatCount = (val: number | undefined | null): string => {
+    if (val === undefined || val === null) return '00';
+    const num = Math.max(0, Number(val) || 0);
+    return num < 10 ? `0${num}` : String(num);
+  };
+
+  const getCountForItem = (path: string): string | null => {
+    if (!stats) return null;
+    switch (path) {
+      case '/admin/orders':
+        return formatCount(stats.totalOrders);
+      case '/admin/products':
+        return formatCount(stats.totalProducts);
+      case '/admin/users':
+        return formatCount(stats.totalUsers);
+      case '/admin/delivery-drivers':
+        return formatCount(stats.totalDrivers);
+      case '/admin/ads-videos':
+        return formatCount(stats.totalAds);
+      case '/admin/categories':
+        return formatCount(stats.totalCategories);
+      case '/admin/reviews':
+        return formatCount(stats.totalReviews);
+      case '/admin/notifications':
+        return formatCount(stats.totalNotifications ?? notifications.length);
+      default:
+        return null;
+    }
+  };
+
   // Detect newly arrived notifications to trigger live toast
   useEffect(() => {
     if (notifications.length > 0) {
@@ -212,6 +259,7 @@ export const AdminLayout: React.FC = () => {
             <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
+                const countBadge = getCountForItem(item.path);
                 return (
                   <NavLink
                     key={item.path}
@@ -220,7 +268,7 @@ export const AdminLayout: React.FC = () => {
                       if (isMobile) setIsSidebarOpen(false);
                     }}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
+                      `flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 group relative ${
                         isActive 
                           ? 'bg-primary/10 text-primary font-medium' 
                           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -236,8 +284,21 @@ export const AdminLayout: React.FC = () => {
                             transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                           />
                         )}
-                        <Icon className={`w-5 h-5 relative z-10 transition-transform group-hover:scale-110 ${isActive ? 'text-primary' : ''}`} />
-                        <span className="relative z-10">{item.name}</span>
+                        <div className="flex items-center gap-3 relative z-10 min-w-0">
+                          <Icon className={`w-5 h-5 shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-primary' : ''}`} />
+                          <span className="truncate">{item.name}</span>
+                        </div>
+                        {countBadge !== null && (
+                          <span
+                            className={`relative z-10 shrink-0 text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full border transition-all ${
+                              isActive
+                                ? 'bg-primary text-primary-foreground border-primary/40 shadow-xs'
+                                : 'bg-muted text-muted-foreground border-border group-hover:border-primary/30 group-hover:text-foreground'
+                            }`}
+                          >
+                            {countBadge}
+                          </span>
+                        )}
                       </>
                     )}
                   </NavLink>

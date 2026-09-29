@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   Truck,
   PackageCheck,
-  AlertCircle
+  AlertCircle,
+  RotateCcw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -62,12 +63,21 @@ const statusConfig: Record<string, { label: string; bgClass: string; textClass: 
   cancelled: { label: 'Annulée',     bgClass: 'bg-red-50',     textClass: 'text-red-700',     borderClass: 'border-red-200',    icon: XCircle },
 };
 
-// Actions possibles selon le statut actuel
+// Actions possibles selon le statut actuel (vers l'avant)
 const nextActionConfig: Record<string, { label: string; nextStatus: string; btnClass: string; icon: any } | null> = {
   pending:   { label: 'Confirmer la commande',    nextStatus: 'confirmed', btnClass: 'bg-blue-600 hover:bg-blue-700 text-white', icon: CheckCircle2 },
   confirmed: { label: 'Marquer comme Expédiée',  nextStatus: 'shipped',   btnClass: 'bg-indigo-600 hover:bg-indigo-700 text-white', icon: Truck },
   shipped:   { label: 'Marquer comme Livrée',    nextStatus: 'delivered', btnClass: 'bg-emerald-600 hover:bg-emerald-700 text-white', icon: PackageCheck },
   delivered: null,
+  cancelled: null,
+};
+
+// Actions de retour en arrière (en cas d'oubli ou de modification nécessaire)
+const prevActionConfig: Record<string, { label: string; prevStatus: string; icon: any } | null> = {
+  pending: null,
+  confirmed: { label: 'Revenir à « En attente »', prevStatus: 'pending', icon: RotateCcw },
+  shipped:   { label: 'Revenir à « Confirmée »',   prevStatus: 'confirmed', icon: RotateCcw },
+  delivered: { label: 'Revenir à « Expédiée »',    prevStatus: 'shipped',   icon: RotateCcw },
   cancelled: null,
 };
 
@@ -247,6 +257,9 @@ const Orders: React.FC = () => {
             const s = statusConfig[o.orderStatus] || statusConfig['pending'];
             const StatusIcon = s.icon;
             const action = nextActionConfig[o.orderStatus];
+            const prevAction = prevActionConfig[o.orderStatus];
+            const deliveryDateValue = (deliveryDates[o.id] ?? (o as any).estimatedDeliveryDate ?? '').trim();
+            const isPendingWithoutDate = o.orderStatus === 'pending' && !deliveryDateValue;
             const totalItems = o.items.reduce((acc, item) => acc + item.quantity, 0);
             const customerName = o.shippingAddress?.fullName || 'Client Anonyme';
             const date = new Date(o.createdAt).toLocaleDateString('fr-FR', {
@@ -378,13 +391,26 @@ const Orders: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Champ optionnel de date de livraison estimée : UNIQUEMENT à l'étape "En attente" pour la confirmation */}
+                        {/* Champ obligatoire de date de livraison estimée : UNIQUEMENT à l'étape "En attente" pour la confirmation */}
                         {o.orderStatus === 'pending' && (
-                          <div className="mb-3 bg-blue-50/50 border border-blue-100 rounded-xl p-3.5">
-                            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-1.5">
-                              <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                              <span>Date / Délai prévu de livraison (inclus dans l'email envoyé au client) :</span>
-                            </label>
+                          <div className={`mb-3 rounded-xl p-3.5 border transition-all ${
+                            isPendingWithoutDate
+                              ? 'bg-amber-50/70 border-amber-300'
+                              : 'bg-blue-50/50 border-blue-100'
+                          }`}>
+                            <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                              <label className="flex items-center gap-2 text-xs font-semibold text-slate-800">
+                                <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                <span>Date / Délai prévu de livraison :</span>
+                              </label>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                isPendingWithoutDate
+                                  ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              }`}>
+                                {isPendingWithoutDate ? '* Champ obligatoire' : '✓ Renseigné'}
+                              </span>
+                            </div>
                             <input
                               type="text"
                               placeholder="Ex: Demain entre 14h et 18h / Sous 24h - 48h"
@@ -393,8 +419,18 @@ const Orders: React.FC = () => {
                               onChange={(e) => {
                                 setDeliveryDates({ ...deliveryDates, [o.id]: e.target.value });
                               }}
-                              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg bg-white focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-800 placeholder:text-slate-400"
+                              className={`w-full text-xs px-3 py-2.5 border rounded-lg bg-white focus:outline-none focus:ring-2 transition-all text-slate-800 placeholder:text-slate-400 ${
+                                isPendingWithoutDate
+                                  ? 'border-amber-400 focus:ring-amber-200 focus:border-amber-500'
+                                  : 'border-slate-200 focus:ring-blue-500/20 focus:border-blue-500'
+                              }`}
                             />
+                            {isPendingWithoutDate && (
+                              <p className="text-[11px] text-amber-700 font-medium mt-1.5 flex items-center gap-1.5">
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                Vous devez obligatoirement renseigner ce délai pour pouvoir confirmer la commande.
+                              </p>
+                            )}
                           </div>
                         )}
 
@@ -411,33 +447,61 @@ const Orders: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Bouton d'action */}
-                        {action ? (
-                          <button
-                            disabled={updateStatusMutation.isPending}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateStatusMutation.mutate({ 
-                                id: o.id, 
-                                status: action.nextStatus,
-                                estimatedDeliveryDate: deliveryDates[o.id]
-                              });
-                            }}
-                            className={`w-full min-h-[48px] py-3.5 px-5 rounded-xl font-bold text-sm sm:text-base transition-all disabled:opacity-60 flex items-center justify-center gap-2.5 shadow-md active:scale-[0.99] ${action.btnClass}`}
-                          >
-                            {updateStatusMutation.isPending ? (
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                              action.icon && <action.icon className="w-5 h-5" />
-                            )}
-                            <span>{action.label}</span>
-                          </button>
-                        ) : o.orderStatus === 'delivered' ? (
-                          <div className="w-full min-h-[48px] py-3.5 px-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm sm:text-base text-center flex items-center justify-center gap-2.5">
-                            <CheckCircle className="w-5 h-5 text-emerald-600" />
-                            <span>Commande livrée avec succès</span>
-                          </div>
-                        ) : null}
+                        {/* Boutons d'action (Progression et Retour en arrière) */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                          {prevAction && (
+                            <button
+                              type="button"
+                              disabled={updateStatusMutation.isPending}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateStatusMutation.mutate({ 
+                                  id: o.id, 
+                                  status: prevAction.prevStatus,
+                                });
+                              }}
+                              className="order-2 sm:order-1 px-4 py-3 min-h-[46px] rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-xs active:scale-[0.98] cursor-pointer hover:border-slate-400"
+                              title="Revenir à l'étape précédente en cas d'oubli ou d'erreur"
+                            >
+                              <RotateCcw className="w-4 h-4 text-slate-500" />
+                              <span>{prevAction.label}</span>
+                            </button>
+                          )}
+
+                          {action ? (
+                            <button
+                              type="button"
+                              disabled={updateStatusMutation.isPending || isPendingWithoutDate}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isPendingWithoutDate) return;
+                                updateStatusMutation.mutate({ 
+                                  id: o.id, 
+                                  status: action.nextStatus,
+                                  estimatedDeliveryDate: deliveryDates[o.id]
+                                });
+                              }}
+                              className={`order-1 sm:order-2 flex-1 w-full min-h-[48px] py-3.5 px-5 rounded-xl font-bold text-sm sm:text-base transition-all flex items-center justify-center gap-2.5 shadow-md active:scale-[0.99] ${
+                                isPendingWithoutDate 
+                                  ? 'bg-slate-200 text-slate-400 border border-slate-300 shadow-none cursor-not-allowed opacity-75' 
+                                  : `${action.btnClass} cursor-pointer`
+                              }`}
+                              title={isPendingWithoutDate ? "Veuillez obligatoirement renseigner le délai de livraison ci-dessus pour valider" : ""}
+                            >
+                              {updateStatusMutation.isPending ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                              ) : (
+                                action.icon && <action.icon className="w-5 h-5" />
+                              )}
+                              <span>{action.label}</span>
+                            </button>
+                          ) : o.orderStatus === 'delivered' ? (
+                            <div className="order-1 sm:order-2 flex-1 w-full min-h-[48px] py-3.5 px-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm sm:text-base text-center flex items-center justify-center gap-2.5">
+                              <CheckCircle className="w-5 h-5 text-emerald-600" />
+                              <span>Commande livrée avec succès</span>
+                            </div>
+                          ) : null}
+                        </div>
 
                         {/* Bouton Supprimer */}
                         <div className="pt-2 flex justify-end border-t border-slate-100 mt-4">
