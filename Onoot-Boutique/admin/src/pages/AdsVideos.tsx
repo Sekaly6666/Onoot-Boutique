@@ -524,7 +524,7 @@ function parseVideoSource(rawUrl: string) {
       };
     }
     const cleanFb = trimmed;
-    const embedPluginUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(cleanFb)}&show_text=0&width=734`;
+    const embedPluginUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(cleanFb)}&show_text=0`;
     return {
       url: cleanFb,
       embedUrl: embedPluginUrl,
@@ -951,7 +951,7 @@ function PromoVideoModal({
                   <Eye className="w-3.5 h-3.5 text-orange-500" />
                   <span>Aperçu de la vidéo :</span>
                 </p>
-                <div className="relative aspect-video rounded-xl overflow-hidden bg-black max-h-52 mx-auto border border-border shadow-inner">
+                <div className={`relative ${videoUrl && (videoUrl.includes('/reel/') || videoUrl.includes('/shorts/') || videoUrl.includes('tiktok.com')) ? 'h-64 aspect-[9/16]' : 'aspect-video max-h-52'} rounded-xl overflow-hidden bg-black mx-auto border border-border shadow-inner flex items-center justify-center`}>
                   {parseVideoSource(videoUrl).embedUrl ? (
                     <iframe
                       src={parseVideoSource(videoUrl).embedUrl}

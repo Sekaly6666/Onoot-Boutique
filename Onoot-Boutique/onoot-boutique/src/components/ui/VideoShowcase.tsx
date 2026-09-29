@@ -76,16 +76,36 @@ function isEmbedVideo(url?: string): boolean {
   );
 }
 
+function isVerticalVideo(url?: string): boolean {
+  if (!url) return false;
+  return (
+    url.includes("/reel/") ||
+    url.includes("/shorts/") ||
+    url.includes("tiktok.com") ||
+    url.includes("instagram.com")
+  );
+}
+
 function getEmbedAutoplayUrl(url: string, muted: boolean): string {
   if (!url) return "";
 
   // Facebook video & reels plugin
   if (url.includes("facebook.com") || url.includes("fb.watch")) {
     if (url.includes("plugins/video.php")) {
-      const sep = url.includes("?") ? "&" : "?";
-      return `${url}${sep}autoplay=1&mute=${muted ? "1" : "0"}`;
+      try {
+        const u = new URL(url);
+        u.searchParams.delete("width");
+        u.searchParams.set("show_text", "0");
+        u.searchParams.set("autoplay", "1");
+        u.searchParams.set("mute", muted ? "1" : "0");
+        return u.toString();
+      } catch {
+        const cleaned = url.replace(/&width=\d+/g, "");
+        const sep = cleaned.includes("?") ? "&" : "?";
+        return `${cleaned}${sep}autoplay=1&mute=${muted ? "1" : "0"}`;
+      }
     }
-    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0&width=734&autoplay=1&mute=${muted ? "1" : "0"}`;
+    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0&autoplay=1&mute=${muted ? "1" : "0"}`;
   }
 
   try {
@@ -135,6 +155,7 @@ export function VideoShowcase() {
   }, []);
 
   const activeVideo = videos[selectedIndex] || null;
+  const isVertical = isVerticalVideo(activeVideo?.videoUrl);
 
   // Resolve matching product dynamically to ensure 100% accurate direct redirection
   const resolvedProduct = useMemo(() => {
@@ -368,7 +389,11 @@ export function VideoShowcase() {
           <div className="lg:col-span-8 flex flex-col">
             <div 
               onClick={activeVideo && !isEmbedVideo(activeVideo.videoUrl) ? togglePlay : undefined}
-              className="relative aspect-video rounded-3xl overflow-hidden bg-black border border-white/10 shadow-2xl shadow-black/90 group flex items-center justify-center cursor-pointer"
+              className={`relative w-full rounded-3xl overflow-hidden bg-black border border-white/10 shadow-2xl shadow-black/90 group flex items-center justify-center cursor-pointer transition-all duration-300 ${
+                isVertical 
+                  ? "h-[500px] sm:h-[560px] md:h-[620px] max-w-sm sm:max-w-md mx-auto aspect-[9/16]" 
+                  : "aspect-video"
+              }`}
             >
               {/* Single persistent Video element or Iframe */}
               {activeVideo && isEmbedVideo(activeVideo.videoUrl) ? (
@@ -389,7 +414,7 @@ export function VideoShowcase() {
                   onEnded={handleVideoEnded}
                   onTimeUpdate={handleTimeUpdate}
                   onError={handleVideoError}
-                  className="w-full h-full object-cover sm:object-contain bg-black"
+                  className="w-full h-full object-contain bg-black"
                 />
               )}
 
@@ -688,7 +713,7 @@ export function VideoShowcase() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6"
           >
-            <div className="relative w-full max-w-5xl aspect-video bg-black rounded-3xl overflow-hidden border border-white/20 shadow-2xl flex flex-col justify-center">
+            <div className={`relative w-full ${isVertical ? "max-w-sm sm:max-w-md h-[88vh] aspect-[9/16]" : "max-w-5xl aspect-video"} bg-black rounded-3xl overflow-hidden border border-white/20 shadow-2xl flex flex-col justify-center items-center`}>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
