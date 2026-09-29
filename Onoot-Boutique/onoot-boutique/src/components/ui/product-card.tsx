@@ -91,28 +91,28 @@ export function ProductCard({ product, className }: ProductCardProps) {
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100">
           <motion.div initial={{ y: 10, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} className="flex gap-2">
             <Button
-              size="sm"
-              className="bg-[#E87C2A] hover:bg-[#D06820] text-white shadow-lg font-semibold text-xs px-2.5 md:px-3"
+              size="icon"
+              className="h-9 w-9 rounded-full bg-[#E87C2A] hover:bg-[#D06820] text-white shadow-lg active:scale-95 transition-all"
               onClick={handleAddToCart}
               disabled={isOutOfStock}
               title="Ajouter au panier"
+              aria-label="Ajouter au panier"
             >
-              <ShoppingCart className="h-3.5 w-3.5" />
-              <span className="hidden md:inline ml-1.5">Ajouter</span>
+              <ShoppingCart className="h-4 w-4" />
             </Button>
             <Button
-              size="sm"
+              size="icon"
               variant="secondary"
-              className="bg-white dark:bg-gray-800 dark:text-white text-[#111827] hover:bg-gray-100 dark:hover:bg-gray-700 shadow-lg text-xs px-2.5 md:px-3"
+              className="h-9 w-9 rounded-full bg-white dark:bg-gray-800 text-[#111827] dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 shadow-lg active:scale-95 transition-all"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 setLocation(`/products/${product.id}`);
               }}
               title="Voir le produit"
+              aria-label="Voir le produit"
             >
-              <Eye className="h-3.5 w-3.5" />
-              <span className="hidden md:inline ml-1.5">Voir</span>
+              <Eye className="h-4 w-4" />
             </Button>
           </motion.div>
         </div>
@@ -145,35 +145,35 @@ export function ProductCard({ product, className }: ProductCardProps) {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {/* Bouton Voir: Icône seule sur mobile, Icône + Texte sur tablette et PC */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Bouton Voir: Icône uniquement sur téléphone, tablette et PC */}
               <Button
                 type="button"
-                size="sm"
+                size="icon"
                 variant="outline"
-                className="h-8 w-8 md:h-8 md:w-auto p-0 md:px-2.5 rounded-full md:rounded-lg border-border/80 bg-background/80 hover:bg-muted text-foreground transition-all duration-200 shadow-xs flex items-center justify-center active:scale-95"
+                className="h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-full border-border/80 bg-background/80 hover:bg-muted text-foreground transition-all duration-200 shadow-xs flex items-center justify-center active:scale-95 shrink-0"
                 title="Voir le produit"
+                aria-label="Voir le produit"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   setLocation(`/products/${product.id}`);
                 }}
               >
-                <Eye className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground group-hover:text-foreground" />
-                <span className="hidden md:inline text-xs font-medium ml-1.5">Voir</span>
+                <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground group-hover:text-foreground" />
               </Button>
 
-              {/* Bouton Panier: Icône seule sur mobile, Icône + Texte sur tablette et PC */}
+              {/* Bouton Panier: Icône uniquement sur téléphone, tablette et PC */}
               <Button
                 type="button"
-                size="sm"
-                className="h-8 w-8 md:h-8 md:w-auto p-0 md:px-3 rounded-full md:rounded-lg bg-[#E87C2A] hover:bg-[#D06820] text-white transition-all duration-200 shadow-sm flex items-center justify-center font-medium active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                size="icon"
+                className="h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-full bg-[#E87C2A] hover:bg-[#D06820] text-white transition-all duration-200 shadow-sm flex items-center justify-center active:scale-95 disabled:opacity-50 disabled:pointer-events-none shrink-0"
                 title="Ajouter au panier"
+                aria-label="Ajouter au panier"
                 onClick={handleAddToCart}
                 disabled={isOutOfStock}
               >
-                <ShoppingCart className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                <span className="hidden md:inline text-xs font-semibold ml-1.5">Ajouter</span>
+                <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </Button>
             </div>
           </div>

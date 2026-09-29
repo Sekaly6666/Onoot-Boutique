@@ -453,26 +453,24 @@ export default function Profile() {
                         )}
                       />
 
-                      <FormItem>
-                        <FormLabel className="font-semibold text-foreground flex items-center gap-1.5">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                           <Mail className="h-3.5 w-3.5 text-slate-400" /> Adresse Email
-                        </FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input
-                              value={user.email}
-                              disabled
-                              className="h-11 rounded-xl bg-muted/60 text-muted-foreground border-border/60 cursor-not-allowed"
-                            />
-                            <span className="absolute right-3 top-3 text-[11px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-semibold px-2 py-0.5 rounded-full">
-                              Vérifié
-                            </span>
-                          </div>
-                        </FormControl>
+                        </label>
+                        <div className="relative">
+                          <Input
+                            value={user.email}
+                            disabled
+                            className="h-11 rounded-xl bg-muted/60 text-muted-foreground border-border/60 cursor-not-allowed"
+                          />
+                          <span className="absolute right-3 top-3 text-[11px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-semibold px-2 py-0.5 rounded-full">
+                            Vérifié
+                          </span>
+                        </div>
                         <p className="text-[11px] text-muted-foreground mt-1">
                           L'email est votre identifiant unique sécurisé et ne peut être modifié directement.
                         </p>
-                      </FormItem>
+                      </div>
                     </div>
 
                     {/* Section: Téléphone & Adresse */}
