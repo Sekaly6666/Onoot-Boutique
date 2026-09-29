@@ -70,13 +70,16 @@ const heroSlides = [
     id: 0,
     name: "Bleu",
     bg: "from-[#034f75] via-[#0284c7] to-[#0ea5e9]",
+    textColor: "text-white",
     badgeText: "NOUVEAUTÉ 2026",
     badgeIcon: Zap,
     badgeColor: "bg-white/20 text-white border-white/30 backdrop-blur-md",
     title: "L'excellence tech,",
+    titleColor: "text-white",
     highlight: "livrée chez vous.",
     highlightColor: "text-[#F5C430] drop-shadow-sm",
     desc: "Découvrez notre sélection premium d'accessoires pour smartphones. Qualité garantie, garantie 1 an & paiement à la livraison.",
+    descColor: "text-white/85",
     cta: "Acheter maintenant",
     ctaLink: "/products",
     ctaClass: "bg-[#E87C2A] hover:bg-[#D06820] text-white shadow-lg shadow-[#E87C2A]/40",
@@ -92,37 +95,43 @@ const heroSlides = [
   {
     id: 1,
     name: "Jaune",
-    bg: "from-[#78350f] via-[#b45309] to-[#f59e0b]",
+    bg: "from-[#ca8a04] via-[#f5c430] to-[#fde047]",
+    textColor: "text-slate-950",
     badgeText: "VENTE FLASH DU JOUR",
     badgeIcon: Flame,
-    badgeColor: "bg-black/30 text-white border-white/40 backdrop-blur-md",
+    badgeColor: "bg-slate-950 text-[#facc15] border-slate-950/30 backdrop-blur-md shadow-sm",
     title: "Flash Sale,",
+    titleColor: "text-slate-950",
     highlight: "jusqu'à -40% !",
-    highlightColor: "text-white drop-shadow-md",
+    highlightColor: "text-red-600 drop-shadow-xs",
     desc: "Offres exceptionnelles limitées sur le son et la haute technologie. Stocks réduits, profitez-en avant rupture !",
+    descColor: "text-slate-900/90 font-medium",
     cta: "Profiter des offres",
     ctaLink: "/products?onSale=true",
     ctaClass: "bg-slate-950 hover:bg-slate-900 text-white shadow-xl shadow-black/25",
     cta2: "Voir le catalogue",
     cta2Link: "/products",
-    cta2Class: "text-white border-white/40 hover:bg-white/20",
+    cta2Class: "text-slate-950 border-slate-950/40 hover:bg-slate-950/10 font-bold",
     image: "/images/earbuds.png",
-    imageBg: "bg-white/25",
+    imageBg: "bg-white/40 border border-slate-900/10 shadow-xl",
     tagIcon: Flame,
-    tagColor: "text-amber-300",
+    tagColor: "text-red-600",
     tagText: "-40% Remise Immédiate",
   },
   {
     id: 2,
     name: "Orange",
     bg: "from-[#7c2d12] via-[#c2410c] to-[#ea580c]",
+    textColor: "text-white",
     badgeText: "NOUVEAUX ARRIVAGES",
     badgeIcon: Sparkles,
     badgeColor: "bg-white/20 text-white border-white/30 backdrop-blur-md",
     title: "Découvrez les",
+    titleColor: "text-white",
     highlight: "dernières tendances.",
     highlightColor: "text-[#F5C430] drop-shadow-sm",
     desc: "Smartphones, montres connectées, écouteurs sans fil... Restez à la pointe de l'innovation avec Onoot Boutique.",
+    descColor: "text-white/85",
     cta: "Explorer maintenant",
     ctaLink: "/products",
     ctaClass: "bg-slate-950 hover:bg-slate-900 text-white shadow-xl shadow-black/30",
@@ -181,7 +190,7 @@ function HeroCarousel() {
       <div className="relative z-10 container mx-auto px-4 pt-8 pb-16 sm:py-16 md:py-24 flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8 md:gap-12 w-full">
         
         {/* Left Column: Text & CTAs */}
-        <div className="flex-1 text-white max-w-2xl text-center md:text-left flex flex-col items-center md:items-start">
+        <div className={`flex-1 ${slide.textColor || "text-white"} max-w-2xl text-center md:text-left flex flex-col items-center md:items-start`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={`content-${current}`}
@@ -199,14 +208,14 @@ function HeroCarousel() {
 
               {/* Title */}
               <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-3 sm:mb-4 leading-tight sm:leading-none tracking-tight">
-                {slide.title} <br className="hidden sm:inline" />
+                <span className={slide.titleColor || ""}>{slide.title}</span> <br className="hidden sm:inline" />
                 <span className={`${slide.highlightColor} block sm:inline mt-1 sm:mt-0 drop-shadow-sm`}>
                   {slide.highlight}
                 </span>
               </h1>
 
               {/* Description */}
-              <p className="text-xs sm:text-base md:text-lg text-white/85 mb-5 sm:mb-8 max-w-md md:max-w-lg leading-relaxed">
+              <p className={`text-xs sm:text-base md:text-lg mb-5 sm:mb-8 max-w-md md:max-w-lg leading-relaxed ${slide.descColor || "text-white/85"}`}>
                 {slide.desc}
               </p>
 
