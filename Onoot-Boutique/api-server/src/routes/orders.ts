@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import mongoose from "mongoose";
 import { Order } from "../models/Order";
 import { Product } from "../models/Product";
 import { User } from "../models/User";
@@ -79,7 +80,62 @@ router.post("/orders", async (req, res): Promise<void> => {
     return;
   }
 
-  const totalAmount = parsed.data.totalAmount ?? parsed.data.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+  // ─── Anti-Fraud / Anti-Arnaque: Recalculate price and verify stock server-side ───
+  const verifiedItems: any[] = [];
+  let calculatedTotal = 0;
+
+  for (const item of parsed.data.items) {
+    if (!item.quantity || item.quantity <= 0) {
+      res.status(400).json({ error: "Quantité invalide pour un des articles de la commande." });
+      return;
+    }
+
+    let unitPrice = item.price;
+    let productName = item.name;
+
+    if (mongoose.Types.ObjectId.isValid(item.productId)) {
+      const dbProduct = await Product.findById(item.productId).exec();
+      if (!dbProduct) {
+        res.status(400).json({ error: `Le produit "${item.name || item.productId}" n'est plus disponible.` });
+        return;
+      }
+
+      // Check stock
+      if (typeof dbProduct.stock === "number" && dbProduct.stock < item.quantity) {
+        res.status(400).json({
+          error: `Stock insuffisant pour "${dbProduct.name}". Quantité en stock : ${dbProduct.stock}`,
+        });
+        return;
+      }
+
+      // Recalculate official price (with discount if applicable)
+      if (
+        typeof dbProduct.discountPrice === "number" &&
+        dbProduct.discountPrice > 0 &&
+        dbProduct.discountPrice < dbProduct.price
+      ) {
+        unitPrice = dbProduct.discountPrice;
+      } else {
+        unitPrice = dbProduct.price;
+      }
+      productName = dbProduct.name;
+    } else {
+      // Demo / example product validation
+      if (unitPrice <= 0) {
+        res.status(400).json({ error: "Prix d'article invalide." });
+        return;
+      }
+    }
+
+    calculatedTotal += unitPrice * item.quantity;
+    verifiedItems.push({
+      ...item,
+      name: productName,
+      price: unitPrice,
+    });
+  }
+
+  const totalAmount = calculatedTotal;
 
   // Determine customer email
   let customerEmail = (req.body as any).customerEmail || null;
@@ -92,7 +148,7 @@ router.post("/orders", async (req, res): Promise<void> => {
     userId: parsed.data.userId ?? null,
     sessionId: parsed.data.sessionId ?? null,
     customerEmail,
-    items: parsed.data.items,
+    items: verifiedItems,
     totalAmount,
     paymentMethod: parsed.data.paymentMethod,
     orderStatus: "pending",
@@ -126,8 +182,7 @@ router.post("/orders", async (req, res): Promise<void> => {
   );
 
   // Update product stock and salesCount
-  const mongoose = require('mongoose');
-  for (const item of parsed.data.items) {
+  for (const item of verifiedItems) {
     if (typeof item.productId === 'string' && item.productId.startsWith('example-')) continue;
     if (!mongoose.Types.ObjectId.isValid(item.productId)) continue;
 

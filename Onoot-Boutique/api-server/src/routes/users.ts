@@ -58,7 +58,19 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const updated = await User.findByIdAndUpdate(params.data.id, parsed.data, { new: true });
+  // Anti-Privilege Escalation: Only allow whitelisted profile fields
+  const inputData = parsed.data as any;
+  const safeUpdate: any = {};
+  if (inputData.name !== undefined) safeUpdate.name = inputData.name;
+  if (inputData.firstName !== undefined) safeUpdate.firstName = inputData.firstName;
+  if (inputData.lastName !== undefined) safeUpdate.lastName = inputData.lastName;
+  if (inputData.phone !== undefined) safeUpdate.phone = inputData.phone;
+  if (inputData.avatar !== undefined) safeUpdate.avatar = inputData.avatar;
+  if (inputData.address !== undefined) safeUpdate.address = inputData.address;
+  if (inputData.city !== undefined) safeUpdate.city = inputData.city;
+  if (inputData.country !== undefined) safeUpdate.country = inputData.country;
+
+  const updated = await User.findByIdAndUpdate(params.data.id, safeUpdate, { new: true });
   if (!updated) {
     res.status(404).json({ error: "User not found" });
     return;
