@@ -680,27 +680,28 @@ export default function Checkout() {
                       )}
                     </div>
 
-                    {/* Adresse précise (Quartier, Rue, Repère) */}
-                    <FormField
-                      control={form.control}
-                      name="address"
-                      render={({ field }) => (
-                        <FormItem className="md:col-span-2">
-                          <FormLabel className="flex items-center gap-1 font-semibold text-xs text-slate-700 dark:text-slate-300">
-                            Adresse exacte / Quartier &amp; Repère {!isInterior && <span className="text-red-500">*</span>}
-                            {isInterior && <span className="text-[11px] text-slate-400 font-normal">(Optionnel pour retrait en gare)</span>}
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder={isInterior ? "Optionnel : quartier ou adresse de contact" : "Ex: Angré 8ème Tranche, pharmacie du carrefour, villa 45"}
-                              {...field}
-                              className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {/* Adresse précise (Quartier, Rue, Repère) - Uniquement pour livraison à Abidjan */}
+                    {!isInterior && (
+                      <FormField
+                        control={form.control}
+                        name="address"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel className="flex items-center gap-1 font-semibold text-xs text-slate-700 dark:text-slate-300">
+                              Adresse exacte / Quartier &amp; Repère <span className="text-red-500">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Ex: Angré 8ème Tranche, pharmacie du carrefour, villa 45"
+                                {...field}
+                                className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
 
                     {/* Pays : Champ texte modifiable avec Côte d'Ivoire par défaut (sans menu option) */}
                     <FormField
@@ -723,26 +724,28 @@ export default function Checkout() {
                       )}
                     />
 
-                    {/* Instructions spécifiques */}
-                    <FormField
-                      control={form.control}
-                      name="notes"
-                      render={({ field }) => (
-                        <FormItem className="md:col-span-2">
-                          <FormLabel className="font-semibold text-xs text-slate-700 dark:text-slate-300">
-                            Instructions spécifiques pour la livraison (Optionnel)
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Ex : Appeler avant d'arriver, livraison souhaitée l'après-midi..."
-                              {...field}
-                              className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {/* Instructions spécifiques - Uniquement pour livraison à Abidjan */}
+                    {!isInterior && (
+                      <FormField
+                        control={form.control}
+                        name="notes"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel className="font-semibold text-xs text-slate-700 dark:text-slate-300">
+                              Instructions spécifiques pour la livraison (Optionnel)
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Ex : Appeler avant d'arriver, livraison souhaitée l'après-midi..."
+                                {...field}
+                                className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
                   </div>
                 </div>
 
