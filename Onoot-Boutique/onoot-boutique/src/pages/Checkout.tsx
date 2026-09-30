@@ -82,8 +82,8 @@ export default function Checkout() {
 
   const isInterior = deliveryType === "interior";
   const selectedZone = isInterior
-    ? getDeliveryZoneById("hors-abidjan")
-    : getDeliveryZoneById(selectedZoneId === "hors-abidjan" ? "cocody" : selectedZoneId);
+    ? getDeliveryZoneById("interieur")
+    : getDeliveryZoneById(selectedZoneId === "hors-abidjan" || selectedZoneId === "interieur" ? "cocody" : selectedZoneId);
 
   const itemsTotal = cart?.totalAmount || 0;
   // Si c'est l'intérieur du pays, les frais seront convenus sur WhatsApp
@@ -472,8 +472,8 @@ export default function Checkout() {
                           type="button"
                           onClick={() => {
                             setDeliveryType("interior");
-                            setSelectedZoneId("hors-abidjan");
-                            form.setValue("city", "Hors d'Abidjan (En gare)", { shouldValidate: true });
+                            setSelectedZoneId("interieur");
+                            form.setValue("city", interiorCity.trim() || "Hors d'Abidjan (En gare)", { shouldValidate: true });
                           }}
                           className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-start gap-3 ${
                             deliveryType === "interior"
@@ -651,9 +651,34 @@ export default function Checkout() {
                               <Input
                                 placeholder="Ex: Bouaké, Yamoussoukro, Korhogo..."
                                 value={interiorCity}
-                                onChange={(e) => setInteriorCity(e.target.value)}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setInteriorCity(val);
+                                  form.setValue("city", val.trim() || "Hors d'Abidjan (En gare)", { shouldValidate: true });
+                                }}
                                 className="h-11 bg-white dark:bg-slate-900 border-amber-300 dark:border-amber-800 text-slate-900 dark:text-slate-100 rounded-xl"
                               />
+
+                              {/* Suggestions rapides de villes */}
+                              <div className="flex flex-wrap gap-1.5 mt-2">
+                                {["Bouaké", "Yamoussoukro", "San-Pédro", "Korhogo", "Daloa", "Gagnoa", "Man"].map((c) => (
+                                  <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => {
+                                      setInteriorCity(c);
+                                      form.setValue("city", c, { shouldValidate: true });
+                                    }}
+                                    className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                                      interiorCity.trim().toLowerCase() === c.toLowerCase()
+                                        ? "bg-amber-600 text-white border-amber-600 font-bold shadow-xs"
+                                        : "bg-white dark:bg-slate-800 border-amber-200 dark:border-amber-800/60 text-slate-700 dark:text-slate-300 hover:bg-amber-100/60 dark:hover:bg-amber-950/40"
+                                    }`}
+                                  >
+                                    {c}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
 
                             <div>
@@ -945,11 +970,26 @@ export default function Checkout() {
 
                 <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800 space-y-1">
                   <div>
-                    Zone : <strong className="text-slate-800 dark:text-slate-200">{selectedZone.commune}</strong>
+                    {isInterior ? (
+                      <>
+                        Zone :{" "}
+                        <strong className="text-amber-700 dark:text-amber-300 font-bold">
+                          {interiorCity.trim()
+                            ? `${interiorCity.trim()}${interiorStation.trim() ? ` (Gare : ${interiorStation.trim()})` : ""}`
+                            : "Hors d'Abidjan (Intérieur)"}
+                        </strong>
+                      </>
+                    ) : (
+                      <>
+                        Zone : <strong className="text-slate-800 dark:text-slate-200">{selectedZone.commune}</strong>
+                      </>
+                    )}
                   </div>
                   {isInterior ? (
                     <div className="text-amber-600 dark:text-amber-400 italic">
-                      Frais fixés avec la boutique après échange WhatsApp.
+                      {interiorCity.trim()
+                        ? `Expédition vers ${interiorCity.trim()} en car. Frais convenus avec la boutique sur WhatsApp.`
+                        : "Frais d'expédition en gare convenus avec la boutique après échange WhatsApp."}
                     </div>
                   ) : (
                     <div className="text-slate-400 dark:text-slate-500 italic">
