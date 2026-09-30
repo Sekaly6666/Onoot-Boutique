@@ -73,6 +73,7 @@ export default function Checkout() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
 
+  const [deliveryType, setDeliveryType] = useState<"abidjan" | "interior">("abidjan");
   const [selectedZoneId, setSelectedZoneId] = useState<string>("cocody");
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [detectedAddress, setDetectedAddress] = useState<string>("");
@@ -83,8 +84,10 @@ export default function Checkout() {
   const [interiorCity, setInteriorCity] = useState<string>("");
   const [interiorStation, setInteriorStation] = useState<string>("");
 
-  const selectedZone = getDeliveryZoneById(selectedZoneId);
-  const isInterior = Boolean(selectedZone.isInterior);
+  const isInterior = deliveryType === "interior";
+  const selectedZone = isInterior
+    ? getDeliveryZoneById("hors-abidjan")
+    : getDeliveryZoneById(selectedZoneId === "hors-abidjan" ? "cocody" : selectedZoneId);
 
   const itemsTotal = cart?.totalAmount || 0;
   // Si c'est l'intérieur du pays, les frais seront convenus sur WhatsApp
@@ -117,9 +120,9 @@ export default function Checkout() {
     },
   });
 
-  // Filtrage des zones de livraison selon la recherche
+  // Filtrage des zones de livraison : uniquement les communes d'Abidjan (hors-abidjan exclu des options)
   const filteredZones = useMemo(() => {
-    return searchDeliveryZones(searchQuery);
+    return searchDeliveryZones(searchQuery).filter((z) => !z.isInterior);
   }, [searchQuery]);
 
   const handleSelectZone = (zone: DeliveryZone) => {
@@ -148,12 +151,20 @@ export default function Checkout() {
           const detected = await detectZoneFromCoordinates(latitude, longitude);
 
           if (detected) {
-            setSelectedZoneId(detected.zone.id);
-            form.setValue("city", detected.zone.commune, { shouldValidate: true });
+            if (detected.zone.isInterior) {
+              setDeliveryType("interior");
+              setSelectedZoneId("hors-abidjan");
+              setInteriorCity(detected.addressDetails);
+              form.setValue("city", `Intérieur: ${detected.addressDetails}`, { shouldValidate: true });
+            } else {
+              setDeliveryType("abidjan");
+              setSelectedZoneId(detected.zone.id);
+              form.setValue("city", detected.zone.commune, { shouldValidate: true });
+            }
             setDetectedAddress(detected.addressDetails);
             toast({
               title: "Position détectée avec succès !",
-              description: `Commune identifiée : ${detected.zone.label} (${detected.addressDetails}).`,
+              description: `Zone identifiée : ${detected.zone.label} (${detected.addressDetails}).`,
             });
           } else {
             toast({
@@ -386,189 +397,273 @@ export default function Checkout() {
                       )}
                     />
 
-                    {/* ZONE DE LIVRAISON : Recherche intelligente + Bouton GPS */}
+                    {/* CHOIX DE LA ZONE : 2 OPTIONS TRÈS VISIBLES (ABIDJAN VS HORS D'ABIDJAN) */}
                     <div className="md:col-span-2 space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                          <Truck className="w-3.5 h-3.5 text-primary" />
-                          Commune / Zone de livraison <span className="text-red-500">*</span>
-                        </label>
+                      <label className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+                        <Truck className="w-3.5 h-3.5 text-primary" />
+                        Où souhaitez-vous être livré ? <span className="text-red-500">*</span>
+                      </label>
 
-                        {/* Bouton Géolocalisation automatique */}
+                      {/* 2 Boutons / Cartes de choix très visibles */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* Option 1 : Abidjan */}
                         <button
                           type="button"
-                          onClick={handleAutoGeolocate}
-                          disabled={isLocating}
-                          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-all cursor-pointer shadow-2xs self-start sm:self-auto"
+                          onClick={() => {
+                            setDeliveryType("abidjan");
+                            const nextZone = selectedZoneId === "hors-abidjan" ? "cocody" : selectedZoneId;
+                            setSelectedZoneId(nextZone);
+                            form.setValue("city", getDeliveryZoneById(nextZone).commune, { shouldValidate: true });
+                          }}
+                          className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-start gap-3 ${
+                            deliveryType === "abidjan"
+                              ? "border-primary bg-primary/5 dark:bg-primary/10 text-primary shadow-xs ring-1 ring-primary/20"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700"
+                          }`}
                         >
-                          {isLocating ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>Localisation GPS en cours...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Navigation className="w-3.5 h-3.5" />
-                              <span>Me géolocaliser automatiquement</span>
-                            </>
-                          )}
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                              deliveryType === "abidjan"
+                                ? "bg-primary text-white shadow-xs"
+                                : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
+                            }`}
+                          >
+                            <Truck className="w-5 h-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
+                                1. Livraison à Abidjan
+                              </span>
+                              {deliveryType === "abidjan" && (
+                                <Badge className="bg-primary text-white text-[10px] px-1.5 py-0 font-bold">
+                                  Sélectionné
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                              Communes d'Abidjan &amp; banlieues (Tarifs fixes à la livraison)
+                            </p>
+                          </div>
+                        </button>
+
+                        {/* Option 2 : Hors d'Abidjan */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeliveryType("interior");
+                            setSelectedZoneId("hors-abidjan");
+                            form.setValue("city", "Hors d'Abidjan (En gare)", { shouldValidate: true });
+                          }}
+                          className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-start gap-3 ${
+                            deliveryType === "interior"
+                              ? "border-amber-500 bg-amber-500/10 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 shadow-xs ring-1 ring-amber-500/20"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700"
+                          }`}
+                        >
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                              deliveryType === "interior"
+                                ? "bg-amber-600 text-white shadow-xs"
+                                : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
+                            }`}
+                          >
+                            <Building2 className="w-5 h-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
+                                2. Expédition Hors d'Abidjan
+                              </span>
+                              {deliveryType === "interior" && (
+                                <Badge className="bg-amber-600 text-white text-[10px] px-1.5 py-0 font-bold">
+                                  Sélectionné
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                              Intérieur du pays &amp; gares (Frais à convenir sur WhatsApp)
+                            </p>
+                          </div>
                         </button>
                       </div>
 
-                      {/* Sélecteur et recherche de commune */}
-                      <div className="relative">
-                        {/* Zone active affichée */}
-                        <div
-                          onClick={() => setIsSearchOpen(!isSearchOpen)}
-                          className="w-full min-h-[50px] p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between cursor-pointer hover:border-primary/50 transition-all shadow-xs"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                              <MapPin className="w-4 h-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
-                                {selectedZone.label}
-                              </div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400">
-                                {isInterior ? "Frais à convenir avec la boutique" : `Frais fixes : ${selectedZone.badge}`}
-                              </div>
-                            </div>
-                          </div>
+                      {/* BLOC OPTION 1 : SÉLECTEUR DE COMMUNE D'ABIDJAN */}
+                      {deliveryType === "abidjan" && (
+                        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 space-y-3 mt-2 animate-in fade-in-50 duration-200">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                              <MapPin className="w-3.5 h-3.5 text-primary" />
+                              Commune d'Abidjan <span className="text-red-500">*</span>
+                            </label>
 
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Badge
-                              className={
-                                isInterior
-                                  ? "bg-amber-600 text-white hover:bg-amber-600 text-xs font-semibold"
-                                  : "bg-primary text-white hover:bg-primary text-xs font-semibold"
-                              }
+                            {/* Bouton Géolocalisation automatique */}
+                            <button
+                              type="button"
+                              onClick={handleAutoGeolocate}
+                              disabled={isLocating}
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-all cursor-pointer shadow-2xs self-start sm:self-auto"
                             >
-                              {selectedZone.badge}
-                            </Badge>
-                            <span className="text-xs text-slate-400 font-bold">▼</span>
+                              {isLocating ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Localisation GPS en cours...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Navigation className="w-3.5 h-3.5" />
+                                  <span>Me géolocaliser automatiquement</span>
+                                </>
+                              )}
+                            </button>
                           </div>
-                        </div>
 
-                        {/* Menu déroulant de recherche et sélection */}
-                        {isSearchOpen && (
-                          <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in-50 duration-150">
-                            {/* Barre de recherche */}
-                            <div className="p-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/60">
-                              <div className="relative">
-                                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                                <input
-                                  type="text"
-                                  placeholder="Rechercher une commune, quartier (ex: Angré, Yop, Bassam, Bouaké...)"
-                                  value={searchQuery}
-                                  onChange={(e) => setSearchQuery(e.target.value)}
-                                  autoFocus
-                                  className="w-full h-10 pl-9 pr-3 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                                />
+                          {/* Sélecteur et recherche de commune */}
+                          <div className="relative">
+                            {/* Zone active affichée */}
+                            <div
+                              onClick={() => setIsSearchOpen(!isSearchOpen)}
+                              className="w-full min-h-[50px] p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between cursor-pointer hover:border-primary/50 transition-all shadow-xs"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                  <MapPin className="w-4 h-4" />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                                    {selectedZone.label}
+                                  </div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                                    Tarif fixe : {selectedZone.badge}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Badge className="bg-primary text-white hover:bg-primary text-xs font-semibold">
+                                  {selectedZone.badge}
+                                </Badge>
+                                <span className="text-xs text-slate-400 font-bold">▼</span>
                               </div>
                             </div>
 
-                            {/* Liste filtrée */}
-                            <div className="max-h-64 overflow-y-auto p-1.5 space-y-1">
-                              {filteredZones.length === 0 ? (
-                                <div className="p-4 text-center text-xs text-slate-400">
-                                  Aucune commune trouvée pour cette recherche.
+                            {/* Menu déroulant de recherche et sélection (COMMUNES D'ABIDJAN UNIQUEMENT) */}
+                            {isSearchOpen && (
+                              <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in-50 duration-150">
+                                {/* Barre de recherche */}
+                                <div className="p-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/60">
+                                  <div className="relative">
+                                    <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                                    <input
+                                      type="text"
+                                      placeholder="Rechercher une commune d'Abidjan (ex: Angré, Yopougon, Cocody, Marcory...)"
+                                      value={searchQuery}
+                                      onChange={(e) => setSearchQuery(e.target.value)}
+                                      autoFocus
+                                      className="w-full h-10 pl-9 pr-3 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                    />
+                                  </div>
                                 </div>
-                              ) : (
-                                filteredZones.map((z) => {
-                                  const isCurrent = z.id === selectedZone.id;
-                                  return (
-                                    <div
-                                      key={z.id}
-                                      onClick={() => handleSelectZone(z)}
-                                      className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
-                                        isCurrent
-                                          ? "bg-primary/10 border border-primary/20 text-primary font-bold"
-                                          : "hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-800 dark:text-slate-200 font-medium"
-                                      }`}
-                                    >
-                                      <div className="flex items-center gap-2 text-xs truncate">
-                                        {isCurrent && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
-                                        <span className="truncate">{z.label}</span>
-                                      </div>
-                                      <span
-                                        className={`text-xs font-bold shrink-0 ml-2 ${
-                                          z.isInterior ? "text-amber-600 dark:text-amber-400" : "text-slate-700 dark:text-slate-300"
-                                        }`}
-                                      >
-                                        {z.badge}
-                                      </span>
+
+                                {/* Liste filtrée */}
+                                <div className="max-h-64 overflow-y-auto p-1.5 space-y-1">
+                                  {filteredZones.length === 0 ? (
+                                    <div className="p-4 text-center text-xs text-slate-400">
+                                      Aucune commune trouvée pour cette recherche.
                                     </div>
-                                  );
-                                })
-                              )}
+                                  ) : (
+                                    filteredZones.map((z) => {
+                                      const isCurrent = z.id === selectedZone.id;
+                                      return (
+                                        <div
+                                          key={z.id}
+                                          onClick={() => handleSelectZone(z)}
+                                          className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                                            isCurrent
+                                              ? "bg-primary/10 border border-primary/20 text-primary font-bold"
+                                              : "hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-800 dark:text-slate-200 font-medium"
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-2 text-xs truncate">
+                                            {isCurrent && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                                            <span className="truncate">{z.label}</span>
+                                          </div>
+                                          <span className="text-xs font-bold shrink-0 ml-2 text-slate-700 dark:text-slate-300">
+                                            {z.badge}
+                                          </span>
+                                        </div>
+                                      );
+                                    })
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Indication visuelle si géolocalisé */}
+                          {detectedAddress && (
+                            <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Adresse GPS détectée : {detectedAddress}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* BLOC OPTION 2 : EXPÉDITION INTÉRIEUR DU PAYS (EN GARE) */}
+                      {deliveryType === "interior" && (
+                        <div className="p-5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 space-y-4 animate-in fade-in-50 duration-200">
+                          <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold text-sm">
+                            <Building2 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                            <span>Expédition Hors d'Abidjan (En gare / car)</span>
+                          </div>
+
+                          <p className="text-xs text-amber-800 dark:text-amber-300/90 leading-relaxed">
+                            Les frais de transport en car dépendent de votre ville de destination et de la compagnie choisie. 
+                            Vous pouvez valider votre commande maintenant, et nous conviendrons ensemble des frais d'expédition sur WhatsApp avant l'envoi de votre colis.
+                          </p>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            <div>
+                              <label className="text-xs font-bold text-amber-950 dark:text-amber-200 block mb-1">
+                                Ville de destination <span className="text-red-500">*</span>
+                              </label>
+                              <Input
+                                placeholder="Ex: Bouaké, Yamoussoukro, Korhogo..."
+                                value={interiorCity}
+                                onChange={(e) => setInteriorCity(e.target.value)}
+                                className="h-11 bg-white dark:bg-slate-900 border-amber-300 dark:border-amber-800 text-slate-900 dark:text-slate-100 rounded-xl"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-amber-950 dark:text-amber-200 block mb-1">
+                                Compagnie / Gare souhaitée (Optionnel)
+                              </label>
+                              <Input
+                                placeholder="Ex: UTB, CTE, STIF, etc."
+                                value={interiorStation}
+                                onChange={(e) => setInteriorStation(e.target.value)}
+                                className="h-11 bg-white dark:bg-slate-900 border-amber-300 dark:border-amber-800 text-slate-900 dark:text-slate-100 rounded-xl"
+                              />
                             </div>
                           </div>
-                        )}
-                      </div>
 
-                      {/* Indication visuelle si géolocalisé */}
-                      {detectedAddress && (
-                        <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Adresse GPS détectée : {detectedAddress}</span>
+                          {/* Bouton WhatsApp direct */}
+                          <div className="pt-2">
+                            <a
+                              href={whatsAppInteriorUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                              <span>Convenir des frais d'expédition sur WhatsApp</span>
+                            </a>
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    {/* SECTION EXPÉDITION INTÉRIEUR DU PAYS (OPTION 2 PRO) */}
-                    {isInterior && (
-                      <div className="md:col-span-2 p-5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 space-y-4">
-                        <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold text-sm">
-                          <Building2 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                          <span>Expédition Hors d'Abidjan (En gare / car)</span>
-                        </div>
-
-                        <p className="text-xs text-amber-800 dark:text-amber-300/90 leading-relaxed">
-                          Les frais de transport en car dépendent de votre ville et de la compagnie choisie. 
-                          Vous pouvez valider votre commande maintenant, et nous conviendrons ensemble des frais d'expédition sur WhatsApp avant l'envoi de votre colis.
-                        </p>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                          <div>
-                            <label className="text-xs font-bold text-amber-950 dark:text-amber-200 block mb-1">
-                              Ville de destination <span className="text-red-500">*</span>
-                            </label>
-                            <Input
-                              placeholder="Ex: Bouaké, Yamoussoukro, Korhogo..."
-                              value={interiorCity}
-                              onChange={(e) => setInteriorCity(e.target.value)}
-                              className="h-11 bg-white dark:bg-slate-900 border-amber-300 dark:border-amber-800 text-slate-900 dark:text-slate-100 rounded-xl"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-xs font-bold text-amber-950 dark:text-amber-200 block mb-1">
-                              Compagnie / Gare souhaitée (Optionnel)
-                            </label>
-                            <Input
-                              placeholder="Ex: UTB, CTE, STIF, etc."
-                              value={interiorStation}
-                              onChange={(e) => setInteriorStation(e.target.value)}
-                              className="h-11 bg-white dark:bg-slate-900 border-amber-300 dark:border-amber-800 text-slate-900 dark:text-slate-100 rounded-xl"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Bouton WhatsApp direct */}
-                        <div className="pt-2">
-                          <a
-                            href={whatsAppInteriorUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition-all"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                            <span>Convenir des frais d'expédition sur WhatsApp</span>
-                          </a>
-                        </div>
-                      </div>
-                    )}
 
                     {/* Adresse précise (Quartier, Rue, Repère) */}
                     <FormField
@@ -591,7 +686,7 @@ export default function Checkout() {
                       )}
                     />
 
-                    {/* Pays */}
+                    {/* Pays : Champ texte modifiable avec Côte d'Ivoire par défaut (sans menu option) */}
                     <FormField
                       control={form.control}
                       name="country"
@@ -601,44 +696,11 @@ export default function Checkout() {
                             Pays <span className="text-red-500">*</span>
                           </FormLabel>
                           <FormControl>
-                            <div>
-                              <Input
-                                placeholder="Ex: Côte d'Ivoire, Mali, Sénégal, Burkina Faso, France..."
-                                list="country-suggestions"
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  const val = e.target.value.trim().toLowerCase();
-                                  const isCI = val === "côte d'ivoire" || val === "cote d'ivoire" || val === "ci";
-                                  if (!isCI && val.length >= 2 && selectedZoneId !== "hors-abidjan") {
-                                    setSelectedZoneId("hors-abidjan");
-                                    form.setValue("city", "Expédition Hors Côte d'Ivoire", { shouldValidate: true });
-                                    if (!interiorCity) {
-                                      setInteriorCity(e.target.value);
-                                    }
-                                  }
-                                }}
-                                className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
-                              />
-                              <datalist id="country-suggestions">
-                                <option value="Côte d'Ivoire" />
-                                <option value="Mali" />
-                                <option value="Burkina Faso" />
-                                <option value="Sénégal" />
-                                <option value="Guinée" />
-                                <option value="Ghana" />
-                                <option value="Togo" />
-                                <option value="Bénin" />
-                                <option value="Niger" />
-                                <option value="Cameroun" />
-                                <option value="Gabon" />
-                                <option value="Congo" />
-                                <option value="France" />
-                                <option value="Belgique" />
-                                <option value="Canada" />
-                                <option value="États-Unis" />
-                              </datalist>
-                            </div>
+                            <Input
+                              placeholder="Ex: Côte d'Ivoire"
+                              {...field}
+                              className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
