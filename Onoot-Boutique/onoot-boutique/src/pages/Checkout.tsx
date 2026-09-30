@@ -564,7 +564,7 @@ export default function Checkout() {
                             className="w-full inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition-all"
                           >
                             <MessageCircle className="w-4 h-4" />
-                            <span>💬 Convenir des frais d'expédition sur WhatsApp</span>
+                            <span>Convenir des frais d'expédition sur WhatsApp</span>
                           </a>
                         </div>
                       </div>
