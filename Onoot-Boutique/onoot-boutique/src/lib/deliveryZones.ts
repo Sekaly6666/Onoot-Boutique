@@ -409,7 +409,7 @@ export function buildInteriorWhatsAppUrl({
   const cityText = destinationCity?.trim() ? destinationCity.trim() : "Non précisée";
   const stationText = preferredStation?.trim() ? ` (Compagnie / Gare : ${preferredStation.trim()})` : "";
 
-  const message = `Bonjour Onoot Boutique 🛍️,\n\nJe souhaite passer une commande pour expédition Hors d'Abidjan :\n\n${itemsText}\n\n💰 Sous-total articles : ${itemsTotal.toLocaleString("fr-FR")} FCFA\nVille de destination : ${cityText}${stationText}\n\nPourriez-vous m'indiquer les frais d'expédition en gare s'il vous plaît ? Merci !`;
+  const message = `Bonjour Onoot Boutique,\n\nJe souhaite passer une commande pour expédition Hors d'Abidjan :\n\n${itemsText}\n\nSous-total articles : ${itemsTotal.toLocaleString("fr-FR")} FCFA\nVille de destination : ${cityText}${stationText}\n\nPourriez-vous m'indiquer les frais d'expédition en gare s'il vous plaît ? Merci !`;
 
   return `https://wa.me/${WHATSAPP_SHOP_NUMBER}?text=${encodeURIComponent(message)}`;
 }

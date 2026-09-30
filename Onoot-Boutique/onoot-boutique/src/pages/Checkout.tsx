@@ -288,7 +288,7 @@ export default function Checkout() {
             const itemsList = cart.items
               .map((it: CartItem) => `• ${it.quantity}x ${it.product.name} (${(it.price * it.quantity).toLocaleString("fr-FR")} FCFA)`)
               .join("\n");
-            const whatsappMsg = `Bonjour Onoot Boutique 🛍️,\n\nJe viens de valider ma commande #${orderNum} sur votre site pour expédition Hors d'Abidjan :\n\n${itemsList}\n\n💰 Sous-total articles : ${itemsTotal.toLocaleString("fr-FR")} FCFA\nVille de destination : ${interiorCity.trim()}${interiorStation.trim() ? ` (Gare : ${interiorStation.trim()})` : ""}\n\nPourriez-vous me confirmer les frais d'expédition en car/gare pour l'envoi ? Merci !`;
+            const whatsappMsg = `Bonjour Onoot Boutique,\n\nJe viens de valider ma commande #${orderNum} sur votre site pour expédition Hors d'Abidjan :\n\n${itemsList}\n\nSous-total articles : ${itemsTotal.toLocaleString("fr-FR")} FCFA\nVille de destination : ${interiorCity.trim()}${interiorStation.trim() ? ` (Gare : ${interiorStation.trim()})` : ""}\n\nPourriez-vous me confirmer les frais d'expédition en car/gare pour l'envoi ? Merci !`;
             const waUrl = `https://wa.me/2250503648312?text=${encodeURIComponent(whatsappMsg)}`;
 
             toast({

@@ -236,13 +236,13 @@ export default function OrderDetail() {
                   Cette commande est destinée à l'expédition en gare. Discutez avec la boutique sur WhatsApp pour convenir des frais de transport de votre colis :
                 </p>
                 <a
-                  href={`https://wa.me/2250503648312?text=${encodeURIComponent(`Bonjour Onoot Boutique 🛍️, je vous contacte pour ma commande #${order.id.slice(-8).toUpperCase()} concernant les frais d'expédition en gare vers : ${order.shippingAddress?.city || ''}.`)}`}
+                  href={`https://wa.me/2250503648312?text=${encodeURIComponent(`Bonjour Onoot Boutique, je vous contacte pour ma commande #${order.id.slice(-8).toUpperCase()} concernant les frais d'expédition en gare vers : ${order.shippingAddress?.city || ''}.`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  <span>💬 Convenir des frais de transport sur WhatsApp</span>
+                  <span>Convenir des frais de transport sur WhatsApp</span>
                 </a>
               </div>
             )}

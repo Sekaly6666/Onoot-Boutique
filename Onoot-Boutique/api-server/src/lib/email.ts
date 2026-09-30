@@ -438,7 +438,7 @@ export async function sendOrderConfirmation(order: any, customerEmail: string): 
 
   const html = wrapInTicket(body, `Confirmation de votre commande #${orderIdShort}`);
   try {
-    await sendMailWithFallback({ from: getFromAddress(), to: customerEmail, subject: `✅ Commande #ORD-${orderIdShort} confirmée – Onoot Boutique`, html });
+    await sendMailWithFallback({ from: getFromAddress(), to: customerEmail, subject: `Commande #ORD-${orderIdShort} confirmée – Onoot Boutique`, html });
     logger.info({ to: customerEmail, orderId: order._id }, 'Order confirmation email sent');
   } catch (err: any) {
     logger.error({ err: err.message, to: customerEmail }, 'Failed to send order confirmation email');
