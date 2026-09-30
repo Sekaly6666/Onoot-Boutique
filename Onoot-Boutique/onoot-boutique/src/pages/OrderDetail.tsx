@@ -93,35 +93,29 @@ export default function OrderDetail() {
   const statuses = ['pending', 'confirmed', 'shipped', 'delivered'];
   const currentIndex = statuses.indexOf(order.orderStatus);
 
-  const isAbidjan = React.useMemo(() => {
-    if (!order) return true;
-    const city = (order.shippingAddress?.city || "").toLowerCase().trim();
-    const address = (order.shippingAddress?.address || "").toLowerCase().trim();
-    const notes = (order.notes || "").toLowerCase().trim();
-    const payment = (order.paymentMethod || "").toLowerCase().trim();
+  const city = (order.shippingAddress?.city || "").toLowerCase().trim();
+  const address = (order.shippingAddress?.address || "").toLowerCase().trim();
+  const notes = (order.notes || "").toLowerCase().trim();
+  const payment = (order.paymentMethod || "").toLowerCase().trim();
 
-    if (
-      city.includes("intérieur") ||
-      city.includes("interieur") ||
-      city.includes("hors") ||
-      city.includes("gare") ||
-      address.includes("gare") ||
-      notes.includes("expédition") ||
-      notes.includes("expedition") ||
-      payment.includes("convenir") ||
-      payment.includes("boutique")
-    ) {
-      return false;
-    }
+  const isInteriorExplicit =
+    city.includes("intérieur") ||
+    city.includes("interieur") ||
+    city.includes("hors") ||
+    city.includes("gare") ||
+    address.includes("gare") ||
+    notes.includes("expédition") ||
+    notes.includes("expedition") ||
+    payment.includes("convenir") ||
+    payment.includes("boutique");
 
-    const abidjanKeywords = [
-      "abidjan", "cocody", "yopougon", "marcory", "plateau", "treichville",
-      "koumassi", "port-bouet", "port-bouët", "adjamé", "adjame", "abobo",
-      "attécoubé", "attecoube", "bingerville", "songon", "anyama"
-    ];
+  const abidjanKeywords = [
+    "abidjan", "cocody", "yopougon", "marcory", "plateau", "treichville",
+    "koumassi", "port-bouet", "port-bouët", "adjamé", "adjame", "abobo",
+    "attécoubé", "attecoube", "bingerville", "songon", "anyama"
+  ];
 
-    return abidjanKeywords.some((kw) => city.includes(kw) || address.includes(kw));
-  }, [order]);
+  const isAbidjan = !isInteriorExplicit && abidjanKeywords.some((kw) => city.includes(kw) || address.includes(kw));
 
   return (
     <Layout>
