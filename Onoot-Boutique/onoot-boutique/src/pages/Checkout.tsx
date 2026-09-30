@@ -47,11 +47,7 @@ const checkoutSchema = z.object({
     .trim()
     .min(1, "Le numéro de téléphone est obligatoire")
     .min(8, "Le numéro de téléphone doit comporter au moins 8 caractères"),
-  address: z
-    .string()
-    .trim()
-    .min(1, "L'adresse complète est obligatoire")
-    .min(3, "Veuillez renseigner une adresse complète (quartier, rue, repère)"),
+  address: z.string().optional(),
   city: z
     .string()
     .trim()
@@ -216,8 +212,8 @@ export default function Checkout() {
 
   const onInvalid = () => {
     toast({
-      title: "Adresse de livraison incomplète",
-      description: "Tous les champs de l'adresse de livraison doivent obligatoirement être remplis pour confirmer la commande.",
+      title: "Informations incomplètes",
+      description: "Veuillez vérifier les champs obligatoires (Nom, Téléphone, Ville).",
       variant: "destructive",
     });
   };
@@ -234,6 +230,16 @@ export default function Checkout() {
       return;
     }
 
+    if (!isInterior && (!data.address || data.address.trim().length < 3)) {
+      form.setError("address", { message: "Veuillez indiquer votre quartier et repère à Abidjan" });
+      toast({
+        title: "Adresse de livraison requise",
+        description: "Veuillez renseigner votre quartier ou repère à Abidjan.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     let finalCity = selectedZone.commune;
     let orderNotes = data.notes?.trim() || "";
 
@@ -242,6 +248,10 @@ export default function Checkout() {
       const interiorNote = `[Expédition Hors Abidjan en gare : ${interiorCity.trim()} - Gare : ${interiorStation.trim() || "À convenir"} - Frais de transport à confirmer sur WhatsApp]`;
       orderNotes = orderNotes ? `${orderNotes}\n${interiorNote}` : interiorNote;
     }
+
+    const effectiveAddress = data.address?.trim() || (isInterior
+      ? (interiorStation.trim() ? `Retrait gare : ${interiorStation.trim()}` : `Retrait en gare à ${interiorCity.trim()}`)
+      : "Non précisée");
 
     createOrder.mutate(
       {
@@ -263,7 +273,7 @@ export default function Checkout() {
           shippingAddress: {
             fullName: data.fullName.trim(),
             phone: data.phone.trim(),
-            address: data.address.trim(),
+            address: effectiveAddress,
             city: finalCity,
             country: data.country.trim(),
             postalCode: data.postalCode,
@@ -274,10 +284,20 @@ export default function Checkout() {
       {
         onSuccess: (order) => {
           if (isInterior) {
+            const orderNum = order.id.substring(order.id.length - 6).toUpperCase();
+            const itemsList = cart.items
+              .map((it: CartItem) => `• ${it.quantity}x ${it.product.name} (${(it.price * it.quantity).toLocaleString("fr-FR")} FCFA)`)
+              .join("\n");
+            const whatsappMsg = `Bonjour Onoot Boutique 🛍️,\n\nJe viens de valider ma commande #${orderNum} sur votre site pour expédition Hors d'Abidjan :\n\n${itemsList}\n\n💰 Sous-total articles : ${itemsTotal.toLocaleString("fr-FR")} FCFA\nVille de destination : ${interiorCity.trim()}${interiorStation.trim() ? ` (Gare : ${interiorStation.trim()})` : ""}\n\nPourriez-vous me confirmer les frais d'expédition en car/gare pour l'envoi ? Merci !`;
+            const waUrl = `https://wa.me/2250503648312?text=${encodeURIComponent(whatsappMsg)}`;
+
             toast({
-              title: "Commande enregistrée en attente d'expédition !",
-              description: "Notre équipe va convenir avec vous des frais d'expédition sur WhatsApp.",
+              title: `Commande #${orderNum} validée avec succès !`,
+              description: "WhatsApp s'ouvre pour fixer les frais de transport avec la boutique.",
             });
+
+            // Ouvre WhatsApp avec le vrai numéro de commande
+            window.open(waUrl, "_blank");
           } else {
             toast({
               title: "Commande confirmée !",
@@ -649,17 +669,12 @@ export default function Checkout() {
                             </div>
                           </div>
 
-                          {/* Bouton WhatsApp direct */}
-                          <div className="pt-2">
-                            <a
-                              href={whatsAppInteriorUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-full inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
-                            >
-                              <MessageCircle className="w-4 h-4" />
-                              <span>Convenir des frais d'expédition sur WhatsApp</span>
-                            </a>
+                          {/* Explication rassurante */}
+                          <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-xl border border-emerald-200/70 dark:border-emerald-800/60 text-xs text-emerald-900 dark:text-emerald-200 flex items-start gap-2">
+                            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                            <span>
+                              <strong>Validation directe :</strong> Cliquez sur le bouton vert <em>« Confirmer la commande &amp; Ouvrir WhatsApp »</em> ci-dessous. Votre commande sera enregistrée et WhatsApp s'ouvrira avec votre numéro de commande pour convenir des frais de transport.
+                            </span>
                           </div>
                         </div>
                       )}
@@ -672,11 +687,12 @@ export default function Checkout() {
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
                           <FormLabel className="flex items-center gap-1 font-semibold text-xs text-slate-700 dark:text-slate-300">
-                            Adresse exacte / Quartier &amp; Repère <span className="text-red-500">*</span>
+                            Adresse exacte / Quartier &amp; Repère {!isInterior && <span className="text-red-500">*</span>}
+                            {isInterior && <span className="text-[11px] text-slate-400 font-normal">(Optionnel pour retrait en gare)</span>}
                           </FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="Ex: Angré 8ème Tranche, pharmacie du carrefour, villa 45"
+                              placeholder={isInterior ? "Optionnel : quartier ou adresse de contact" : "Ex: Angré 8ème Tranche, pharmacie du carrefour, villa 45"}
                               {...field}
                               className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
                             />
@@ -838,16 +854,20 @@ export default function Checkout() {
                 <div className="space-y-3 pt-2">
                   <Button
                     type="submit"
-                    className="w-full bg-primary hover:bg-primary/90 text-white h-14 text-base font-bold shadow-lg hover:shadow-xl transition-all rounded-xl flex items-center justify-center gap-2 cursor-pointer"
+                    className={`w-full h-14 text-base font-bold shadow-lg hover:shadow-xl transition-all rounded-xl flex items-center justify-center gap-2 cursor-pointer ${
+                      isInterior
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                        : "bg-primary hover:bg-primary/90 text-white"
+                    }`}
                     disabled={createOrder.isPending}
                   >
                     {createOrder.isPending ? (
                       "Validation en cours..."
                     ) : isInterior ? (
                       <>
-                        <span>Confirmer la commande &bull;</span>
+                        <MessageCircle className="w-5 h-5 shrink-0" />
+                        <span>Confirmer la commande &amp; Ouvrir WhatsApp &bull;</span>
                         <span className="text-yellow-300">{itemsTotal.toLocaleString()} FCFA</span>
-                        <span className="text-xs text-white/80">(+ frais en gare)</span>
                       </>
                     ) : (
                       <>
@@ -857,7 +877,9 @@ export default function Checkout() {
                     )}
                   </Button>
                   <p className="text-center text-xs text-slate-400 dark:text-slate-500">
-                    En confirmant, vous vous engagez à régler le livreur lors de la réception de votre colis.
+                    {isInterior
+                      ? "Votre commande sera enregistrée et WhatsApp s'ouvrira automatiquement avec votre numéro de commande pour convenir des frais."
+                      : "En confirmant, vous vous engagez à régler le livreur lors de la réception de votre colis."}
                   </p>
                 </div>
               </form>
