@@ -67,6 +67,36 @@ export default function OrderTicket() {
 
   const locationText = formatLocation(order.shippingAddress.address, order.shippingAddress.city, order.shippingAddress.country);
 
+  const isAbidjan = React.useMemo(() => {
+    if (!order) return true;
+    const city = (order.shippingAddress?.city || "").toLowerCase().trim();
+    const address = (order.shippingAddress?.address || "").toLowerCase().trim();
+    const notes = (order.notes || "").toLowerCase().trim();
+    const payment = (order.paymentMethod || "").toLowerCase().trim();
+
+    if (
+      city.includes("intérieur") ||
+      city.includes("interieur") ||
+      city.includes("hors") ||
+      city.includes("gare") ||
+      address.includes("gare") ||
+      notes.includes("expédition") ||
+      notes.includes("expedition") ||
+      payment.includes("convenir") ||
+      payment.includes("boutique")
+    ) {
+      return false;
+    }
+
+    const abidjanKeywords = [
+      "abidjan", "cocody", "yopougon", "marcory", "plateau", "treichville",
+      "koumassi", "port-bouet", "port-bouët", "adjamé", "adjame", "abobo",
+      "attécoubé", "attecoube", "bingerville", "songon", "anyama"
+    ];
+
+    return abidjanKeywords.some((kw) => city.includes(kw) || address.includes(kw));
+  }, [order]);
+
   return (
     <div className="min-h-screen bg-slate-100 py-10 px-4 flex flex-col items-center">
       
@@ -192,8 +222,12 @@ export default function OrderTicket() {
             </div>
             <div className="flex justify-between items-center pt-2 border-t border-slate-200">
               <span className="font-bold text-slate-800">Règlement :</span>
-              <span className="font-medium text-slate-700 capitalize">
-                {order.paymentMethod === 'card' ? 'Carte bancaire' : order.paymentMethod === 'mobile_money' ? 'Mobile Money' : order.paymentMethod}
+              <span className="font-medium text-slate-700">
+                {isAbidjan ? (
+                  order.paymentMethod === 'card' ? 'Carte bancaire' : order.paymentMethod === 'mobile_money' ? 'Mobile Money' : 'Paiement à la livraison (En espèces)'
+                ) : (
+                  'À convenir avec la boutique'
+                )}
               </span>
             </div>
           </div>
@@ -202,7 +236,9 @@ export default function OrderTicket() {
           <div className="bg-slate-900 text-white p-4 rounded-2xl flex justify-between items-center shadow-md mb-8">
             <div>
               <span className="font-medium text-slate-300 block text-xs">TOTAL À PAYER</span>
-              <span className="text-[10px] text-slate-400">Au livreur en espèces</span>
+              <span className="text-[10px] text-slate-400">
+                {isAbidjan ? 'Au livreur en espèces' : 'Règlement convenu avec la boutique'}
+              </span>
             </div>
             <span className="text-2xl font-black text-amber-400">{order.totalAmount.toLocaleString()} FCFA</span>
           </div>

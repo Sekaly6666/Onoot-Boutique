@@ -269,7 +269,7 @@ export default function Checkout() {
           totalAmount: grandTotal,
           shippingCost: isInterior ? 0 : shippingCost,
           itemsTotal: itemsTotal,
-          paymentMethod: data.paymentMethod,
+          paymentMethod: isInterior ? "À convenir avec la boutique" : data.paymentMethod,
           shippingAddress: {
             fullName: data.fullName.trim(),
             phone: data.phone.trim(),
@@ -787,26 +787,35 @@ export default function Checkout() {
                   </div>
 
                   {/* Option 1 : Paiement à la livraison */}
-                  <div className="relative border-2 border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl p-4 transition-all">
+                  <div className={`relative border-2 ${isInterior ? 'border-amber-500 bg-amber-50/40 dark:bg-amber-950/20' : 'border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20'} rounded-xl p-4 transition-all`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-3">
-                        <div className="w-5 h-5 rounded-full border-2 border-emerald-600 bg-emerald-600 flex items-center justify-center text-white mt-0.5 shrink-0">
+                        <div className={`w-5 h-5 rounded-full border-2 ${isInterior ? 'border-amber-600 bg-amber-600' : 'border-emerald-600 bg-emerald-600'} flex items-center justify-center text-white mt-0.5 shrink-0`}>
                           <CheckCircle2 className="w-3.5 h-3.5" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-slate-900 dark:text-slate-100 text-sm flex items-center gap-1.5">
-                              <Banknote className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                              Paiement à la livraison (En espèces)
+                              {isInterior ? (
+                                <>
+                                  <MessageCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                  À convenir avec la boutique (Expédition en gare)
+                                </>
+                              ) : (
+                                <>
+                                  <Banknote className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                  Paiement à la livraison (En espèces)
+                                </>
+                              )}
                             </span>
-                            <Badge className="bg-emerald-600 text-white hover:bg-emerald-600 text-[10px] px-2 py-0.5">
-                              Disponible &bull; Recommandé
+                            <Badge className={`${isInterior ? 'bg-amber-600 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-600'} text-white text-[10px] px-2 py-0.5`}>
+                              {isInterior ? "À convenir • Hors Abidjan" : "Disponible • Recommandé"}
                             </Badge>
                           </div>
                           <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
                             {isInterior ? (
                               <span>
-                                Vous réglez les articles (<strong>{itemsTotal.toLocaleString()} FCFA</strong>) + les frais de gare convenus avec la boutique lors de la remise de votre colis.
+                                Pour les expéditions hors d'Abidjan, les modalités de paiement des articles (<strong>{itemsTotal.toLocaleString()} FCFA</strong>) et de transport (Wave, Orange Money ou règlement en gare) sont convenues directement avec la boutique sur WhatsApp avant l'expédition du colis.
                               </span>
                             ) : (
                               <span>

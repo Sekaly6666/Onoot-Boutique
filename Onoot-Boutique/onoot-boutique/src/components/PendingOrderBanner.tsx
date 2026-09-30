@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useListOrders } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,17 +7,17 @@ import { ShoppingCart, ArrowRight, X } from "lucide-react";
 
 /**
  * PendingOrderBanner
- * Affiche une banniere si l'utilisateur connecte a une commande "pending"
- * (commande commencee mais non completee). L'utilisateur peut cliquer pour
- * reprendre sa commande ou fermer la banniere pour l'ignorer.
+ * Affiche une banniere discrète uniquement si une commande est encore en attente (pending).
+ * Dès que l'administrateur confirme la commande (orderStatus !== "pending"), elle disparaît automatiquement.
  */
 export function PendingOrderBanner() {
   const { user } = useAuth();
+  const [location] = useLocation();
   const [dismissed, setDismissed] = React.useState(false);
 
   const { data } = useListOrders(
     { userId: user?.id },
-    { query: { enabled: !!user?.id, refetchInterval: 30000 } }
+    { query: { enabled: !!user?.id, refetchInterval: 4000, refetchOnWindowFocus: true } }
   );
 
   const pendingOrder = React.useMemo(() => {
@@ -25,15 +25,12 @@ export function PendingOrderBanner() {
     return data.orders.find((o) => o.orderStatus === "pending") ?? null;
   }, [data]);
 
+  // Masquer la bannière si l'utilisateur est déjà sur la page de suivi (/orders) ou à la caisse (/checkout),
+  // ou si la commande a été confirmée par l'admin (orderStatus != "pending")
   if (!user || !pendingOrder || dismissed) return null;
+  if (location.startsWith("/orders") || location.startsWith("/checkout")) return null;
 
   const orderShort = pendingOrder.id.substring(pendingOrder.id.length - 6).toUpperCase();
-  const orderDate = new Date(pendingOrder.createdAt).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 
   return (
     <AnimatePresence>
@@ -51,12 +48,12 @@ export function PendingOrderBanner() {
               <ShoppingCart className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             </div>
             <div className="text-sm">
-              <span className="font-bold text-amber-900 dark:text-amber-200">Commande en cours</span>
+              <span className="font-bold text-amber-900 dark:text-amber-200">Commande en attente</span>
               <span className="text-amber-800 dark:text-amber-300">
                 {" "}— #{orderShort} · <span className="font-semibold">{pendingOrder.totalAmount.toLocaleString()} FCFA</span>
               </span>
               <span className="text-amber-700 dark:text-amber-400 block text-xs sm:text-sm mt-0.5 sm:mt-0 sm:inline sm:ml-1">
-                Vous avez une commande en attente de validation.
+                En cours de confirmation par la boutique.
               </span>
             </div>
           </div>
@@ -65,7 +62,7 @@ export function PendingOrderBanner() {
               href={`/orders/${pendingOrder.id}`}
               className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold text-amber-900 dark:text-white bg-amber-200 hover:bg-amber-300 dark:bg-amber-800 dark:hover:bg-amber-700 px-3.5 py-1.5 rounded-full transition-colors shadow-sm flex-1 sm:flex-initial text-center"
             >
-              Reprendre ma commande <ArrowRight className="w-3.5 h-3.5" />
+              Suivre ma commande <ArrowRight className="w-3.5 h-3.5" />
             </Link>
             <button
               onClick={() => setDismissed(true)}

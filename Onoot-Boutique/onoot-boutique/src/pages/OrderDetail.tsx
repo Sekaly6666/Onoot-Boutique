@@ -93,6 +93,36 @@ export default function OrderDetail() {
   const statuses = ['pending', 'confirmed', 'shipped', 'delivered'];
   const currentIndex = statuses.indexOf(order.orderStatus);
 
+  const isAbidjan = React.useMemo(() => {
+    if (!order) return true;
+    const city = (order.shippingAddress?.city || "").toLowerCase().trim();
+    const address = (order.shippingAddress?.address || "").toLowerCase().trim();
+    const notes = (order.notes || "").toLowerCase().trim();
+    const payment = (order.paymentMethod || "").toLowerCase().trim();
+
+    if (
+      city.includes("intérieur") ||
+      city.includes("interieur") ||
+      city.includes("hors") ||
+      city.includes("gare") ||
+      address.includes("gare") ||
+      notes.includes("expédition") ||
+      notes.includes("expedition") ||
+      payment.includes("convenir") ||
+      payment.includes("boutique")
+    ) {
+      return false;
+    }
+
+    const abidjanKeywords = [
+      "abidjan", "cocody", "yopougon", "marcory", "plateau", "treichville",
+      "koumassi", "port-bouet", "port-bouët", "adjamé", "adjame", "abobo",
+      "attécoubé", "attecoube", "bingerville", "songon", "anyama"
+    ];
+
+    return abidjanKeywords.some((kw) => city.includes(kw) || address.includes(kw));
+  }, [order]);
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-12 max-w-4xl">
@@ -171,8 +201,35 @@ export default function OrderDetail() {
               )}
             </div>
             <Separator className="my-4" />
-            <h2 className="font-bold text-lg mb-4">Paiement</h2>
-            <p className="text-sm">Méthode: <span className="font-medium">{order.paymentMethod}</span></p>
+            <h2 className="font-bold text-lg mb-3">Paiement</h2>
+            {isAbidjan ? (
+              <div className="space-y-1.5 bg-muted/40 p-3.5 rounded-lg border border-border">
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground text-sm">Méthode :</span>
+                  <span className="font-semibold text-sm text-foreground">
+                    Paiement à la livraison (En espèces)
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Règlement en espèces directement auprès du livreur à la réception de votre colis.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1.5 bg-amber-50/70 dark:bg-amber-950/30 p-3.5 rounded-lg border border-amber-200/80 dark:border-amber-800/50">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-muted-foreground text-sm">Méthode :</span>
+                  <span className="font-semibold text-sm text-amber-900 dark:text-amber-200">
+                    À convenir avec la boutique
+                  </span>
+                  <Badge variant="outline" className="border-amber-400 text-amber-800 dark:text-amber-300 text-[10px] px-1.5 py-0 bg-amber-100/50 dark:bg-amber-900/40">
+                    Expédition Hors Abidjan
+                  </Badge>
+                </div>
+                <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                  Pour les expéditions hors d'Abidjan, les modalités de paiement des articles et de transport (Wave, Orange Money ou règlement en gare) sont convenues directement avec la boutique sur WhatsApp avant l'expédition du colis.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="bg-card border border-border p-6 rounded-xl">
@@ -207,7 +264,7 @@ export default function OrderDetail() {
                   <span className="font-semibold text-primary">
                     +{((order as any).shippingCost).toLocaleString()} FCFA
                   </span>
-                ) : (order.shippingAddress?.city?.toLowerCase().includes("intérieur") || order.shippingAddress?.city?.toLowerCase().includes("interieur")) ? (
+                ) : !isAbidjan ? (
                   <span className="font-bold text-amber-600 dark:text-amber-400 text-xs">
                     À convenir sur WhatsApp
                   </span>
@@ -221,8 +278,10 @@ export default function OrderDetail() {
               <div>
                 <span>Total à payer</span>
                 <p className="text-xs font-normal text-muted-foreground">
-                  {(order.shippingAddress?.city?.toLowerCase().includes("intérieur") || order.shippingAddress?.city?.toLowerCase().includes("interieur")) && (!(order as any).shippingCost || (order as any).shippingCost === 0)
+                  {!isAbidjan && (!(order as any).shippingCost || (order as any).shippingCost === 0)
                     ? "Hors frais d'expédition en gare"
+                    : !isAbidjan
+                    ? "Articles + expédition convenue"
                     : "À régler au livreur en espèces"}
                 </p>
               </div>

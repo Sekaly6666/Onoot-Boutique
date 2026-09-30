@@ -294,6 +294,9 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
         : (currentOrder.totalAmount - (currentOrder.shippingCost || 0));
       updateData.itemsTotal = itemsTotal;
       updateData.totalAmount = itemsTotal + newShippingCost;
+      if (!parsed.data.orderStatus && currentOrder.orderStatus === 'pending') {
+        updateData.orderStatus = 'confirmed';
+      }
     }
   }
 
