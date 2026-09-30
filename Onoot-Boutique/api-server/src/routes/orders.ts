@@ -7,6 +7,7 @@ import { AdminNotification } from "../models/AdminNotification";
 import {
   sendOrderConfirmation,
   sendOrderStatusUpdate,
+  sendShippingCostUpdatedNotification,
   sendShopNewOrderNotification,
   sendShopOrderCancelledNotification,
   SHOP_EMAIL,
@@ -313,10 +314,17 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
     if (user?.email) targetEmail = user.email;
   }
 
-  // 1. Notify customer of status change
-  if (targetEmail) {
+  // 1. Notify customer of status change ONLY if orderStatus was explicitly provided and valid
+  if (targetEmail && parsed.data.orderStatus) {
     sendOrderStatusUpdate(order, targetEmail, parsed.data.orderStatus, estimatedDeliveryDate || order.estimatedDeliveryDate).catch((err) =>
       console.error("Failed to send order status update email to customer:", err)
+    );
+  }
+
+  // 1b. If shipping cost was updated (without status change), notify customer of the confirmed shipping fee
+  if (targetEmail && newShippingCost !== undefined && !parsed.data.orderStatus) {
+    sendShippingCostUpdatedNotification(order, targetEmail).catch((err) =>
+      console.error("Failed to send shipping cost notification email:", err)
     );
   }
 

@@ -147,9 +147,14 @@ const Orders: React.FC = () => {
         method: 'PATCH',
         body: JSON.stringify({ shippingCost }),
       }),
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
-      toast.success('Frais de livraison mis à jour avec succès');
+      setShippingFees((prev) => {
+        const next = { ...prev };
+        delete next[vars.id];
+        return next;
+      });
+      toast.success('Frais de transport enregistrés et mis à jour');
     },
     onError: (error) => {
       toast.error('Erreur lors de la mise à jour des frais : ' + error.message);
@@ -449,48 +454,75 @@ const Orders: React.FC = () => {
                               </div>
                             )}
 
-                            {/* Formulaire de saisie des frais de livraison */}
-                            <div className="mt-3.5 pt-3 border-t border-amber-200/60 flex flex-col sm:flex-row items-stretch sm:items-end gap-2.5">
-                              <div className="flex-1">
-                                <label className="block text-xs font-bold text-slate-800 mb-1">
+                            {/* Formulaire de saisie et modification des frais de livraison */}
+                            <div className="mt-3.5 pt-3 border-t border-amber-200/60 space-y-2">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                                <label className="font-bold text-slate-800">
                                   Frais de transport convenus avec le client (FCFA) :
                                 </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="500"
-                                  placeholder="Ex: 2500"
-                                  value={shippingFees[o.id] !== undefined ? shippingFees[o.id] : (shippingCostVal || '')}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onChange={(e) => {
-                                    setShippingFees({ ...shippingFees, [o.id]: e.target.value });
-                                  }}
-                                  className="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 font-bold"
-                                />
+                                {shippingCostVal > 0 ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 text-[11px]">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                    Frais actuels : {shippingCostVal.toLocaleString()} FCFA (Modifiable)
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-bold text-amber-800 bg-amber-100 border border-amber-300 text-[11px]">
+                                    Frais non encore renseignés
+                                  </span>
+                                )}
                               </div>
 
-                              <button
-                                type="button"
-                                disabled={updateShippingFeeMutation.isPending}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const feeInput = shippingFees[o.id];
-                                  const feeNumber = feeInput !== undefined ? parseFloat(feeInput) : shippingCostVal;
-                                  if (isNaN(feeNumber) || feeNumber < 0) {
-                                    toast.error('Veuillez saisir un montant de frais valide');
-                                    return;
-                                  }
-                                  updateShippingFeeMutation.mutate({ id: o.id, shippingCost: feeNumber });
-                                }}
-                                className="px-5 py-2.5 min-h-[42px] rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
-                              >
-                                {updateShippingFeeMutation.isPending ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <CheckCircle2 className="w-4 h-4" />
-                                )}
-                                <span>Enregistrer les frais</span>
-                              </button>
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                                <div className="relative flex-1">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="500"
+                                    placeholder={shippingCostVal > 0 ? `Montant actuel: ${shippingCostVal}` : "Ex: 2500"}
+                                    value={shippingFees[o.id] !== undefined ? shippingFees[o.id] : (shippingCostVal > 0 ? shippingCostVal : '')}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) => {
+                                      setShippingFees({ ...shippingFees, [o.id]: e.target.value });
+                                    }}
+                                    className="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 font-bold"
+                                  />
+                                </div>
+
+                                <button
+                                  type="button"
+                                  disabled={updateShippingFeeMutation.isPending}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const feeInput = shippingFees[o.id];
+                                    const feeNumber = feeInput !== undefined && feeInput !== '' ? parseFloat(feeInput) : shippingCostVal;
+                                    if (isNaN(feeNumber) || feeNumber < 0) {
+                                      toast.error('Veuillez saisir un montant de frais valide (0 ou plus)');
+                                      return;
+                                    }
+                                    updateShippingFeeMutation.mutate({ id: o.id, shippingCost: feeNumber });
+                                  }}
+                                  className={`px-5 py-2.5 min-h-[42px] rounded-xl text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95 shrink-0 ${
+                                    shippingCostVal > 0
+                                      ? "bg-blue-600 hover:bg-blue-700"
+                                      : "bg-amber-600 hover:bg-amber-700"
+                                  }`}
+                                >
+                                  {updateShippingFeeMutation.isPending ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : shippingCostVal > 0 ? (
+                                    <RotateCcw className="w-4 h-4" />
+                                  ) : (
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  )}
+                                  <span>{shippingCostVal > 0 ? "Modifier / Mettre à jour" : "Enregistrer les frais"}</span>
+                                </button>
+                              </div>
+
+                              {shippingCostVal > 0 && (
+                                <p className="text-[11px] text-slate-500 italic">
+                                  Vous pouvez modifier ce montant à tout moment ci-dessus en cas d'erreur ou d'ajustement. Le total de la commande sera automatiquement recalculé.
+                                </p>
+                              )}
                             </div>
                           </div>
                         )}

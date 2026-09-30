@@ -556,6 +556,73 @@ export async function sendShopNewOrderNotification(order: any, shopEmail: string
   }
 }
 
+// ─── 3b. Notification mise à jour des frais de transport (Expédition Hors d'Abidjan) ───
+export async function sendShippingCostUpdatedNotification(
+  order: any,
+  customerEmail: string
+): Promise<void> {
+  if (!customerEmail) return;
+  const orderIdShort = order._id ? order._id.toString().slice(-8).toUpperCase() : 'N/A';
+  const shippingFeeFormatted = (order.shippingCost || 0).toLocaleString('fr-FR');
+  const itemsTotalFormatted = (order.itemsTotal ?? (order.totalAmount - (order.shippingCost || 0))).toLocaleString('fr-FR');
+  const totalFormatted = (order.totalAmount || 0).toLocaleString('fr-FR');
+  const shipping = order.shippingAddress || {};
+
+  const body = `
+    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;font-weight:700;color:${C.orange};text-transform:uppercase;letter-spacing:2px;margin:0 0 8px;text-align:center;">Expédition en gare &bull; Frais confirmés</p>
+    <h1 style="font-family:'Courier New',Courier,monospace;font-size:28px;font-weight:900;color:${C.dark};margin:0 0 16px;text-align:center;">#${orderIdShort}</h1>
+
+    <div style="background:linear-gradient(135deg,#FEF3C7 0%,#FDE68A 100%);border:1px solid #F59E0B;border-radius:14px;padding:18px;text-align:center;margin-bottom:20px;">
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">Frais de transport en car / gare</p>
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:24px;font-weight:900;color:#78350F;margin:0;">${shippingFeeFormatted}&nbsp;FCFA</p>
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:#92400E;margin:6px 0 0;">Frais enregistrés pour votre expédition vers <strong>${shipping.city || 'votre gare de destination'}</strong>.</p>
+    </div>
+
+    ${DIVIDER}
+
+    ${sectionTitle(icon.clipBoard, 'Détail actualisé du montant')}
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:${C.card};border:1px solid ${C.border};border-radius:12px;padding:8px 16px;margin-bottom:18px;">
+      <tr>
+        <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.muted};padding:6px 0;">Sous-total articles :</td>
+        <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:700;color:${C.dark};text-align:right;">${itemsTotalFormatted}&nbsp;FCFA</td>
+      </tr>
+      <tr>
+        <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.muted};padding:6px 0;border-top:1px dashed ${C.dash};">Frais d'expédition en car :</td>
+        <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:700;color:${C.orange};text-align:right;border-top:1px dashed ${C.dash};">+ ${shippingFeeFormatted}&nbsp;FCFA</td>
+      </tr>
+    </table>
+
+    <!-- Total sombre -->
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+      <tr>
+        <td style="background-color:${C.dark};border-radius:14px;padding:18px 22px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+            <tr>
+              <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:500;color:#9CA3AF;letter-spacing:1px;text-transform:uppercase;">TOTAL ACTUALISÉ À PAYER</td>
+              <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:24px;font-weight:900;color:${C.white};text-align:right;">${totalFormatted}&nbsp;FCFA</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    ${ctaButton('Consulter ma commande', `${getBoutiqueUrl()}/orders/${order._id}`)}
+  `;
+
+  const html = wrapInTicket(body, `Frais de transport fixés pour la commande #${orderIdShort}`);
+  try {
+    await sendMailWithFallback({
+      from: getFromAddress(),
+      to: customerEmail,
+      subject: `Frais de transport confirmés pour votre commande #ORD-${orderIdShort} – Onoot Boutique`,
+      html,
+    });
+    logger.info({ to: customerEmail, orderId: order._id }, 'Shipping cost updated email sent to customer');
+  } catch (err: any) {
+    logger.error({ err: err.message, to: customerEmail }, 'Failed to send shipping cost updated email');
+  }
+}
+
 // ─── 3. Email de mise à jour de statut ───────────────────────────────────────
 export async function sendOrderStatusUpdate(
   order: any,
@@ -563,7 +630,7 @@ export async function sendOrderStatusUpdate(
   newStatus: string,
   estimatedDeliveryDate?: string
 ): Promise<void> {
-  if (!customerEmail) return;
+  if (!customerEmail || !newStatus || newStatus === 'undefined') return;
   const transporter = createTransporter();
   const orderIdShort = order._id ? order._id.toString().slice(-8).toUpperCase() : 'N/A';
   const s = STATUS_CONFIG[newStatus] || {
