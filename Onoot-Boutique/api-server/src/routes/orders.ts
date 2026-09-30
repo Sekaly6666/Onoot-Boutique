@@ -294,9 +294,6 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
         : (currentOrder.totalAmount - (currentOrder.shippingCost || 0));
       updateData.itemsTotal = itemsTotal;
       updateData.totalAmount = itemsTotal + newShippingCost;
-      if (!parsed.data.orderStatus && currentOrder.orderStatus === 'pending') {
-        updateData.orderStatus = 'confirmed';
-      }
     }
   }
 
@@ -321,13 +318,6 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
   if (targetEmail && parsed.data.orderStatus) {
     sendOrderStatusUpdate(order, targetEmail, parsed.data.orderStatus, estimatedDeliveryDate || order.estimatedDeliveryDate).catch((err) =>
       console.error("Failed to send order status update email to customer:", err)
-    );
-  }
-
-  // 1b. If shipping cost was updated (without status change), notify customer of the confirmed shipping fee
-  if (targetEmail && newShippingCost !== undefined && !parsed.data.orderStatus) {
-    sendShippingCostUpdatedNotification(order, targetEmail).catch((err) =>
-      console.error("Failed to send shipping cost notification email:", err)
     );
   }
 

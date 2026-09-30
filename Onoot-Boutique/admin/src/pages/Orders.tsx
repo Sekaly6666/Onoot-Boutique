@@ -154,7 +154,7 @@ const Orders: React.FC = () => {
         delete next[vars.id];
         return next;
       });
-      toast.success('Frais de transport enregistrés et mis à jour');
+      toast.success('Frais de transport enregistrés (le client sera notifié lors de la confirmation)');
     },
     onError: (error) => {
       toast.error('Erreur lors de la mise à jour des frais : ' + error.message);
@@ -400,8 +400,8 @@ const Orders: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Bloc Expédition Hors d'Abidjan en Gare (Option 2 - Devis WhatsApp & Saisie des Frais) */}
-                        {isInteriorOrder && (
+                        {/* Bloc Expédition Hors d'Abidjan en Gare (Option 2 - Devis WhatsApp & Saisie des Frais - UNIQUEMENT en attente) */}
+                        {isInteriorOrder && o.orderStatus === 'pending' && (
                           <div className={`rounded-2xl p-4 border transition-all ${
                             isPendingShippingQuote 
                               ? 'bg-amber-50/90 border-amber-300 shadow-xs' 
@@ -546,6 +546,21 @@ const Orders: React.FC = () => {
                               <span>Paiement : <strong className="text-slate-700 font-medium capitalize">{o.paymentMethod}</strong></span>
                             </div>
 
+                            {/* Informations d'expédition épurées pour commandes Hors d'Abidjan dès l'étape Confirmée */}
+                            {isInteriorOrder && o.orderStatus !== 'pending' && (
+                              <div className="flex items-center gap-2 text-xs text-amber-900 bg-amber-50/80 border border-amber-200/80 rounded-lg px-2.5 py-1.5 mt-2">
+                                <Truck className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                                <span>Expédition en gare : <strong className="text-amber-950 font-semibold">{shippingCostVal > 0 ? `${shippingCostVal.toLocaleString()} FCFA` : 'Frais convenus'}</strong></span>
+                              </div>
+                            )}
+
+                            {isInteriorOrder && o.orderStatus !== 'pending' && o.notes && (
+                              <div className="text-xs text-slate-600 bg-slate-100/90 rounded-lg px-2.5 py-1.5 mt-1.5">
+                                <span className="text-slate-400 font-medium">Précisions gare : </span>
+                                <span className="text-slate-700 font-medium">{o.notes}</span>
+                              </div>
+                            )}
+
                             {/* Affichage épuré du délai prévu s'il existe une fois la commande confirmée */}
                             {(o as any).estimatedDeliveryDate && o.orderStatus !== 'pending' && (
                               <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200/70 rounded-lg px-2.5 py-1.5 mt-2.5">
@@ -572,7 +587,7 @@ const Orders: React.FC = () => {
                                 </span>
                               </div>
                               <div className="flex justify-between text-slate-500">
-                                <span>Frais de livraison :</span>
+                                <span>{isInteriorOrder ? 'Frais de transport (Gare) :' : 'Frais de livraison :'}</span>
                                 {isPendingShippingQuote ? (
                                   <span className="font-bold text-amber-600">
                                     À convenir sur WhatsApp
