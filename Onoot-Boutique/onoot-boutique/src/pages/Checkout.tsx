@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useLocation, Link } from "wouter";
 import { Layout } from "@/components/layout/Layout";
 import { useCartContext } from "@/contexts/CartContext";
@@ -13,16 +13,27 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { DELIVERY_ZONES, getDeliveryZoneById, DeliveryZone } from "@/lib/deliveryZones";
+import {
+  DELIVERY_ZONES,
+  getDeliveryZoneById,
+  searchDeliveryZones,
+  detectZoneFromCoordinates,
+  buildInteriorWhatsAppUrl,
+  DeliveryZone,
+} from "@/lib/deliveryZones";
 import {
   Truck,
   MapPin,
   Banknote,
   CheckCircle2,
-  Clock,
   ShieldCheck,
   Building2,
-  HelpCircle,
+  Navigation,
+  Loader2,
+  Search,
+  MessageCircle,
+  AlertCircle,
+  Check,
 } from "lucide-react";
 
 const checkoutSchema = z.object({
@@ -63,12 +74,21 @@ export default function Checkout() {
   const { toast } = useToast();
 
   const [selectedZoneId, setSelectedZoneId] = useState<string>("cocody");
-  const [interiorDetails, setInteriorDetails] = useState<string>("");
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+  const [detectedAddress, setDetectedAddress] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+
+  // Pour l'expédition intérieur du pays
+  const [interiorCity, setInteriorCity] = useState<string>("");
+  const [interiorStation, setInteriorStation] = useState<string>("");
 
   const selectedZone = getDeliveryZoneById(selectedZoneId);
+  const isInterior = Boolean(selectedZone.isInterior);
+
   const itemsTotal = cart?.totalAmount || 0;
-  // Frais uniques par commande (ne s'additionnent pas, ne se multiplient pas par article)
-  const shippingCost = selectedZone.fee;
+  // Si c'est l'intérieur du pays, les frais seront convenus sur WhatsApp
+  const shippingCost = isInterior ? 0 : selectedZone.fee;
   const grandTotal = itemsTotal + shippingCost;
 
   React.useEffect(() => {
@@ -97,12 +117,89 @@ export default function Checkout() {
     },
   });
 
-  // Keep form city in sync when zone changes
-  const handleZoneChange = (zoneId: string) => {
-    setSelectedZoneId(zoneId);
-    const zone = getDeliveryZoneById(zoneId);
+  // Filtrage des zones de livraison selon la recherche
+  const filteredZones = useMemo(() => {
+    return searchDeliveryZones(searchQuery);
+  }, [searchQuery]);
+
+  const handleSelectZone = (zone: DeliveryZone) => {
+    setSelectedZoneId(zone.id);
     form.setValue("city", zone.commune, { shouldValidate: true });
+    setIsSearchOpen(false);
+    setSearchQuery("");
   };
+
+  // Géolocalisation automatique GPS
+  const handleAutoGeolocate = () => {
+    if (!("geolocation" in navigator)) {
+      toast({
+        title: "Géolocalisation indisponible",
+        description: "Votre navigateur ne prend pas en charge la géolocalisation GPS.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const detected = await detectZoneFromCoordinates(latitude, longitude);
+
+          if (detected) {
+            setSelectedZoneId(detected.zone.id);
+            form.setValue("city", detected.zone.commune, { shouldValidate: true });
+            setDetectedAddress(detected.addressDetails);
+            toast({
+              title: "Position détectée avec succès ! 📍",
+              description: `Commune identifiée : ${detected.zone.label} (${detected.addressDetails}).`,
+            });
+          } else {
+            toast({
+              title: "Commune non identifiée",
+              description: "Veuillez sélectionner votre commune dans la liste ci-dessous.",
+            });
+          }
+        } catch {
+          toast({
+            title: "Erreur de géolocalisation",
+            description: "Impossible d'identifier votre commune. Veuillez la sélectionner manuellement.",
+          });
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      (err) => {
+        setIsLocating(false);
+        let msg = "Impossible d'accéder à votre position.";
+        if (err.code === 1) {
+          msg = "Veuillez autoriser l'accès à la localisation dans votre navigateur.";
+        }
+        toast({
+          title: "Accès GPS refusé",
+          description: msg,
+          variant: "destructive",
+        });
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
+
+  // Lien WhatsApp direct pour les frais d'expédition en gare
+  const whatsAppInteriorUrl = useMemo(() => {
+    if (!cart?.items) return "#";
+    return buildInteriorWhatsAppUrl({
+      items: cart.items.map((it: CartItem) => ({
+        name: it.product.name,
+        quantity: it.quantity,
+        price: it.price,
+      })),
+      itemsTotal,
+      destinationCity: interiorCity,
+      preferredStation: interiorStation,
+    });
+  }, [cart, itemsTotal, interiorCity, interiorStation]);
 
   const createOrder = useCreateOrder();
 
@@ -117,18 +214,22 @@ export default function Checkout() {
   const onSubmit = (data: CheckoutFormValues) => {
     if (!cart || cart.items.length === 0) return;
 
-    if (selectedZone.isInterior && !interiorDetails.trim()) {
+    if (isInterior && !interiorCity.trim()) {
       toast({
-        title: "Détails d'expédition requis",
-        description: "Veuillez préciser votre ville de destination et la compagnie/gare de transport.",
+        title: "Ville de destination requise",
+        description: "Veuillez renseigner votre ville de destination pour l'expédition en gare.",
         variant: "destructive",
       });
       return;
     }
 
     let finalCity = selectedZone.commune;
-    if (selectedZone.isInterior && interiorDetails.trim()) {
-      finalCity = `Intérieur: ${interiorDetails.trim()} (Gare)`;
+    let orderNotes = data.notes?.trim() || "";
+
+    if (isInterior) {
+      finalCity = `Intérieur: ${interiorCity.trim()}${interiorStation.trim() ? ` (${interiorStation.trim()})` : ""}`;
+      const interiorNote = `[Expédition Hors Abidjan en gare : ${interiorCity.trim()} - Gare : ${interiorStation.trim() || "À convenir"} - Frais de transport à confirmer sur WhatsApp]`;
+      orderNotes = orderNotes ? `${orderNotes}\n${interiorNote}` : interiorNote;
     }
 
     createOrder.mutate(
@@ -145,7 +246,7 @@ export default function Checkout() {
             productImage: item.product.images?.[0],
           })),
           totalAmount: grandTotal,
-          shippingCost: shippingCost,
+          shippingCost: isInterior ? 0 : shippingCost,
           itemsTotal: itemsTotal,
           paymentMethod: data.paymentMethod,
           shippingAddress: {
@@ -156,15 +257,22 @@ export default function Checkout() {
             country: data.country.trim(),
             postalCode: data.postalCode,
           },
-          notes: data.notes ? data.notes.trim() : undefined,
+          notes: orderNotes || undefined,
         },
       },
       {
         onSuccess: (order) => {
-          toast({
-            title: "Commande confirmée !",
-            description: "Votre commande a été passée avec succès. Vous paierez directement au livreur à la réception.",
-          });
+          if (isInterior) {
+            toast({
+              title: "Commande enregistrée en attente d'expédition !",
+              description: "Notre équipe va convenir avec vous des frais d'expédition sur WhatsApp.",
+            });
+          } else {
+            toast({
+              title: "Commande confirmée !",
+              description: "Votre commande a été enregistrée. Vous paierez directement au livreur à la réception.",
+            });
+          }
           setLocation(`/orders/${order.id}`);
         },
         onError: (err: any) => {
@@ -180,7 +288,9 @@ export default function Checkout() {
   if (isCartLoading) {
     return (
       <Layout>
-        <div className="container mx-auto px-4 py-16 text-center">Chargement...</div>
+        <div className="container mx-auto px-4 py-16 text-center text-slate-800 dark:text-slate-200">
+          Chargement...
+        </div>
       </Layout>
     );
   }
@@ -189,7 +299,7 @@ export default function Checkout() {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-16 text-center">
-          <h1 className="text-2xl font-bold mb-4">Votre panier est vide</h1>
+          <h1 className="text-2xl font-bold mb-4 text-slate-900 dark:text-slate-100">Votre panier est vide</h1>
           <Button asChild>
             <Link href="/products">Retour aux achats</Link>
           </Button>
@@ -200,11 +310,13 @@ export default function Checkout() {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-10 max-w-6xl">
+      <div className="container mx-auto px-4 py-10 max-w-6xl transition-colors duration-200">
         <div className="mb-8">
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Paiement &amp; Livraison</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Sélectionnez votre zone de livraison et confirmez votre commande.
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Paiement &amp; Livraison
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Sélectionnez votre zone de livraison et confirmez votre commande en toute sérénité.
           </p>
         </div>
 
@@ -215,18 +327,18 @@ export default function Checkout() {
               <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
                 
                 {/* 1. Coordonnées & Lieu de livraison */}
-                <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-2">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
                         1
                       </div>
                       <div>
-                        <h2 className="text-lg font-bold text-slate-900">Adresse de livraison</h2>
-                        <p className="text-xs text-slate-500">Renseignez vos coordonnées de réception</p>
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Adresse de livraison</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Renseignez vos coordonnées de réception</p>
                       </div>
                     </div>
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full w-fit">
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-2.5 py-1 rounded-full w-fit">
                       <span className="text-red-500 font-black">*</span> Champs obligatoires
                     </span>
                   </div>
@@ -238,11 +350,15 @@ export default function Checkout() {
                       name="fullName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-1 font-semibold text-xs text-slate-700">
+                          <FormLabel className="flex items-center gap-1 font-semibold text-xs text-slate-700 dark:text-slate-300">
                             Nom &amp; Prénoms <span className="text-red-500">*</span>
                           </FormLabel>
                           <FormControl>
-                            <Input placeholder="Ex: Kouassi Jean" {...field} className="h-11 rounded-xl" />
+                            <Input
+                              placeholder="Ex: Kouassi Jean"
+                              {...field}
+                              className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -255,72 +371,202 @@ export default function Checkout() {
                       name="phone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-1 font-semibold text-xs text-slate-700">
+                          <FormLabel className="flex items-center gap-1 font-semibold text-xs text-slate-700 dark:text-slate-300">
                             Numéro de téléphone <span className="text-red-500">*</span>
                           </FormLabel>
                           <FormControl>
-                            <Input placeholder="Ex: 0503648312 / 0708091011" {...field} className="h-11 rounded-xl" />
+                            <Input
+                              placeholder="Ex: 0503648312 / 0708091011"
+                              {...field}
+                              className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
-                    {/* Commune / Zone de livraison (Tarification dynamique) */}
-                    <div className="md:col-span-2 space-y-2">
-                      <label className="flex items-center justify-between text-xs font-semibold text-slate-700">
-                        <span className="flex items-center gap-1.5">
+                    {/* ZONE DE LIVRAISON : Recherche intelligente + Bouton GPS */}
+                    <div className="md:col-span-2 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                           <Truck className="w-3.5 h-3.5 text-primary" />
                           Commune / Zone de livraison <span className="text-red-500">*</span>
-                        </span>
-                        <span className="text-[11px] text-slate-500 font-normal">
-                          Frais fixes : <strong>{selectedZone.badge}</strong>
-                        </span>
-                      </label>
+                        </label>
 
-                      <div className="relative">
-                        <select
-                          value={selectedZoneId}
-                          onChange={(e) => handleZoneChange(e.target.value)}
-                          className="w-full h-12 px-3.5 pr-8 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer appearance-none"
+                        {/* Bouton Géolocalisation automatique */}
+                        <button
+                          type="button"
+                          onClick={handleAutoGeolocate}
+                          disabled={isLocating}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-all cursor-pointer shadow-2xs self-start sm:self-auto"
                         >
-                          {DELIVERY_ZONES.map((zone) => (
-                            <option key={zone.id} value={zone.id}>
-                              {zone.label} — {zone.badge}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                          <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                            <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                          </svg>
-                        </div>
+                          {isLocating ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Localisation GPS en cours...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Navigation className="w-3.5 h-3.5" />
+                              <span>📍 Me géolocaliser automatiquement</span>
+                            </>
+                          )}
+                        </button>
                       </div>
 
-                      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
-                        <MapPin className="w-4 h-4 text-primary shrink-0" />
-                        <span>
-                          Frais de livraison pour cette zone : <strong className="text-slate-900">{selectedZone.badge}</strong> (tarif unique pour tout votre panier).
-                        </span>
+                      {/* Sélecteur et recherche de commune */}
+                      <div className="relative">
+                        {/* Zone active affichée */}
+                        <div
+                          onClick={() => setIsSearchOpen(!isSearchOpen)}
+                          className="w-full min-h-[50px] p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between cursor-pointer hover:border-primary/50 transition-all shadow-xs"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                              <MapPin className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                                {selectedZone.label}
+                              </div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400">
+                                {isInterior ? "Frais à convenir avec la boutique" : `Frais fixes : ${selectedZone.badge}`}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge
+                              className={
+                                isInterior
+                                  ? "bg-amber-600 text-white hover:bg-amber-600 text-xs font-semibold"
+                                  : "bg-primary text-white hover:bg-primary text-xs font-semibold"
+                              }
+                            >
+                              {selectedZone.badge}
+                            </Badge>
+                            <span className="text-xs text-slate-400 font-bold">▼</span>
+                          </div>
+                        </div>
+
+                        {/* Menu déroulant de recherche et sélection */}
+                        {isSearchOpen && (
+                          <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in-50 duration-150">
+                            {/* Barre de recherche */}
+                            <div className="p-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/60">
+                              <div className="relative">
+                                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                                <input
+                                  type="text"
+                                  placeholder="Rechercher une commune, quartier (ex: Angré, Yop, Bassam, Bouaké...)"
+                                  value={searchQuery}
+                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  autoFocus
+                                  className="w-full h-10 pl-9 pr-3 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Liste filtrée */}
+                            <div className="max-h-64 overflow-y-auto p-1.5 space-y-1">
+                              {filteredZones.length === 0 ? (
+                                <div className="p-4 text-center text-xs text-slate-400">
+                                  Aucune commune trouvée pour cette recherche.
+                                </div>
+                              ) : (
+                                filteredZones.map((z) => {
+                                  const isCurrent = z.id === selectedZone.id;
+                                  return (
+                                    <div
+                                      key={z.id}
+                                      onClick={() => handleSelectZone(z)}
+                                      className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                                        isCurrent
+                                          ? "bg-primary/10 border border-primary/20 text-primary font-bold"
+                                          : "hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-800 dark:text-slate-200 font-medium"
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2 text-xs truncate">
+                                        {isCurrent && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                                        <span className="truncate">{z.label}</span>
+                                      </div>
+                                      <span
+                                        className={`text-xs font-bold shrink-0 ml-2 ${
+                                          z.isInterior ? "text-amber-600 dark:text-amber-400" : "text-slate-700 dark:text-slate-300"
+                                        }`}
+                                      >
+                                        {z.badge}
+                                      </span>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
+
+                      {/* Indication visuelle si géolocalisé */}
+                      {detectedAddress && (
+                        <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Adresse GPS détectée : {detectedAddress}</span>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Champ supplémentaire si expédition intérieur du pays */}
-                    {selectedZone.isInterior && (
-                      <div className="md:col-span-2 space-y-1.5 p-4 rounded-xl bg-amber-50/70 border border-amber-200">
-                        <label className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
-                          <Building2 className="w-4 h-4 text-amber-600" />
-                          Précisez la Ville de destination &amp; la Compagnie de car / Gare <span className="text-red-500">*</span>
-                        </label>
-                        <Input
-                          placeholder="Ex : Bouaké, Gare UTB (ou CTE / STIF / etc.)"
-                          value={interiorDetails}
-                          onChange={(e) => setInteriorDetails(e.target.value)}
-                          className="h-11 bg-white border-amber-300 focus:border-amber-500 rounded-xl"
-                        />
-                        <p className="text-[11px] text-amber-700">
-                          Le colis sera expédié à la gare indiquée dans votre ville. Les frais d'expédition sont de 2 500 FCFA.
+                    {/* SECTION EXPÉDITION INTÉRIEUR DU PAYS (OPTION 2 PRO) */}
+                    {isInterior && (
+                      <div className="md:col-span-2 p-5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 space-y-4">
+                        <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold text-sm">
+                          <Building2 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                          <span>Expédition Hors d'Abidjan (En gare / car)</span>
+                        </div>
+
+                        <p className="text-xs text-amber-800 dark:text-amber-300/90 leading-relaxed">
+                          Les frais de transport en car dépendent de votre ville et de la compagnie choisie. 
+                          Vous pouvez valider votre commande maintenant, et nous conviendrons ensemble des frais d'expédition sur WhatsApp avant l'envoi de votre colis.
                         </p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                          <div>
+                            <label className="text-xs font-bold text-amber-950 dark:text-amber-200 block mb-1">
+                              Ville de destination <span className="text-red-500">*</span>
+                            </label>
+                            <Input
+                              placeholder="Ex: Bouaké, Yamoussoukro, Korhogo..."
+                              value={interiorCity}
+                              onChange={(e) => setInteriorCity(e.target.value)}
+                              className="h-11 bg-white dark:bg-slate-900 border-amber-300 dark:border-amber-800 text-slate-900 dark:text-slate-100 rounded-xl"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-bold text-amber-950 dark:text-amber-200 block mb-1">
+                              Compagnie / Gare souhaitée (Optionnel)
+                            </label>
+                            <Input
+                              placeholder="Ex: UTB, CTE, STIF, etc."
+                              value={interiorStation}
+                              onChange={(e) => setInteriorStation(e.target.value)}
+                              className="h-11 bg-white dark:bg-slate-900 border-amber-300 dark:border-amber-800 text-slate-900 dark:text-slate-100 rounded-xl"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Bouton WhatsApp direct */}
+                        <div className="pt-2">
+                          <a
+                            href={whatsAppInteriorUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition-all"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                            <span>💬 Convenir des frais d'expédition sur WhatsApp</span>
+                          </a>
+                        </div>
                       </div>
                     )}
 
@@ -330,14 +576,14 @@ export default function Checkout() {
                       name="address"
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
-                          <FormLabel className="flex items-center gap-1 font-semibold text-xs text-slate-700">
+                          <FormLabel className="flex items-center gap-1 font-semibold text-xs text-slate-700 dark:text-slate-300">
                             Adresse exacte / Quartier &amp; Repère <span className="text-red-500">*</span>
                           </FormLabel>
                           <FormControl>
                             <Input
                               placeholder="Ex: Angré 8ème Tranche, pharmacie du carrefour, villa 45"
                               {...field}
-                              className="h-11 rounded-xl"
+                              className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
                             />
                           </FormControl>
                           <FormMessage />
@@ -351,31 +597,35 @@ export default function Checkout() {
                       name="country"
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
-                          <FormLabel className="flex items-center gap-1 font-semibold text-xs text-slate-700">
+                          <FormLabel className="flex items-center gap-1 font-semibold text-xs text-slate-700 dark:text-slate-300">
                             Pays <span className="text-red-500">*</span>
                           </FormLabel>
                           <FormControl>
-                            <Input {...field} readOnly className="h-11 bg-slate-50 text-slate-600 rounded-xl cursor-not-allowed" />
+                            <Input
+                              {...field}
+                              readOnly
+                              className="h-11 bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 rounded-xl cursor-not-allowed"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
-                    {/* Note facultative */}
+                    {/* Instructions spécifiques */}
                     <FormField
                       control={form.control}
                       name="notes"
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
-                          <FormLabel className="font-semibold text-xs text-slate-700">
-                            Instructions spécifiques pour le livreur (Optionnel)
+                          <FormLabel className="font-semibold text-xs text-slate-700 dark:text-slate-300">
+                            Instructions spécifiques pour la livraison (Optionnel)
                           </FormLabel>
                           <FormControl>
                             <Input
                               placeholder="Ex : Appeler avant d'arriver, livraison souhaitée l'après-midi..."
                               {...field}
-                              className="h-11 rounded-xl"
+                              className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
                             />
                           </FormControl>
                           <FormMessage />
@@ -386,19 +636,19 @@ export default function Checkout() {
                 </div>
 
                 {/* 2. Méthode de paiement */}
-                <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm space-y-4">
-                  <div className="flex items-center gap-2 pb-4 border-b border-slate-100">
-                    <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm space-y-4">
+                  <div className="flex items-center gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
                       2
                     </div>
                     <div>
-                      <h2 className="text-lg font-bold text-slate-900">Mode de règlement</h2>
-                      <p className="text-xs text-slate-500">Comment souhaitez-vous régler votre commande ?</p>
+                      <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Mode de règlement</h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Comment souhaitez-vous régler votre commande ?</p>
                     </div>
                   </div>
 
-                  {/* Option 1 : Paiement à la livraison (ACTIVE & SÉLECTIONNÉE) */}
-                  <div className="relative border-2 border-emerald-500 bg-emerald-50/40 rounded-xl p-4 transition-all">
+                  {/* Option 1 : Paiement à la livraison */}
+                  <div className="relative border-2 border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl p-4 transition-all">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-3">
                         <div className="w-5 h-5 rounded-full border-2 border-emerald-600 bg-emerald-600 flex items-center justify-center text-white mt-0.5 shrink-0">
@@ -406,66 +656,74 @@ export default function Checkout() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                              <Banknote className="w-4 h-4 text-emerald-600" />
+                            <span className="font-bold text-slate-900 dark:text-slate-100 text-sm flex items-center gap-1.5">
+                              <Banknote className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                               Paiement à la livraison (En espèces)
                             </span>
                             <Badge className="bg-emerald-600 text-white hover:bg-emerald-600 text-[10px] px-2 py-0.5">
                               Disponible &bull; Recommandé
                             </Badge>
                           </div>
-                          <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-                            Payez en toute sécurité directement au livreur en espèces dès réception de votre colis.
-                            Vous réglez le prix des articles (<strong>{itemsTotal.toLocaleString()} FCFA</strong>) + les frais de livraison (<strong>{shippingCost.toLocaleString()} FCFA</strong>).
+                          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
+                            {isInterior ? (
+                              <span>
+                                Vous réglez les articles (<strong>{itemsTotal.toLocaleString()} FCFA</strong>) + les frais de gare convenus avec la boutique lors de la remise de votre colis.
+                              </span>
+                            ) : (
+                              <span>
+                                Payez directement au livreur en espèces dès réception de votre colis. 
+                                Vous réglez le prix des articles (<strong>{itemsTotal.toLocaleString()} FCFA</strong>) + les frais de livraison (<strong>{shippingCost.toLocaleString()} FCFA</strong>).
+                              </span>
+                            )}
                           </p>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Options indisponibles (Bientôt disponibles) */}
+                  {/* Options indisponibles */}
                   <div className="space-y-2 pt-2">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                    <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
                       Autres modes de paiement (En cours d'intégration)
                     </p>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 opacity-60 pointer-events-none">
-                      <div className="flex items-center justify-between p-3 border border-slate-200 rounded-xl bg-slate-50">
+                      <div className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800/40">
                         <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full border border-slate-300"></div>
-                          <span className="text-xs font-semibold text-slate-700">Wave</span>
+                          <div className="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600"></div>
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Wave</span>
                         </div>
-                        <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-medium">
+                        <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full font-medium">
                           Bientôt disponible
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between p-3 border border-slate-200 rounded-xl bg-slate-50">
+                      <div className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800/40">
                         <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full border border-slate-300"></div>
-                          <span className="text-xs font-semibold text-slate-700">Orange Money</span>
+                          <div className="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600"></div>
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Orange Money</span>
                         </div>
-                        <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-medium">
+                        <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full font-medium">
                           Bientôt disponible
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between p-3 border border-slate-200 rounded-xl bg-slate-50">
+                      <div className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800/40">
                         <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full border border-slate-300"></div>
-                          <span className="text-xs font-semibold text-slate-700">MTN Money</span>
+                          <div className="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600"></div>
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">MTN Money</span>
                         </div>
-                        <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-medium">
+                        <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full font-medium">
                           Bientôt disponible
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between p-3 border border-slate-200 rounded-xl bg-slate-50">
+                      <div className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800/40">
                         <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full border border-slate-300"></div>
-                          <span className="text-xs font-semibold text-slate-700">Carte bancaire (Visa / Mastercard)</span>
+                          <div className="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600"></div>
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Carte bancaire</span>
                         </div>
-                        <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-medium">
+                        <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full font-medium">
                           Bientôt disponible
                         </span>
                       </div>
@@ -473,8 +731,8 @@ export default function Checkout() {
                   </div>
 
                   {/* Information sérénité */}
-                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-50/70 border border-blue-100 text-xs text-blue-900 mt-2">
-                    <ShieldCheck className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/60 text-xs text-blue-900 dark:text-blue-300 mt-2">
+                    <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
                     <span>
                       <strong>Achat sans risque :</strong> Vous ne payez rien à l'avance en ligne. Le règlement s'effectue directement en main propre lors de la livraison.
                     </span>
@@ -485,11 +743,17 @@ export default function Checkout() {
                 <div className="space-y-3 pt-2">
                   <Button
                     type="submit"
-                    className="w-full bg-primary hover:bg-primary/90 h-14 text-base font-bold shadow-lg hover:shadow-xl transition-all rounded-xl flex items-center justify-center gap-2"
+                    className="w-full bg-primary hover:bg-primary/90 text-white h-14 text-base font-bold shadow-lg hover:shadow-xl transition-all rounded-xl flex items-center justify-center gap-2 cursor-pointer"
                     disabled={createOrder.isPending}
                   >
                     {createOrder.isPending ? (
                       "Validation en cours..."
+                    ) : isInterior ? (
+                      <>
+                        <span>Confirmer la commande &bull;</span>
+                        <span className="text-yellow-300">{itemsTotal.toLocaleString()} FCFA</span>
+                        <span className="text-xs text-white/80">(+ frais en gare)</span>
+                      </>
                     ) : (
                       <>
                         <span>Confirmer ma commande &bull;</span>
@@ -497,7 +761,7 @@ export default function Checkout() {
                       </>
                     )}
                   </Button>
-                  <p className="text-center text-xs text-slate-400">
+                  <p className="text-center text-xs text-slate-400 dark:text-slate-500">
                     En confirmant, vous vous engagez à régler le livreur lors de la réception de votre colis.
                   </p>
                 </div>
@@ -507,10 +771,10 @@ export default function Checkout() {
 
           {/* Sidebar Résumé de la commande */}
           <div className="lg:col-span-1">
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 sticky top-24 shadow-sm space-y-5">
-              <h2 className="text-lg font-bold text-slate-900 pb-3 border-b border-slate-100 flex items-center justify-between">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sticky top-24 shadow-sm space-y-5">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <span>Résumé de la commande</span>
-                <span className="text-xs font-normal text-slate-400">
+                <span className="text-xs font-normal text-slate-400 dark:text-slate-500">
                   {cart.items.reduce((acc, it) => acc + it.quantity, 0)} article(s)
                 </span>
               </h2>
@@ -520,58 +784,74 @@ export default function Checkout() {
                 {cart.items.map((item: CartItem) => (
                   <div key={item.productId} className="flex justify-between items-start text-xs gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-slate-800 truncate">
+                      <div className="font-semibold text-slate-800 dark:text-slate-200 truncate">
                         {item.product.name}
                       </div>
-                      <div className="text-slate-400 mt-0.5">
+                      <div className="text-slate-400 dark:text-slate-500 mt-0.5">
                         Qté: {item.quantity} &times; {item.price.toLocaleString()} FCFA
                       </div>
                     </div>
-                    <span className="font-bold text-slate-800 whitespace-nowrap">
+                    <span className="font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                       {(item.price * item.quantity).toLocaleString()} FCFA
                     </span>
                   </div>
                 ))}
               </div>
 
-              <Separator />
+              <Separator className="dark:bg-slate-800" />
 
               {/* Décomposition des prix */}
               <div className="space-y-2.5 text-xs">
-                <div className="flex justify-between items-center text-slate-600">
+                <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                   <span>Sous-total articles :</span>
-                  <span className="font-semibold text-slate-800">{itemsTotal.toLocaleString()} FCFA</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{itemsTotal.toLocaleString()} FCFA</span>
                 </div>
 
-                <div className="flex justify-between items-center text-slate-600">
+                <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                   <span className="flex items-center gap-1">
                     <Truck className="w-3.5 h-3.5 text-primary" />
                     Frais de livraison :
                   </span>
-                  <span className="font-bold text-primary">
-                    +{shippingCost.toLocaleString()} FCFA
-                  </span>
+                  {isInterior ? (
+                    <span className="font-bold text-amber-600 dark:text-amber-400">
+                      À convenir sur WhatsApp
+                    </span>
+                  ) : (
+                    <span className="font-bold text-primary">
+                      +{shippingCost.toLocaleString()} FCFA
+                    </span>
+                  )}
                 </div>
 
-                <div className="text-[11px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                  Zone : <strong>{selectedZone.commune}</strong>
-                  <br />
-                  <span className="italic">Tarif unique fixe pour tout le panier.</span>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800 space-y-1">
+                  <div>
+                    Zone : <strong className="text-slate-800 dark:text-slate-200">{selectedZone.commune}</strong>
+                  </div>
+                  {isInterior ? (
+                    <div className="text-amber-600 dark:text-amber-400 italic">
+                      Frais fixés avec la boutique après échange WhatsApp.
+                    </div>
+                  ) : (
+                    <div className="text-slate-400 dark:text-slate-500 italic">
+                      Tarif unique fixe pour tout le panier.
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <Separator />
+              <Separator className="dark:bg-slate-800" />
 
               {/* Total à payer */}
-              <div className="p-4 rounded-xl bg-slate-900 text-white space-y-1">
+              <div className="p-4 rounded-xl bg-slate-900 dark:bg-slate-950 text-white space-y-1.5 border border-slate-800">
                 <div className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
                   Total à payer au livreur
                 </div>
                 <div className="text-2xl font-black text-amber-400 tracking-tight">
                   {grandTotal.toLocaleString()} FCFA
+                  {isInterior && <span className="text-xs text-white/80 font-normal ml-1.5">(+ frais gare)</span>}
                 </div>
-                <div className="text-[11px] text-slate-300 pt-1 border-t border-slate-800 flex items-center gap-1">
-                  <Banknote className="w-3 h-3 text-emerald-400" />
+                <div className="text-[11px] text-slate-300 pt-1.5 border-t border-slate-800 flex items-center gap-1">
+                  <Banknote className="w-3.5 h-3.5 text-emerald-400" />
                   Règlement en espèces à la livraison
                 </div>
               </div>

@@ -650,7 +650,10 @@ export const UpdateOrderStatusParams = zod.object({
 })
 
 export const UpdateOrderStatusBody = zod.object({
-  "orderStatus": zod.string()
+  "orderStatus": zod.string().optional(),
+  "shippingCost": zod.number().optional(),
+  "estimatedDeliveryDate": zod.string().optional(),
+  "cancelReason": zod.string().optional()
 })
 
 export const UpdateOrderStatusResponse = zod.object({

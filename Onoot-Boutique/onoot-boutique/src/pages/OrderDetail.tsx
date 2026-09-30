@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout/Layout";
 import { useGetOrder, getGetOrderQueryKey } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, CheckCircle2, Clock, Truck, PackageCheck, QrCode, XCircle, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, Truck, PackageCheck, QrCode, XCircle, Trash2, Loader2, MessageCircle } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
@@ -203,19 +203,49 @@ export default function OrderDetail() {
               </div>
               <div className="flex justify-between items-center text-muted-foreground">
                 <span>Frais de livraison ({order.shippingAddress?.city || 'Standard'})</span>
-                <span className="font-semibold text-primary">
-                  +{(((order as any).shippingCost ?? 0)).toLocaleString()} FCFA
-                </span>
+                {(order as any).shippingCost && (order as any).shippingCost > 0 ? (
+                  <span className="font-semibold text-primary">
+                    +{((order as any).shippingCost).toLocaleString()} FCFA
+                  </span>
+                ) : (order.shippingAddress?.city?.toLowerCase().includes("intérieur") || order.shippingAddress?.city?.toLowerCase().includes("interieur")) ? (
+                  <span className="font-bold text-amber-600 dark:text-amber-400 text-xs">
+                    À convenir sur WhatsApp
+                  </span>
+                ) : (
+                  <span className="font-semibold text-primary">+0 FCFA</span>
+                )}
               </div>
             </div>
             <Separator className="my-3" />
             <div className="flex justify-between items-center font-bold text-lg">
               <div>
                 <span>Total à payer</span>
-                <p className="text-xs font-normal text-muted-foreground">À régler au livreur en espèces</p>
+                <p className="text-xs font-normal text-muted-foreground">
+                  {(order.shippingAddress?.city?.toLowerCase().includes("intérieur") || order.shippingAddress?.city?.toLowerCase().includes("interieur")) && (!(order as any).shippingCost || (order as any).shippingCost === 0)
+                    ? "Hors frais d'expédition en gare"
+                    : "À régler au livreur en espèces"}
+                </p>
               </div>
               <span className="text-accent text-xl">{order.totalAmount.toLocaleString()} FCFA</span>
             </div>
+
+            {/* Bouton WhatsApp direct si frais d'expédition en gare en attente */}
+            {(order.shippingAddress?.city?.toLowerCase().includes("intérieur") || order.shippingAddress?.city?.toLowerCase().includes("interieur")) && (!(order as any).shippingCost || (order as any).shippingCost === 0) && (
+              <div className="mt-4 p-3.5 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60">
+                <p className="text-xs text-amber-800 dark:text-amber-300 font-medium mb-2.5">
+                  📍 Cette commande est destinée à l'expédition en gare. Discutez avec la boutique sur WhatsApp pour convenir des frais de transport de votre colis :
+                </p>
+                <a
+                  href={`https://wa.me/2250503648312?text=${encodeURIComponent(`Bonjour Onoot Boutique 🛍️, je vous contacte pour ma commande #${order.id.slice(-8).toUpperCase()} concernant les frais d'expédition en gare vers : ${order.shippingAddress?.city || ''}.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>💬 Convenir des frais de transport sur WhatsApp</span>
+                </a>
+              </div>
+            )}
 
             {/* Actions contextuelles (Annuler / Supprimer) */}
             {/* Motif d'annulation si commande annulée */}

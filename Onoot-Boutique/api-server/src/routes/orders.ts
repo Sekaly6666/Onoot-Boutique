@@ -272,12 +272,28 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
 
   const estimatedDeliveryDate = (req.body as any).estimatedDeliveryDate || undefined;
   const cancelReason = (req.body as any).cancelReason || (req.body as any).reason || undefined;
-  const updateData: any = { orderStatus: parsed.data.orderStatus };
+  const newShippingCost = typeof (req.body as any).shippingCost === "number" ? (req.body as any).shippingCost : undefined;
+
+  const updateData: any = {};
+  if (parsed.data.orderStatus) {
+    updateData.orderStatus = parsed.data.orderStatus;
+  }
   if (estimatedDeliveryDate) {
     updateData.estimatedDeliveryDate = estimatedDeliveryDate;
   }
   if (cancelReason) {
     updateData.cancelReason = cancelReason;
+  }
+  if (newShippingCost !== undefined && newShippingCost >= 0) {
+    updateData.shippingCost = newShippingCost;
+    const currentOrder = await Order.findById(params.data.id);
+    if (currentOrder) {
+      const itemsTotal = typeof currentOrder.itemsTotal === "number" && currentOrder.itemsTotal > 0
+        ? currentOrder.itemsTotal
+        : (currentOrder.totalAmount - (currentOrder.shippingCost || 0));
+      updateData.itemsTotal = itemsTotal;
+      updateData.totalAmount = itemsTotal + newShippingCost;
+    }
   }
 
   const order = await Order.findByIdAndUpdate(

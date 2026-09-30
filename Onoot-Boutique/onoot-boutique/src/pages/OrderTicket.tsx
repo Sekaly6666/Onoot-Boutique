@@ -177,9 +177,17 @@ export default function OrderTicket() {
             </div>
             <div className="flex justify-between items-center">
               <span className="font-medium text-slate-500">Frais de livraison :</span>
-              <span className="font-bold text-orange-600">
-                +{(((order as any).shippingCost ?? 0)).toLocaleString()} FCFA
-              </span>
+              {(order as any).shippingCost && (order as any).shippingCost > 0 ? (
+                <span className="font-bold text-orange-600">
+                  +{((order as any).shippingCost).toLocaleString()} FCFA
+                </span>
+              ) : (order.shippingAddress?.city?.toLowerCase().includes("intérieur") || order.shippingAddress?.city?.toLowerCase().includes("interieur")) ? (
+                <span className="font-bold text-amber-600">
+                  À convenir sur WhatsApp
+                </span>
+              ) : (
+                <span className="font-bold text-slate-700">+0 FCFA</span>
+              )}
             </div>
             <div className="flex justify-between items-center pt-2 border-t border-slate-200">
               <span className="font-bold text-slate-800">Règlement :</span>
