@@ -9,10 +9,11 @@ import { Separator } from "@/components/ui/separator";
 
 import { OnootLogo } from "@/components/ui/OnootLogo";
 
-function formatLocation(address?: string, city?: string): string {
+function formatLocation(address?: string, city?: string, country?: string): string {
   const rawParts: string[] = [];
   if (city && city.trim()) rawParts.push(...city.split(','));
   if (address && address.trim()) rawParts.push(...address.split(','));
+  if (country && country.trim()) rawParts.push(country.trim());
 
   const cleanParts: string[] = [];
   const seen = new Set<string>();
@@ -64,7 +65,7 @@ export default function OrderTicket() {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Ticket introuvable.</div>;
   }
 
-  const locationText = formatLocation(order.shippingAddress.address, order.shippingAddress.city);
+  const locationText = formatLocation(order.shippingAddress.address, order.shippingAddress.city, order.shippingAddress.country);
 
   return (
     <div className="min-h-screen bg-slate-100 py-10 px-4 flex flex-col items-center">

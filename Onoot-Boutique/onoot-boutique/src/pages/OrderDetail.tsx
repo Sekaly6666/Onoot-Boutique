@@ -230,10 +230,10 @@ export default function OrderDetail() {
             </div>
 
             {/* Bouton WhatsApp direct si frais d'expédition en gare en attente */}
-            {(order.shippingAddress?.city?.toLowerCase().includes("intérieur") || order.shippingAddress?.city?.toLowerCase().includes("interieur")) && (!(order as any).shippingCost || (order as any).shippingCost === 0) && (
+            {(order.shippingAddress?.city?.toLowerCase().includes("intérieur") || order.shippingAddress?.city?.toLowerCase().includes("interieur") || order.shippingAddress?.city?.toLowerCase().includes("hors") || order.notes?.toLowerCase().includes("expédition")) && (!(order as any).shippingCost || (order as any).shippingCost === 0) && (
               <div className="mt-4 p-3.5 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60">
                 <p className="text-xs text-amber-800 dark:text-amber-300 font-medium mb-2.5">
-                  📍 Cette commande est destinée à l'expédition en gare. Discutez avec la boutique sur WhatsApp pour convenir des frais de transport de votre colis :
+                  Cette commande est destinée à l'expédition en gare. Discutez avec la boutique sur WhatsApp pour convenir des frais de transport de votre colis :
                 </p>
                 <a
                   href={`https://wa.me/2250503648312?text=${encodeURIComponent(`Bonjour Onoot Boutique 🛍️, je vous contacte pour ma commande #${order.id.slice(-8).toUpperCase()} concernant les frais d'expédition en gare vers : ${order.shippingAddress?.city || ''}.`)}`}

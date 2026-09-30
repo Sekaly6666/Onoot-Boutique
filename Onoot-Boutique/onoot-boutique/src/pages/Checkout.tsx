@@ -152,7 +152,7 @@ export default function Checkout() {
             form.setValue("city", detected.zone.commune, { shouldValidate: true });
             setDetectedAddress(detected.addressDetails);
             toast({
-              title: "Position détectée avec succès ! 📍",
+              title: "Position détectée avec succès !",
               description: `Commune identifiée : ${detected.zone.label} (${detected.addressDetails}).`,
             });
           } else {
@@ -409,7 +409,7 @@ export default function Checkout() {
                           ) : (
                             <>
                               <Navigation className="w-3.5 h-3.5" />
-                              <span>📍 Me géolocaliser automatiquement</span>
+                              <span>Me géolocaliser automatiquement</span>
                             </>
                           )}
                         </button>
@@ -601,11 +601,44 @@ export default function Checkout() {
                             Pays <span className="text-red-500">*</span>
                           </FormLabel>
                           <FormControl>
-                            <Input
-                              {...field}
-                              readOnly
-                              className="h-11 bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 rounded-xl cursor-not-allowed"
-                            />
+                            <div>
+                              <Input
+                                placeholder="Ex: Côte d'Ivoire, Mali, Sénégal, Burkina Faso, France..."
+                                list="country-suggestions"
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  const val = e.target.value.trim().toLowerCase();
+                                  const isCI = val === "côte d'ivoire" || val === "cote d'ivoire" || val === "ci";
+                                  if (!isCI && val.length >= 2 && selectedZoneId !== "hors-abidjan") {
+                                    setSelectedZoneId("hors-abidjan");
+                                    form.setValue("city", "Expédition Hors Côte d'Ivoire", { shouldValidate: true });
+                                    if (!interiorCity) {
+                                      setInteriorCity(e.target.value);
+                                    }
+                                  }
+                                }}
+                                className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                              />
+                              <datalist id="country-suggestions">
+                                <option value="Côte d'Ivoire" />
+                                <option value="Mali" />
+                                <option value="Burkina Faso" />
+                                <option value="Sénégal" />
+                                <option value="Guinée" />
+                                <option value="Ghana" />
+                                <option value="Togo" />
+                                <option value="Bénin" />
+                                <option value="Niger" />
+                                <option value="Cameroun" />
+                                <option value="Gabon" />
+                                <option value="Congo" />
+                                <option value="France" />
+                                <option value="Belgique" />
+                                <option value="Canada" />
+                                <option value="États-Unis" />
+                              </datalist>
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
