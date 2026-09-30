@@ -125,7 +125,20 @@ export function Footer() {
         </div>
 
         <div className="border-t border-gray-800 mt-12 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 gap-3">
-          <p>&copy; {new Date().getFullYear()} Onoot Boutique. Tous droits réservés.</p>
+          <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
+            <p>&copy; {new Date().getFullYear()} Onoot Boutique. Tous droits réservés.</p>
+            <span className="text-gray-700 hidden sm:inline">•</span>
+            <a
+              href="https://wa.me/2250566668039?text=Bonjour%20BSA,%20j%27ai%20d%C3%A9couvert%20votre%20travail%20sur%20le%20site%20Onoot%20Boutique"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Développé par BSA (+225 05 66 66 80 39)"
+              className="text-[11px] text-gray-500/70 hover:text-amber-400 transition-colors inline-flex items-center gap-1 group"
+            >
+              <span>By</span>
+              <span className="font-semibold tracking-wider text-gray-400 group-hover:text-amber-400 font-mono">[BSA]</span>
+            </a>
+          </div>
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1"><Lock size={14} className="text-[#F5C430]" /> Paiement Sécurisé</span>
             <span>•</span>
