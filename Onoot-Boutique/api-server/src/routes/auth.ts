@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { RegisterUserBody, LoginUserBody } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
 import { User } from "../models/User";
+import { Admin } from "../models/Admin";
 import { AdminNotification } from "../models/AdminNotification";
 import crypto from "crypto";
 import https from "https";
@@ -10,6 +11,7 @@ import {
   sendShopNewUserRegisteredNotification,
   sendPasswordResetEmail,
   sendShopPasswordResetNotification,
+  sendShopPasswordResetRequestNotification,
   getBoutiqueUrl,
   SHOP_EMAIL,
 } from "../lib/email";
@@ -553,21 +555,70 @@ router.post("/auth/forgot-password", async (req, res) => {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: cleanEmail }).exec();
+    const escapedEmail = cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const emailRegex = new RegExp(`^${escapedEmail}$`, "i");
 
-    if (user) {
+    // Check in User collection first, then Admin collection
+    const user = await User.findOne({ email: emailRegex }).exec();
+    const admin = !user ? await Admin.findOne({ email: emailRegex }).exec() : null;
+    const account = user || admin;
+
+    if (account) {
       const rawToken = crypto.randomBytes(32).toString("hex");
       const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
 
-      user.resetPasswordToken = hashedToken;
-      user.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 heure
-      await user.save();
+      (account as any).resetPasswordToken = hashedToken;
+      (account as any).resetPasswordExpires = new Date(Date.now() + 3600000); // 1 heure
+      await account.save();
 
-      const boutiqueUrl = getBoutiqueUrl();
-      const resetLink = `${boutiqueUrl}/auth/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
+      // Compute boutique URL based on request origin/referer if available, or fallback
+      const originHeader = req.get("origin") || req.get("referer");
+      let baseUrl = getBoutiqueUrl();
+      if (originHeader) {
+        try {
+          const parsed = new URL(originHeader);
+          baseUrl = `${parsed.protocol}//${parsed.host}`;
+        } catch (_) {}
+      }
 
-      sendPasswordResetEmail(user.email, resetLink, user.firstName || `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim())
-        .catch((err) => console.error("[PASSWORD RESET] Failed to send email:", err));
+      const resetLink = `${baseUrl}/auth/reset-password?token=${rawToken}&email=${encodeURIComponent(account.email)}`;
+      const displayName = user
+        ? (user.firstName || `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email)
+        : (admin ? "Administrateur" : "Client");
+
+      // 1. Send password reset email directly to the user (AWAIT to ensure delivery)
+      try {
+        await sendPasswordResetEmail(account.email, resetLink, displayName);
+      } catch (sendErr) {
+        console.error("[PASSWORD RESET] Failed to send email to user:", sendErr);
+      }
+
+      // 2. Alert the shop pro email (onootboutique@gmail.com)
+      try {
+        await sendShopPasswordResetRequestNotification(
+          {
+            email: account.email,
+            firstName: user?.firstName || (admin ? "Administrateur" : ""),
+            lastName: user?.lastName || "",
+            phone: user?.phone || "",
+          },
+          SHOP_EMAIL
+        );
+      } catch (adminMailErr) {
+        console.error("[PASSWORD RESET] Failed to notify shop email:", adminMailErr);
+      }
+
+      // 3. Create an in-app notification in Admin Dashboard space
+      try {
+        const notif = new AdminNotification({
+          type: "user",
+          title: "Demande de mot de passe oublié",
+          desc: `Demande de réinitialisation de mot de passe reçue pour : ${displayName} (${account.email}). Un lien sécurisé a été transmis par email.`,
+        });
+        await notif.save();
+      } catch (dbNotifErr) {
+        console.error("[PASSWORD RESET] Failed to create admin notification:", dbNotifErr);
+      }
     }
 
     res.json({
@@ -595,7 +646,7 @@ router.post("/auth/reset-password", async (req, res) => {
       return;
     }
     if (password.length < 8) {
-      res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caractères." });
+      res.status(400).json({ error: "Le mot de passe doit comporter au moins 8 caractères." });
       return;
     }
     if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
@@ -604,37 +655,61 @@ router.post("/auth/reset-password", async (req, res) => {
     }
 
     const cleanEmail = email.toLowerCase().trim();
+    const escapedEmail = cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const emailRegex = new RegExp(`^${escapedEmail}$`, "i");
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({
-      email: cleanEmail,
+      email: emailRegex,
       resetPasswordToken: hashedToken,
       resetPasswordExpires: { $gt: new Date() },
     }).exec();
 
-    if (!user) {
+    const admin = !user ? await Admin.findOne({
+      email: emailRegex,
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: new Date() },
+    }).exec() : null;
+
+    const account = user || admin;
+
+    if (!account) {
       res.status(400).json({
         error: "Le lien de réinitialisation est invalide ou a expiré. Veuillez refaire une demande.",
       });
       return;
     }
 
-    user.passwordHash = await hashPassword(password);
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
-    await user.save();
+    account.passwordHash = await hashPassword(password);
+    (account as any).resetPasswordToken = undefined;
+    (account as any).resetPasswordExpires = undefined;
+    await account.save();
+
+    const displayName = user
+      ? (user.firstName || `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email)
+      : (admin ? "Administrateur" : "Utilisateur");
 
     // 1. Notification par email professionnel pour la boutique (onootboutique@gmail.com)
-    sendShopPasswordResetNotification(user, SHOP_EMAIL).catch((err) =>
-      console.error("Shop password reset email error:", err)
-    );
+    try {
+      await sendShopPasswordResetNotification(
+        {
+          email: account.email,
+          firstName: user?.firstName || (admin ? "Administrateur" : ""),
+          lastName: user?.lastName || "",
+          phone: user?.phone || "",
+        },
+        SHOP_EMAIL
+      );
+    } catch (err) {
+      console.error("Shop password reset email error:", err);
+    }
 
     // 2. Notification dans l'espace administration (Admin Dashboard)
     try {
       const notif = new AdminNotification({
         type: "user",
-        title: "Mot de passe client réinitialisé",
-        desc: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() + ` (${user.email}) a réinitialisé son mot de passe avec succès.`,
+        title: "Mot de passe réinitialisé",
+        desc: `${displayName} (${account.email}) a réinitialisé son mot de passe avec succès.`,
       });
       await notif.save();
     } catch (err) {

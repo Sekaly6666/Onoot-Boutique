@@ -876,13 +876,14 @@ export async function sendPasswordResetEmail(
   toEmail: string,
   resetLink: string,
   userName?: string
-): Promise<void> {
+): Promise<any> {
   if (!toEmail) return;
 
+  const displayName = userName || 'cher(e) client(e)';
   const body = `
     <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;font-weight:700;color:${C.orange};text-transform:uppercase;letter-spacing:2px;margin:0 0 8px;text-align:center;">Sécurité du compte</p>
     <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:24px;font-weight:900;color:${C.dark};margin:0 0 10px;text-align:center;">Mot de passe oublié ?</h1>
-    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;color:${C.body};text-align:center;margin:0 0 6px;">Bonjour <strong>${userName || 'cher(e) client(e)'}</strong>,</p>
+    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;color:${C.body};text-align:center;margin:0 0 6px;">Bonjour <strong>${displayName}</strong>,</p>
     <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:${C.muted};text-align:center;margin:0 0 24px;line-height:1.6;">
       Une demande de réinitialisation de votre mot de passe pour votre compte Onoot Boutique a été effectuée.
     </p>
@@ -906,25 +907,98 @@ export async function sendPasswordResetEmail(
     </div>`;
 
   const html = wrapInTicket(body, 'Réinitialisation de votre mot de passe Onoot Boutique');
+  const text = `Bonjour ${displayName},\n\nUne demande de réinitialisation de votre mot de passe pour votre compte Onoot Boutique a été effectuée.\n\nCliquez sur ce lien sécurisé pour définir un nouveau mot de passe (valable 1 heure) :\n${resetLink}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email. Votre compte reste protégé.\n\nL'équipe Onoot Boutique\n${SHOP_EMAIL}`;
 
   try {
-    await sendMailWithFallback({
+    const result = await sendMailWithFallback({
       from: getFromAddress(),
       to: toEmail,
+      replyTo: SHOP_EMAIL,
       subject: '🔑 Réinitialisation de votre mot de passe – Onoot Boutique',
       html,
+      text,
     });
-    logger.info({ to: toEmail }, 'Password reset email sent');
+    logger.info({ to: toEmail }, 'Password reset email sent successfully');
+    return result;
   } catch (err: any) {
     logger.error({ err: err.message, to: toEmail }, 'Failed to send password reset email');
+    throw err;
   }
 }
 
-// ─── 7. Notification pour la boutique lors d'une réinitialisation de mot de passe client ───
+// ─── 7. Notification pour la boutique lors d'une DEMANDE de mot de passe oublié ───
+export async function sendShopPasswordResetRequestNotification(
+  account: any,
+  shopEmail: string = SHOP_EMAIL
+): Promise<any> {
+  if (!shopEmail) return;
+
+  const fullName = `${account.firstName ?? ''} ${account.lastName ?? ''}`.trim() || account.name || 'Utilisateur';
+  const email = account.email || 'Non renseigné';
+  const dateFormatted = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const body = `
+    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;font-weight:700;color:${C.orange};text-transform:uppercase;letter-spacing:2px;margin:0 0 8px;text-align:center;">Alerte Sécurité Boutique</p>
+    <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:24px;font-weight:900;color:${C.dark};margin:0 0 6px;text-align:center;">Demande de mot de passe oublié</h1>
+    <p style="text-align:center;margin:0 0 20px;">
+      <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.muted};">
+        ${icon.calendar}${dateFormatted}
+      </span>
+    </p>
+
+    <!-- Badge alerte demande -->
+    <div style="text-align:center;margin-bottom:24px;">
+      <span style="display:inline-block;background-color:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:700;padding:6px 16px;border-radius:9999px;">
+        ${icon.key}&nbsp;Lien de réinitialisation transmis par email (valable 1h)
+      </span>
+    </div>
+
+    ${DIVIDER}
+
+    ${sectionTitle(icon.user, 'Compte demandeur')}
+    <div style="background-color:${C.card};border:1px solid ${C.border};border-radius:12px;padding:16px 18px;margin-bottom:22px;">
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px;font-weight:800;color:${C.dark};margin:0 0 8px;">${fullName}</p>
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.body};margin:0 0 6px;">${icon.mail}<strong>Email :</strong> <a href="mailto:${email}" style="color:${C.blueDark};text-decoration:none;font-weight:600;">${email}</a></p>
+      ${account.phone ? `<p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.body};margin:0 0 6px;">${icon.phone}<strong>Téléphone :</strong> <a href="tel:${account.phone}" style="color:${C.dark};text-decoration:none;font-weight:600;">${account.phone}</a></p>` : ''}
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${C.muted};margin:0;">${icon.shield}<strong>Action :</strong> Une demande de réinitialisation a été effectuée depuis la page boutique. Un email contenant le lien sécurisé a été transmis au demandeur.</p>
+    </div>
+
+    ${DIVIDER}
+
+    ${ctaButton('Consulter le compte dans l\'espace Admin', `${getAdminUrl()}/users`)}`;
+
+  const html = wrapInTicket(body, `[Sécurité] Demande de mot de passe oublié – ${fullName} (${email})`);
+  const text = `[Alerte Sécurité Boutique] Demande de mot de passe oublié\n\nCompte : ${fullName} (${email})\nDate : ${dateFormatted}\n\nUne demande de réinitialisation a été effectuée. Le lien a été envoyé à l'adresse de l'utilisateur.\n\nEspace Admin : ${getAdminUrl()}/users`;
+
+  try {
+    const result = await sendMailWithFallback({
+      from: getFromAddress(),
+      to: shopEmail,
+      replyTo: email.includes('@') ? email : undefined,
+      subject: `🔑 [Sécurité] Demande de mot de passe oublié – ${fullName} (${email})`,
+      html,
+      text,
+    });
+    logger.info({ to: shopEmail, targetEmail: email }, 'Shop password reset request notification email sent');
+    return result;
+  } catch (err: any) {
+    logger.error({ err: err.message, to: shopEmail }, 'Failed to send shop password reset request notification email');
+    throw err;
+  }
+}
+
+// ─── 8. Notification pour la boutique lors d'une RÉINITIALISATION terminée ───
 export async function sendShopPasswordResetNotification(
   user: any,
   shopEmail: string = SHOP_EMAIL
-): Promise<void> {
+): Promise<any> {
   if (!shopEmail) return;
 
   const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.name || 'Client';
@@ -969,17 +1043,22 @@ export async function sendShopPasswordResetNotification(
     ${ctaButton('Consulter le compte dans l\'espace Admin', `${getAdminUrl()}/users`)}`;
 
   const html = wrapInTicket(body, `[Sécurité] Réinitialisation de mot de passe par ${fullName} (${email})`);
+  const text = `[Alerte Sécurité Boutique] Mot de passe réinitialisé avec succès\n\nCompte : ${fullName} (${email})\nDate : ${dateFormatted}\n\nLe mot de passe de ce compte a été mis à jour avec succès.\n\nEspace Admin : ${getAdminUrl()}/users`;
 
   try {
-    await sendMailWithFallback({
+    const result = await sendMailWithFallback({
       from: getFromAddress(),
       to: shopEmail,
+      replyTo: email.includes('@') ? email : undefined,
       subject: `[Sécurité] Mot de passe réinitialisé – ${fullName} (${email})`,
       html,
+      text,
     });
     logger.info({ to: shopEmail, userEmail: email }, 'Shop password reset notification email sent');
+    return result;
   } catch (err: any) {
     logger.error({ err: err.message, to: shopEmail }, 'Failed to send shop password reset notification email');
+    throw err;
   }
 }
 
