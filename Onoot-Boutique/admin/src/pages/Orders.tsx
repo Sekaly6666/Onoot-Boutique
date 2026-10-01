@@ -19,7 +19,8 @@ import {
   PackageCheck,
   AlertCircle,
   RotateCcw,
-  MessageCircle
+  MessageCircle,
+  UserCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -545,6 +546,29 @@ const Orders: React.FC = () => {
                               <CreditCard className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                               <span>Paiement : <strong className="text-slate-700 font-medium capitalize">{o.paymentMethod}</strong></span>
                             </div>
+
+                            {(() => {
+                              const recipientName = (o.shippingAddress as any)?.recipientName || o.notes?.match(/\[Réceptionnaire désigné\s*:\s*([^\]\-]+)(?:-\s*Tél\s*:\s*([^\]]+))?\]/i)?.[1]?.trim();
+                              const recipientPhone = (o.shippingAddress as any)?.recipientPhone || o.notes?.match(/\[Réceptionnaire désigné\s*:\s*([^\]\-]+)(?:-\s*Tél\s*:\s*([^\]]+))?\]/i)?.[2]?.trim();
+
+                              if (!recipientName && !recipientPhone) return null;
+
+                              return (
+                                <div className="bg-primary/10 border border-primary/20 rounded-lg p-2.5 mt-2.5">
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-primary mb-1">
+                                    <UserCheck className="w-3.5 h-3.5" />
+                                    <span>Réceptionnaire désigné (Mandataire / Proche) :</span>
+                                  </div>
+                                  <p className="text-xs font-bold text-slate-800">{recipientName}</p>
+                                  {recipientPhone && (
+                                    <div className="flex items-center gap-1.5 text-xs text-slate-600 mt-0.5">
+                                      <Phone className="w-3 h-3 text-slate-400" />
+                                      <span>{recipientPhone}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
 
                             {/* Informations d'expédition épurées pour commandes Hors d'Abidjan dès l'étape Confirmée */}
                             {isInteriorOrder && o.orderStatus !== 'pending' && (

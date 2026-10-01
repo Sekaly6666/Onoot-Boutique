@@ -3,7 +3,7 @@ import { useParams, Link } from "wouter";
 import { useGetOrder, getGetOrderQueryKey } from "@workspace/api-client-react";
 import html2canvas from "html2canvas";
 
-import { ArrowLeft, Download, ShoppingBag, MapPin, Phone, User, Calendar, CircleDashed } from "lucide-react";
+import { ArrowLeft, Download, ShoppingBag, MapPin, Phone, User, Calendar, CircleDashed, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
@@ -46,7 +46,20 @@ export default function OrderTicket() {
   const handleDownloadImage = async () => {
     if (!ticketRef.current) return;
     try {
-      const canvas = await html2canvas(ticketRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      const canvas = await html2canvas(ticketRef.current, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        scrollX: 0,
+        scrollY: 0,
+        onclone: (_clonedDoc, clonedElem) => {
+          clonedElem.style.width = "380px";
+          clonedElem.style.maxWidth = "380px";
+          clonedElem.style.minWidth = "380px";
+          clonedElem.style.margin = "0 auto";
+          clonedElem.style.boxSizing = "border-box";
+        },
+      });
       const image = canvas.toDataURL("image/png", 1.0);
       const link = document.createElement("a");
       link.download = `Ticket_Onoot_${order?.id.substring(order.id.length - 8).toUpperCase() || 'Commande'}.png`;
@@ -92,11 +105,11 @@ export default function OrderTicket() {
   const isAbidjan = !isInteriorExplicit && abidjanKeywords.some((kw) => city.includes(kw) || address.includes(kw));
 
   return (
-    <div className="min-h-screen bg-slate-100 py-10 px-4 flex flex-col items-center">
+    <div className="min-h-screen bg-slate-100 py-6 px-3 sm:py-10 sm:px-4 flex flex-col items-center">
       
       {/* Actions de navigation */}
-      <div className="max-w-[360px] w-full flex justify-between items-center mb-6">
-        <Button variant="ghost" className="text-slate-500 hover:text-slate-900" asChild>
+      <div className="w-full max-w-[380px] flex justify-between items-center mb-5 px-1">
+        <Button variant="ghost" className="text-slate-600 hover:text-slate-900" asChild>
           <Link href={`/orders/${order.id}`}>
             <ArrowLeft className="w-4 h-4 mr-2" /> Retour
           </Link>
@@ -107,7 +120,7 @@ export default function OrderTicket() {
       </div>
 
       {/* Le Ticket */}
-      <div ref={ticketRef} className="max-w-[360px] w-full bg-white rounded-2xl shadow-xl overflow-hidden relative border border-slate-200">
+      <div ref={ticketRef} className="w-full max-w-[380px] bg-white rounded-2xl shadow-xl overflow-hidden relative border border-slate-200">
         
         {/* Bande des 3 couleurs */}
         <div className="h-2 w-full flex">
@@ -126,13 +139,7 @@ export default function OrderTicket() {
         </div>
 
         {/* Corps du ticket */}
-        <div className="p-6 bg-white relative">
-          
-          {/* Effet cranté (Notch) simulé via CSS pour un look de ticket */}
-          <div className="absolute top-0 left-0 w-full h-4 -mt-2 flex justify-between px-4 overflow-hidden print:hidden">
-            <div className="w-6 h-6 rounded-full bg-slate-100 shadow-inner -ml-3"></div>
-            <div className="w-6 h-6 rounded-full bg-slate-100 shadow-inner -mr-3"></div>
-          </div>
+        <div className="p-5 sm:p-6 bg-white relative">
           
           {/* Info client & Commande */}
           <div className="text-center mb-6">
@@ -158,7 +165,7 @@ export default function OrderTicket() {
               <div className="mt-2.5 space-y-2 text-xs text-slate-600">
                 <p className="flex items-start gap-2">
                   <MapPin className="w-3.5 h-3.5 mt-0.5 text-slate-400 flex-shrink-0" />
-                  <span className="font-semibold text-slate-700 leading-relaxed">
+                  <span className="font-semibold text-slate-700 leading-relaxed break-words">
                     {locationText}
                   </span>
                 </p>
@@ -167,6 +174,30 @@ export default function OrderTicket() {
                   <span className="font-medium text-slate-600">{order.shippingAddress.phone}</span>
                 </p>
               </div>
+
+              {/* Réceptionnaire désigné (si renseigné) */}
+              {(() => {
+                const recipientName = (order.shippingAddress as any)?.recipientName || order.notes?.match(/\[Réceptionnaire désigné\s*:\s*([^\]\-]+)(?:-\s*Tél\s*:\s*([^\]]+))?\]/i)?.[1]?.trim();
+                const recipientPhone = (order.shippingAddress as any)?.recipientPhone || order.notes?.match(/\[Réceptionnaire désigné\s*:\s*([^\]\-]+)(?:-\s*Tél\s*:\s*([^\]]+))?\]/i)?.[2]?.trim();
+
+                if (!recipientName && !recipientPhone) return null;
+
+                return (
+                  <div className="mt-3 pt-3 border-t border-slate-200">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-primary mb-1">
+                      <UserCheck className="w-3.5 h-3.5" />
+                      <span>Personne qui réceptionne le colis :</span>
+                    </div>
+                    <p className="text-xs font-bold text-slate-800">{recipientName}</p>
+                    {recipientPhone && (
+                      <p className="text-xs text-slate-600 flex items-center gap-1.5 mt-0.5">
+                        <Phone className="w-3 h-3 text-slate-400" />
+                        <span>{recipientPhone}</span>
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -175,15 +206,15 @@ export default function OrderTicket() {
           {/* Articles */}
           <div className="mb-6">
             <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center"><ShoppingBag className="w-4 h-4 mr-2 text-slate-400" /> Achats</h3>
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               {order.items.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-start text-sm">
-                  <div className="flex-1 pr-4">
-                    <p className="font-medium text-slate-700 line-clamp-2">{item.productName}</p>
-                    <p className="text-slate-400 text-xs mt-0.5">Qté: {item.quantity} × {item.price.toLocaleString()} FCFA</p>
+                <div key={idx} className="flex justify-between items-start text-sm gap-2">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <p className="font-semibold text-slate-800 text-sm leading-snug break-words">{item.productName}</p>
+                    <p className="text-slate-500 text-xs mt-0.5 font-medium">Qté: {item.quantity} × {item.price.toLocaleString("fr-FR")} FCFA</p>
                   </div>
-                  <div className="font-bold text-slate-700">
-                    {(item.price * item.quantity).toLocaleString()} FCFA
+                  <div className="font-bold text-slate-800 text-sm shrink-0 whitespace-nowrap text-right">
+                    {(item.price * item.quantity).toLocaleString("fr-FR")} FCFA
                   </div>
                 </div>
               ))}

@@ -572,8 +572,10 @@ export const CreateOrderBody = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "country": zod.string(),
-  "postalCode": zod.string().nullish()
-}),
+  "postalCode": zod.string().nullish(),
+  "recipientName": zod.string().nullish(),
+  "recipientPhone": zod.string().nullish()
+}).passthrough(),
   "notes": zod.string().optional()
 })
 

@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import mongoose from "mongoose";
 import { Review } from "../models/Review";
 import { Product } from "../models/Product";
+import { Order } from "../models/Order";
 import { AdminNotification } from "../models/AdminNotification";
 import { ListProductReviewsParams, CreateReviewParams, CreateReviewBody } from "@workspace/api-zod";
 
@@ -76,6 +77,26 @@ router.post("/products/:id/reviews", async (req, res): Promise<void> => {
   const parsed = CreateReviewBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const userId = parsed.data.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Vous devez être connecté pour donner votre avis." });
+    return;
+  }
+
+  // Vérifier si le client a réellement acheté ce produit
+  const hasPurchased = await Order.exists({
+    userId,
+    orderStatus: { $ne: "cancelled" },
+    "items.productId": params.data.id,
+  });
+
+  if (!hasPurchased) {
+    res.status(403).json({
+      error: "Seuls les clients ayant acheté ce produit peuvent donner leur avis.",
+    });
     return;
   }
 

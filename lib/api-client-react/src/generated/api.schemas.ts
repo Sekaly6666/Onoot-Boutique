@@ -140,6 +140,10 @@ export interface ShippingAddress {
   country: string;
   /** @nullable */
   postalCode?: string | null;
+  /** @nullable */
+  recipientName?: string | null;
+  /** @nullable */
+  recipientPhone?: string | null;
 }
 
 export interface Order {

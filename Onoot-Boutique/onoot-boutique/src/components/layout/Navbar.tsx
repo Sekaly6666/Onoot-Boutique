@@ -145,6 +145,25 @@ export function Navbar() {
         </div>
       </div>
 
+      {/* Barre de recherche mobile TOUJOURS visible sur téléphone */}
+      {!isAuthPage && (
+        <div className="md:hidden px-4 pb-2.5 pt-0.5 bg-white dark:bg-gray-950">
+          <div className="relative w-full">
+            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="search"
+              value={searchValue}
+              placeholder="Rechercher un produit..."
+              className="flex h-10 w-full rounded-full border border-slate-200 dark:border-gray-800 bg-slate-50 dark:bg-gray-900 px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E87C2A] pl-10 pr-4 dark:text-white"
+              onChange={(e) => setSearchValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSearch(e.currentTarget.value);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Mobile Menu dropdown */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-border bg-white dark:bg-gray-950 px-4 py-4 space-y-4 shadow-lg animate-in slide-in-from-top-2 duration-200">

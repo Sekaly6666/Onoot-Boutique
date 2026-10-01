@@ -1,10 +1,10 @@
 import React from "react";
 import { useParams, Link } from "wouter";
 import { Layout } from "@/components/layout/Layout";
-import { useGetOrder, getGetOrderQueryKey } from "@workspace/api-client-react";
+import { useGetOrder, getGetOrderQueryKey, useListProducts } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, CheckCircle2, Clock, Truck, PackageCheck, QrCode, XCircle, Trash2, Loader2, MessageCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, Truck, PackageCheck, QrCode, XCircle, Trash2, Loader2, MessageCircle, Package, UserCheck } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
@@ -44,6 +44,25 @@ function formatLocation(address?: string, city?: string): string {
   return cleanParts.join(', ');
 }
 
+function parseRecipient(notes?: string | null, shippingAddress?: any) {
+  if (shippingAddress?.recipientName) {
+    return {
+      name: shippingAddress.recipientName,
+      phone: shippingAddress.recipientPhone || null,
+    };
+  }
+  if (notes) {
+    const match = notes.match(/\[Réceptionnaire désigné\s*:\s*([^\]\-]+)(?:-\s*Tél\s*:\s*([^\]]+))?\]/i);
+    if (match) {
+      return {
+        name: match[1]?.trim(),
+        phone: match[2]?.trim() || null,
+      };
+    }
+  }
+  return null;
+}
+
 export default function OrderDetail() {
   const { id } = useParams();
   const orderId = id as string;
@@ -52,6 +71,21 @@ export default function OrderDetail() {
   const [, setLocation] = useLocation();
 
   const [isCancelDialogOpen, setIsCancelDialogOpen] = React.useState<boolean>(false);
+
+  const { data: productsData } = useListProducts();
+
+  const { productMapById, productMapByName } = React.useMemo(() => {
+    const byId = new Map<string, any>();
+    const byName = new Map<string, any>();
+    if (productsData && Array.isArray(productsData)) {
+      productsData.forEach((p: any) => {
+        if (p.id) byId.set(String(p.id), p);
+        if (p._id) byId.set(String(p._id), p);
+        if (p.name) byName.set(p.name.trim().toLowerCase(), p);
+      });
+    }
+    return { productMapById: byId, productMapByName: byName };
+  }, [productsData]);
 
   const deleteOrderMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -193,6 +227,22 @@ export default function OrderDetail() {
               {order.shippingAddress.country && (
                 <p><span className="text-muted-foreground">Pays:</span> {order.shippingAddress.country}</p>
               )}
+              {(() => {
+                const recipientInfo = parseRecipient(order.notes, order.shippingAddress);
+                if (!recipientInfo) return null;
+                return (
+                  <div className="mt-3 p-3 bg-primary/5 dark:bg-primary/10 rounded-xl border border-primary/20">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-primary mb-1">
+                      <UserCheck className="w-3.5 h-3.5" />
+                      <span>Réceptionnaire désigné (proche / mandataire) :</span>
+                    </div>
+                    <p className="text-xs text-foreground font-semibold">
+                      {recipientInfo.name}
+                      {recipientInfo.phone && <span className="text-muted-foreground font-normal"> · Tél : {recipientInfo.phone}</span>}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
             <Separator className="my-4" />
             <h2 className="font-bold text-lg mb-3">Paiement</h2>
@@ -229,20 +279,39 @@ export default function OrderDetail() {
           <div className="bg-card border border-border p-6 rounded-xl">
             <h2 className="font-bold text-lg mb-4">Articles commandés</h2>
             <div className="space-y-4 mb-4">
-              {order.items.map(item => (
-                <div key={item.productId} className="flex justify-between items-center text-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
-                      {item.productImage && <img src={item.productImage} alt={item.productName} className="w-8 h-8 object-contain mix-blend-multiply" />}
+              {order.items.map(item => {
+                const matchedProduct = productMapById.get(String(item.productId)) || productMapByName.get(item.productName.trim().toLowerCase());
+                const imageSrc = item.productImage || matchedProduct?.images?.[0] || (matchedProduct as any)?.image;
+
+                return (
+                  <div key={item.productId} className="flex justify-between items-center text-sm gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1 overflow-hidden shrink-0 shadow-2xs">
+                        {imageSrc ? (
+                          <img
+                            src={imageSrc}
+                            alt={item.productName}
+                            className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLElement).style.display = 'none';
+                              const nextSibling = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement;
+                              if (nextSibling) nextSibling.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        <div className={`items-center justify-center ${imageSrc ? 'hidden' : 'flex'}`}>
+                          <Package className="w-5 h-5 text-muted-foreground/60" />
+                        </div>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground truncate">{item.productName}</p>
+                        <p className="text-muted-foreground text-xs">Qté : {item.quantity}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{item.productName}</p>
-                      <p className="text-muted-foreground">Qté: {item.quantity}</p>
-                    </div>
+                    <span className="font-bold text-foreground shrink-0">{(item.price * item.quantity).toLocaleString("fr-FR")} FCFA</span>
                   </div>
-                  <span className="font-medium">{(item.price * item.quantity).toLocaleString()} FCFA</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <Separator className="my-4" />
             <div className="space-y-2 text-sm">

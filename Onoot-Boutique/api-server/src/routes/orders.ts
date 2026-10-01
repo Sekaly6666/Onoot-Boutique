@@ -125,12 +125,13 @@ router.post("/orders", async (req, res): Promise<void> => {
     }
 
     let unitPrice = item.price;
-    let productName = item.name;
+    let productName = (item as any).productName || (item as any).name || "Article";
+    let productImage = (item as any).productImage || (item as any).image || null;
 
     if (mongoose.Types.ObjectId.isValid(item.productId)) {
       const dbProduct = await Product.findById(item.productId).exec();
       if (!dbProduct) {
-        res.status(400).json({ error: `Le produit "${item.name || item.productId}" n'est plus disponible.` });
+        res.status(400).json({ error: `Le produit "${productName}" n'est plus disponible.` });
         return;
       }
 
@@ -153,6 +154,9 @@ router.post("/orders", async (req, res): Promise<void> => {
         unitPrice = dbProduct.price;
       }
       productName = dbProduct.name;
+      if (!productImage && dbProduct.images && dbProduct.images.length > 0) {
+        productImage = dbProduct.images[0];
+      }
     } else {
       // Demo / example product validation
       if (unitPrice <= 0) {
@@ -163,9 +167,11 @@ router.post("/orders", async (req, res): Promise<void> => {
 
     calculatedTotal += unitPrice * item.quantity;
     verifiedItems.push({
-      ...item,
-      name: productName,
+      productId: item.productId,
+      quantity: item.quantity,
       price: unitPrice,
+      productName,
+      productImage,
     });
   }
 

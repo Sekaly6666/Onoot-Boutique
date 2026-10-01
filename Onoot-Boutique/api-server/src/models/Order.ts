@@ -15,6 +15,8 @@ export interface IShippingAddress {
   city: string;
   country: string;
   postalCode?: string;
+  recipientName?: string;
+  recipientPhone?: string;
 }
 
 export interface IOrder extends Document {
@@ -50,6 +52,8 @@ const ShippingAddressSchema = new Schema<IShippingAddress>({
   city: { type: String, required: true },
   country: { type: String, required: true },
   postalCode: String,
+  recipientName: String,
+  recipientPhone: String,
 });
 
 const OrderSchema = new Schema<IOrder>(

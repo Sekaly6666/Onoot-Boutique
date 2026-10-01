@@ -34,6 +34,7 @@ import {
   MessageCircle,
   AlertCircle,
   Check,
+  Users,
 } from "lucide-react";
 
 const checkoutSchema = z.object({
@@ -79,6 +80,11 @@ export default function Checkout() {
   // Pour l'expédition intérieur du pays
   const [interiorCity, setInteriorCity] = useState<string>("");
   const [interiorStation, setInteriorStation] = useState<string>("");
+
+  // Pour la livraison Abidjan : personne tierce qui réceptionne le colis
+  const [hasAlternateRecipient, setHasAlternateRecipient] = useState<boolean>(false);
+  const [recipientName, setRecipientName] = useState<string>("");
+  const [recipientPhone, setRecipientPhone] = useState<string>("");
 
   const isInterior = deliveryType === "interior";
   const selectedZone = isInterior
@@ -247,6 +253,9 @@ export default function Checkout() {
       finalCity = `Intérieur: ${interiorCity.trim()}${interiorStation.trim() ? ` (${interiorStation.trim()})` : ""}`;
       const interiorNote = `[Expédition Hors Abidjan en gare : ${interiorCity.trim()} - Gare : ${interiorStation.trim() || "À convenir"} - Frais de transport à confirmer sur WhatsApp]`;
       orderNotes = orderNotes ? `${orderNotes}\n${interiorNote}` : interiorNote;
+    } else if (hasAlternateRecipient && (recipientName.trim() || recipientPhone.trim())) {
+      const altRecipientNote = `[Réceptionnaire désigné : ${recipientName.trim() || "Non précisé"}${recipientPhone.trim() ? ` - Tél : ${recipientPhone.trim()}` : ""}]`;
+      orderNotes = orderNotes ? `${orderNotes}\n${altRecipientNote}` : altRecipientNote;
     }
 
     const effectiveAddress = data.address?.trim() || (isInterior
@@ -277,6 +286,8 @@ export default function Checkout() {
             city: finalCity,
             country: data.country.trim(),
             postalCode: data.postalCode,
+            recipientName: (!isInterior && hasAlternateRecipient && recipientName.trim()) ? recipientName.trim() : undefined,
+            recipientPhone: (!isInterior && hasAlternateRecipient && recipientPhone.trim()) ? recipientPhone.trim() : undefined,
           },
           notes: orderNotes || undefined,
         },
@@ -707,25 +718,75 @@ export default function Checkout() {
 
                     {/* Adresse précise (Quartier, Rue, Repère) - Uniquement pour livraison à Abidjan */}
                     {!isInterior && (
-                      <FormField
-                        control={form.control}
-                        name="address"
-                        render={({ field }) => (
-                          <FormItem className="md:col-span-2">
-                            <FormLabel className="flex items-center gap-1 font-semibold text-xs text-slate-700 dark:text-slate-300">
-                              Adresse exacte / Quartier &amp; Repère <span className="text-red-500">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Ex: Angré 8ème Tranche, pharmacie du carrefour, villa 45"
-                                {...field}
-                                className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <>
+                        <FormField
+                          control={form.control}
+                          name="address"
+                          render={({ field }) => (
+                            <FormItem className="md:col-span-2">
+                              <FormLabel className="flex items-center gap-1 font-semibold text-xs text-slate-700 dark:text-slate-300">
+                                Adresse exacte / Quartier &amp; Repère <span className="text-red-500">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Ex: Angré 8ème Tranche, pharmacie du carrefour, villa 45"
+                                  {...field}
+                                  className="h-11 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* Option : Une autre personne réceptionnera le colis à votre place */}
+                        <div className="md:col-span-2 p-3.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/40">
+                          <label className="flex items-start sm:items-center gap-3 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={hasAlternateRecipient}
+                              onChange={(e) => setHasAlternateRecipient(e.target.checked)}
+                              className="mt-0.5 sm:mt-0 w-4 h-4 rounded text-primary focus:ring-primary border-slate-300 dark:border-slate-600 cursor-pointer"
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <Users className="w-3.5 h-3.5 text-primary" />
+                                Une autre personne réceptionnera le colis avec le livreur ? (Optionnel)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                                Si vous n'êtes pas sur place (frère, sœur, collègue, proche...), cochez cette case pour préciser ses coordonnées.
+                              </span>
+                            </div>
+                          </label>
+
+                          {hasAlternateRecipient && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-200/80 dark:border-slate-800/80 animate-in fade-in-50 duration-200">
+                              <div>
+                                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                                  Nom complet du réceptionnaire <span className="text-primary">*</span>
+                                </label>
+                                <Input
+                                  placeholder="Ex: Jean Koffi (Mon frère)"
+                                  value={recipientName}
+                                  onChange={(e) => setRecipientName(e.target.value)}
+                                  className="h-10 text-xs rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                                  Numéro de téléphone du réceptionnaire <span className="text-primary">*</span>
+                                </label>
+                                <Input
+                                  placeholder="Ex: 07 00 00 00 00 / 05..."
+                                  value={recipientPhone}
+                                  onChange={(e) => setRecipientPhone(e.target.value)}
+                                  className="h-10 text-xs rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </>
                     )}
 
                     {/* Pays : Champ texte modifiable avec Côte d'Ivoire par défaut (sans menu option) */}
