@@ -50,15 +50,48 @@ export function getShippingFeeForCity(cityStr?: string): number {
   return 1500;
 }
 
+const DEFAULT_PRODUCT_IMAGES: Record<string, string> = {
+  "haut-parleur bluetooth portable bass": "/images/speaker.png",
+  "écouteurs bluetooth pro anc": "/images/earbuds.png",
+  "ecouteurs bluetooth pro anc": "/images/earbuds.png",
+  "smartwatch pro s8": "/images/smartwatch.png",
+  "batterie externe 20000mah ultra": "/images/powerbank.png",
+  "chargeur rapide 65w gan": "/images/charger.png",
+  "coque protection premium armor": "/images/case.png",
+};
+
+function resolveItemImage(item: any): string | null {
+  if (item.productImage) return item.productImage;
+  const name = (item.productName || item.name || "").toLowerCase().trim();
+  for (const [key, url] of Object.entries(DEFAULT_PRODUCT_IMAGES)) {
+    if (name.includes(key) || key.includes(name)) return url;
+  }
+  if (name.includes("smartwatch") || name.includes("montre")) return "/images/smartwatch.png";
+  if (name.includes("écouteur") || name.includes("ecouteur") || name.includes("earbuds")) return "/images/earbuds.png";
+  if (name.includes("haut-parleur") || name.includes("speaker") || name.includes("enceinte")) return "/images/speaker.png";
+  if (name.includes("batterie") || name.includes("powerbank")) return "/images/powerbank.png";
+  if (name.includes("chargeur") || name.includes("charger")) return "/images/charger.png";
+  if (name.includes("coque") || name.includes("case")) return "/images/case.png";
+  return null;
+}
+
 function formatOrder(order: any) {
   const shippingCost = typeof order.shippingCost === "number" ? order.shippingCost : (order.shippingCost ?? 0);
   const itemsTotal = typeof order.itemsTotal === "number" && order.itemsTotal > 0 ? order.itemsTotal : (order.totalAmount - shippingCost);
+
+  const formattedItems = (order.items || []).map((it: any) => {
+    const rawIt = typeof it.toObject === 'function' ? it.toObject() : { ...it };
+    return {
+      ...rawIt,
+      productImage: rawIt.productImage || resolveItemImage(rawIt),
+    };
+  });
 
   return {
     id: order._id,
     userId: order.userId ?? null,
     customerEmail: order.customerEmail ?? null,
-    items: order.items,
+    items: formattedItems,
     totalAmount: order.totalAmount,
     shippingCost,
     itemsTotal,

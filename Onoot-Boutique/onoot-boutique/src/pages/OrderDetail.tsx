@@ -44,6 +44,31 @@ function formatLocation(address?: string, city?: string): string {
   return cleanParts.join(', ');
 }
 
+const DEFAULT_PRODUCT_IMAGES: Record<string, string> = {
+  "haut-parleur bluetooth portable bass": "/images/speaker.png",
+  "écouteurs bluetooth pro anc": "/images/earbuds.png",
+  "ecouteurs bluetooth pro anc": "/images/earbuds.png",
+  "smartwatch pro s8": "/images/smartwatch.png",
+  "batterie externe 20000mah ultra": "/images/powerbank.png",
+  "chargeur rapide 65w gan": "/images/charger.png",
+  "coque protection premium armor": "/images/case.png",
+};
+
+function getProductImageFallback(name?: string): string | null {
+  if (!name) return null;
+  const clean = name.toLowerCase().trim();
+  for (const [key, url] of Object.entries(DEFAULT_PRODUCT_IMAGES)) {
+    if (clean.includes(key) || key.includes(clean)) return url;
+  }
+  if (clean.includes("smartwatch") || clean.includes("montre")) return "/images/smartwatch.png";
+  if (clean.includes("écouteur") || clean.includes("ecouteur") || clean.includes("earbuds") || clean.includes("airpod")) return "/images/earbuds.png";
+  if (clean.includes("haut-parleur") || clean.includes("speaker") || clean.includes("enceinte")) return "/images/speaker.png";
+  if (clean.includes("batterie") || clean.includes("powerbank")) return "/images/powerbank.png";
+  if (clean.includes("chargeur") || clean.includes("charger")) return "/images/charger.png";
+  if (clean.includes("coque") || clean.includes("case") || clean.includes("protection")) return "/images/case.png";
+  return null;
+}
+
 function parseRecipient(notes?: string | null, shippingAddress?: any) {
   if (shippingAddress?.recipientName) {
     return {
@@ -72,18 +97,22 @@ export default function OrderDetail() {
 
   const [isCancelDialogOpen, setIsCancelDialogOpen] = React.useState<boolean>(false);
 
-  const { data: productsData } = useListProducts();
+  const { data: productsData } = useListProducts({ limit: 100 });
 
   const { productMapById, productMapByName } = React.useMemo(() => {
     const byId = new Map<string, any>();
     const byName = new Map<string, any>();
-    if (productsData && Array.isArray(productsData)) {
-      productsData.forEach((p: any) => {
-        if (p.id) byId.set(String(p.id), p);
-        if (p._id) byId.set(String(p._id), p);
-        if (p.name) byName.set(p.name.trim().toLowerCase(), p);
-      });
-    }
+    const list: any[] = Array.isArray(productsData)
+      ? productsData
+      : (productsData as any)?.products && Array.isArray((productsData as any).products)
+      ? (productsData as any).products
+      : [];
+
+    list.forEach((p: any) => {
+      if (p.id) byId.set(String(p.id), p);
+      if (p._id) byId.set(String(p._id), p);
+      if (p.name) byName.set(p.name.trim().toLowerCase(), p);
+    });
     return { productMapById: byId, productMapByName: byName };
   }, [productsData]);
 
@@ -281,7 +310,7 @@ export default function OrderDetail() {
             <div className="space-y-4 mb-4">
               {order.items.map(item => {
                 const matchedProduct = productMapById.get(String(item.productId)) || productMapByName.get(item.productName.trim().toLowerCase());
-                const imageSrc = item.productImage || matchedProduct?.images?.[0] || (matchedProduct as any)?.image;
+                const imageSrc = item.productImage || matchedProduct?.images?.[0] || (matchedProduct as any)?.imageUrl || (matchedProduct as any)?.image || getProductImageFallback(item.productName);
 
                 return (
                   <div key={item.productId} className="flex justify-between items-center text-sm gap-2">
