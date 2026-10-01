@@ -166,26 +166,9 @@ export function Navbar() {
 
       {/* Mobile Menu dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-border bg-white dark:bg-gray-950 px-4 py-4 space-y-4 shadow-lg animate-in slide-in-from-top-2 duration-200">
-          {/* Search input for mobile */}
-          {!isAuthPage && (
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <input
-                type="search"
-                value={searchValue}
-                placeholder="Rechercher un produit..."
-                className="flex h-10 w-full rounded-full border border-input bg-gray-50 dark:bg-gray-800 px-3 py-1 text-sm pl-9 pr-4 dark:text-white"
-                onChange={(e) => setSearchValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSearch(e.currentTarget.value);
-                }} 
-              />
-            </div>
-          )}
-
+        <div className="md:hidden border-t border-border bg-white dark:bg-gray-950 px-4 py-3 space-y-2 shadow-lg animate-in slide-in-from-top-2 duration-200">
           {/* Navigation Links */}
-          <nav className="flex flex-col space-y-1 pt-1">
+          <nav className="flex flex-col space-y-1">
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
