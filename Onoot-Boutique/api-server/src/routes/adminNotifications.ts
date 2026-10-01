@@ -36,7 +36,28 @@ router.post('/mark-read', async (req, res): Promise<void> => {
   }
 });
 
-// DELETE a notification
+// POST batch delete notifications
+router.post('/batch-delete', async (req, res): Promise<void> => {
+  try {
+    const { ids, all } = req.body;
+    if (all) {
+      const result = await AdminNotification.deleteMany({});
+      res.json({ message: 'Toutes les notifications ont été supprimées', deletedCount: result.deletedCount });
+      return;
+    }
+    if (!Array.isArray(ids) || ids.length === 0) {
+      res.status(400).json({ error: 'Aucun identifiant fourni pour la suppression' });
+      return;
+    }
+    const result = await AdminNotification.deleteMany({ _id: { $in: ids } });
+    res.json({ message: `${result.deletedCount} notifications supprimées avec succès`, deletedCount: result.deletedCount });
+  } catch (err) {
+    logger.error({ err }, 'Failed to batch delete notifications');
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// DELETE a single notification
 router.delete('/:id', async (req, res): Promise<void> => {
   try {
     const { id } = req.params;
