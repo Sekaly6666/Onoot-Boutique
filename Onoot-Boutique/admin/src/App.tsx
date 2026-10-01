@@ -1,3 +1,4 @@
+// src/App.tsx - Onoot Admin v1.0.2 (Build Sync 2026-10-01)
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';

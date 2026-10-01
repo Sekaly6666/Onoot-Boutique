@@ -1,4 +1,4 @@
-// src/App.tsx
+// src/App.tsx - Onoot Boutique v1.0.2 (Build Sync 2026-10-01)
 import React, { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
