@@ -7,7 +7,8 @@ import { OnootLogo } from '../components/ui/OnootLogo';
 const Login: React.FC = () => {
   const [email, setEmail] = useState(import.meta.env.VITE_ADMIN_EMAIL || '');
   const [password, setPassword] = useState(import.meta.env.VITE_ADMIN_PASSWORD || '');
-  const [error, setError] = useState('');
+  const isExpired = typeof window !== 'undefined' && window.location.search.includes('expired=true');
+  const [error, setError] = useState(isExpired ? 'Votre session a expiré. Veuillez vous reconnecter.' : '');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();

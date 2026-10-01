@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { User } from "../models/User";
 import { Order } from "../models/Order";
 import { GetUserParams, UpdateUserBody, UpdateUserParams, ListAdminUsersQueryParams } from "@workspace/api-zod";
+import { requireAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
@@ -95,6 +96,34 @@ router.get("/admin/users", async (req, res): Promise<void> => {
     })
   );
   res.json({ users: result, total, page, limit });
+});
+
+router.delete("/users/:id", requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const deleted = await User.findByIdAndDelete(id);
+    if (!deleted) {
+      res.status(404).json({ error: "Utilisateur non trouvé" });
+      return;
+    }
+    res.json({ message: "Utilisateur supprimé" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Erreur serveur" });
+  }
+});
+
+router.delete("/admin/users/:id", requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const deleted = await User.findByIdAndDelete(id);
+    if (!deleted) {
+      res.status(404).json({ error: "Utilisateur non trouvé" });
+      return;
+    }
+    res.json({ message: "Utilisateur supprimé" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Erreur serveur" });
+  }
 });
 
 export default router;

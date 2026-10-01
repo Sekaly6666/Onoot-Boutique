@@ -98,7 +98,20 @@ async function adminFetch<T>(path: string, options: RequestInit = {}): Promise<T
     ...options,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) },
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (res.status === 401) {
+    localStorage.removeItem('adminToken');
+    window.location.href = '/login?expired=true';
+    throw new Error('Votre session a expiré. Redirection vers la page de connexion...');
+  }
+  if (!res.ok) {
+    const errText = await res.text();
+    let errMsg = errText;
+    try {
+      const parsed = JSON.parse(errText);
+      if (parsed.error) errMsg = parsed.error;
+    } catch {}
+    throw new Error(errMsg);
+  }
   return res.status === 204 ? (undefined as T) : res.json();
 }
 
