@@ -3,6 +3,7 @@ import { RegisterUserBody, LoginUserBody } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
 import { User } from "../models/User";
 import { Admin } from "../models/Admin";
+import { Order } from "../models/Order";
 import { AdminNotification } from "../models/AdminNotification";
 import crypto from "crypto";
 import https from "https";
@@ -283,8 +284,8 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     role: "client",
     authProvider: "local",
     joinDate: now,
-    lastLogin: now,
     lastActive: now,
+    loginCount: 0,
   });
   await newUser.save();
 
@@ -344,6 +345,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   const now = new Date();
   user.lastLogin = now;
   user.lastActive = now;
+  (user as any).loginCount = ((user as any).loginCount || 0) + 1;
   await user.save();
 
   const token = generateToken(user._id.toString());
@@ -510,6 +512,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
       if (picture && !(user as any).avatar) (user as any).avatar = picture;
       user.lastLogin = now;
       user.lastActive = now;
+      (user as any).loginCount = ((user as any).loginCount || 0) + 1;
       await user.save();
     } else {
       // Create new user
@@ -525,6 +528,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
         joinDate: now,
         lastLogin: now,
         lastActive: now,
+        loginCount: 1,
       });
       await user.save();
     }
@@ -563,67 +567,105 @@ router.post("/auth/forgot-password", async (req, res) => {
     const admin = !user ? await Admin.findOne({ email: emailRegex }).exec() : null;
     const account = user || admin;
 
-    if (account) {
-      const rawToken = crypto.randomBytes(32).toString("hex");
-      const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+    // 1. Condition : L'adresse email doit obligatoirement exister sur la boutique
+    if (!account) {
+      res.status(400).json({
+        error: "Cette adresse email n'est pas reconnue sur la boutique. La réinitialisation est réservée aux clients ayant déjà un compte. Si vous êtes nouveau, veuillez vous inscrire.",
+      });
+      return;
+    }
 
-      (account as any).resetPasswordToken = hashedToken;
-      (account as any).resetPasswordExpires = new Date(Date.now() + 3600000); // 1 heure
-      await account.save();
+    // 2. Condition spécifique aux clients : Doit être un ancien membre s'étant connecté au moins une fois ou ayant déjà utilisé la boutique
+    if (user) {
+      const hasLoginHistory = Boolean(
+        ((user as any).loginCount && (user as any).loginCount > 0) ||
+        (user.lastLogin && user.joinDate && (user.lastLogin.getTime() - user.joinDate.getTime() > 1000)) ||
+        user.authProvider === "google"
+      );
 
-      // Compute boutique URL based on request origin/referer if available, or fallback
-      const originHeader = req.get("origin") || req.get("referer");
-      let baseUrl = getBoutiqueUrl();
-      if (originHeader) {
+      let hasOrders = false;
+      if (!hasLoginHistory) {
         try {
-          const parsed = new URL(originHeader);
-          baseUrl = `${parsed.protocol}//${parsed.host}`;
+          const orderCount = await Order.countDocuments({
+            $or: [
+              { customerEmail: emailRegex },
+              { userId: user._id.toString() },
+            ],
+          }).exec();
+          hasOrders = orderCount > 0;
         } catch (_) {}
       }
 
-      const resetLink = `${baseUrl}/auth/reset-password?token=${rawToken}&email=${encodeURIComponent(account.email)}`;
-      const displayName = user
-        ? (user.firstName || `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email)
-        : (admin ? "Administrateur" : "Client");
+      const isEligible = hasLoginHistory || hasOrders;
 
-      // 1. Send password reset email directly to the user (AWAIT to ensure delivery)
-      try {
-        await sendPasswordResetEmail(account.email, resetLink, displayName);
-      } catch (sendErr) {
-        console.error("[PASSWORD RESET] Failed to send email to user:", sendErr);
-      }
-
-      // 2. Alert the shop pro email (onootboutique@gmail.com)
-      try {
-        await sendShopPasswordResetRequestNotification(
-          {
-            email: account.email,
-            firstName: user?.firstName || (admin ? "Administrateur" : ""),
-            lastName: user?.lastName || "",
-            phone: user?.phone || "",
-          },
-          SHOP_EMAIL
-        );
-      } catch (adminMailErr) {
-        console.error("[PASSWORD RESET] Failed to notify shop email:", adminMailErr);
-      }
-
-      // 3. Create an in-app notification in Admin Dashboard space
-      try {
-        const notif = new AdminNotification({
-          type: "user",
-          title: "Demande de mot de passe oublié",
-          desc: `Demande de réinitialisation de mot de passe reçue pour : ${displayName} (${account.email}). Un lien sécurisé a été transmis par email.`,
+      if (!isEligible) {
+        res.status(400).json({
+          error: "Ce compte n'enregistre aucune connexion préalable sur la boutique. La réinitialisation de mot de passe est réservée aux anciens membres s'étant déjà connectés au moins une fois.",
         });
-        await notif.save();
-      } catch (dbNotifErr) {
-        console.error("[PASSWORD RESET] Failed to create admin notification:", dbNotifErr);
+        return;
       }
+    }
+
+    // Utilisateur éligible (ancien membre vérifié ou admin)
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    (account as any).resetPasswordToken = hashedToken;
+    (account as any).resetPasswordExpires = new Date(Date.now() + 3600000); // 1 heure
+    await account.save();
+
+    // Compute boutique URL based on request origin/referer if available, or fallback
+    const originHeader = req.get("origin") || req.get("referer");
+    let baseUrl = getBoutiqueUrl();
+    if (originHeader) {
+      try {
+        const parsed = new URL(originHeader);
+        baseUrl = `${parsed.protocol}//${parsed.host}`;
+      } catch (_) {}
+    }
+
+    const resetLink = `${baseUrl}/auth/reset-password?token=${rawToken}&email=${encodeURIComponent(account.email)}`;
+    const displayName = user
+      ? (user.firstName || `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email)
+      : (admin ? "Administrateur" : "Client");
+
+    // 1. Send password reset email directly to the user (AWAIT to ensure delivery)
+    try {
+      await sendPasswordResetEmail(account.email, resetLink, displayName);
+    } catch (sendErr) {
+      console.error("[PASSWORD RESET] Failed to send email to user:", sendErr);
+    }
+
+    // 2. Alert the shop pro email (onootboutique@gmail.com)
+    try {
+      await sendShopPasswordResetRequestNotification(
+        {
+          email: account.email,
+          firstName: user?.firstName || (admin ? "Administrateur" : ""),
+          lastName: user?.lastName || "",
+          phone: user?.phone || "",
+        },
+        SHOP_EMAIL
+      );
+    } catch (adminMailErr) {
+      console.error("[PASSWORD RESET] Failed to notify shop email:", adminMailErr);
+    }
+
+    // 3. Create an in-app notification in Admin Dashboard space
+    try {
+      const notif = new AdminNotification({
+        type: "user",
+        title: "Demande de mot de passe oublié",
+        desc: `Demande de réinitialisation de mot de passe reçue pour : ${displayName} (${account.email}). Un lien sécurisé a été transmis par email.`,
+      });
+      await notif.save();
+    } catch (dbNotifErr) {
+      console.error("[PASSWORD RESET] Failed to create admin notification:", dbNotifErr);
     }
 
     res.json({
       success: true,
-      message: "Si un compte est associé à cette adresse email, vous recevrez un lien de réinitialisation sous peu.",
+      message: "Un lien de réinitialisation sécurisé valable 1 heure vous a été envoyé par email.",
     });
   } catch (err: any) {
     console.error("[FORGOT PASSWORD] Error:", err);

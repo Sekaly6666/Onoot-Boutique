@@ -14,6 +14,7 @@ export interface IUser extends Document {
   joinDate: Date;
   lastLogin?: Date;
   lastActive?: Date;
+  loginCount?: number;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
   createdAt?: Date;
@@ -35,6 +36,7 @@ const UserSchema: Schema = new Schema(
     joinDate: { type: Date, default: Date.now },
     lastLogin: { type: Date },
     lastActive: { type: Date },
+    loginCount: { type: Number, default: 0 },
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
   },
