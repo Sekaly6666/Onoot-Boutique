@@ -86,7 +86,7 @@ const StatusBadge = ({ status }: { status?: string }) => {
 };
 
 /**
- * Thumbnail composant avec fallback automatique si l'image ne charge pas
+ * Thumbnail composant avec fallback multi-sources automatique (Local Vite, Vercel CDN, Render, alternatives)
  */
 const ProductImageThumb = ({
   rawUrl,
@@ -100,16 +100,56 @@ const ProductImageThumb = ({
   className?: string;
 }) => {
   const [hasError, setHasError] = useState(false);
-  const resolved = resolveMediaUrl(rawUrl);
+  const [srcIndex, setSrcIndex] = useState(0);
+
+  const candidates = useMemo(() => {
+    if (!rawUrl || typeof rawUrl !== 'string') return [];
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return [];
+
+    const resolved = resolveMediaUrl(trimmed);
+    const list: string[] = [resolved];
+
+    const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    if (path.startsWith('/images/')) {
+      const cdnUrl = `https://onoot-boutique.vercel.app${path}`;
+      if (!list.includes(cdnUrl)) list.push(cdnUrl);
+      if (!list.includes(path)) list.push(path);
+      const renderUrl = `https://onoot-boutique.onrender.com${path}`;
+      if (!list.includes(renderUrl)) list.push(renderUrl);
+    } else if (path.startsWith('/uploads/')) {
+      const renderUrl = `https://onoot-boutique.onrender.com${path}`;
+      if (!list.includes(renderUrl)) list.push(renderUrl);
+      if (!list.includes(path)) list.push(path);
+    }
+
+    return list;
+  }, [rawUrl]);
+
+  React.useEffect(() => {
+    setHasError(false);
+    setSrcIndex(0);
+  }, [rawUrl]);
+
+  const currentSrc = candidates[srcIndex];
+
+  const handleImgError = () => {
+    if (srcIndex + 1 < candidates.length) {
+      setSrcIndex((prev) => prev + 1);
+    } else {
+      setHasError(true);
+    }
+  };
 
   return (
     <div className={`${className} bg-accent-yellow/10 rounded-xl flex items-center justify-center overflow-hidden relative border border-border/50 shrink-0`}>
-      {resolved && !hasError ? (
+      {currentSrc && !hasError ? (
         <img
-          src={resolved}
+          key={currentSrc}
+          src={currentSrc}
           alt={alt}
           className="w-full h-full object-cover transition-transform hover:scale-105"
-          onError={() => setHasError(true)}
+          onError={handleImgError}
           loading="lazy"
         />
       ) : (
@@ -592,6 +632,13 @@ const Products: React.FC = () => {
                     src={resolveMediaUrl(viewProduct.imageUrl || viewProduct.images?.[0])}
                     alt={viewProduct.name}
                     className="w-full h-full object-contain p-2"
+                    onError={(e) => {
+                      const raw = viewProduct.imageUrl || viewProduct.images?.[0] || '';
+                      const path = raw.startsWith('/') ? raw : `/${raw}`;
+                      if (path.startsWith('/images/')) {
+                        e.currentTarget.src = `https://onoot-boutique.vercel.app${path}`;
+                      }
+                    }}
                   />
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -642,14 +689,19 @@ const Products: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <Video className="w-4 h-4 text-orange-500" />
                         <span className="text-xs font-bold text-foreground">Vidéo de présentation</span>
+                        {parsed.platform !== 'other' && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 border border-orange-500/20">
+                            {parsed.label}
+                          </span>
+                        )}
                       </div>
                       <a
                         href={parsed.url || viewProduct.video}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[11px] text-accent-blue hover:underline flex items-center gap-1 font-medium"
+                        className="text-[11px] text-accent-blue hover:underline flex items-center gap-1 font-semibold bg-accent-blue/10 px-2.5 py-1 rounded-lg transition-colors"
                       >
-                        <span>Ouvrir</span>
+                        <span>Ouvrir la vidéo</span>
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
@@ -657,13 +709,15 @@ const Products: React.FC = () => {
                     <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-border flex items-center justify-center">
                       {parsed.embedUrl ? (
                         <iframe
+                          key={parsed.embedUrl}
                           src={parsed.embedUrl}
                           className="w-full h-full border-0"
-                          allow="autoplay; encrypted-media; fullscreen"
+                          allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                           allowFullScreen
                         />
                       ) : (
                         <video
+                          key={parsed.url || viewProduct.video}
                           src={parsed.url || viewProduct.video}
                           controls
                           playsInline
@@ -671,6 +725,12 @@ const Products: React.FC = () => {
                         />
                       )}
                     </div>
+
+                    {parsed.platform === 'facebook' && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        💡 Si la vidéo Facebook affiche « Non disponible », vérifiez que sa confidentialité est en mode Public sur Facebook, ou cliquez sur « Ouvrir la vidéo » ci-dessus.
+                      </p>
+                    )}
                   </div>
                 );
               })()}

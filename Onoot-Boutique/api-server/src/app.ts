@@ -138,8 +138,9 @@ app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 app.use("/api/admin/auth/login", authLimiter);
 
-// ─── 6. Static Uploads Serving ───
-const uploadsDir = path.resolve(process.cwd(), 'public', 'uploads');
+// ─── 6. Static Uploads & Public Serving ───
+const publicDir = path.resolve(process.cwd(), 'public');
+const uploadsDir = path.resolve(publicDir, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -154,6 +155,13 @@ app.use('/uploads', express.static(uploadsDir, {
     else if (ext === '.jpg' || ext === '.jpeg') res.setHeader('Content-Type', 'image/jpeg');
     else if (ext === '.png') res.setHeader('Content-Type', 'image/png');
     else if (ext === '.webp') res.setHeader('Content-Type', 'image/webp');
+  },
+}));
+
+// Also serve /images and any static assets from public
+app.use(express.static(publicDir, {
+  setHeaders: (res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
   },
 }));
 

@@ -8,7 +8,8 @@ export interface ParsedVideoSource {
   isEmbed: boolean;
   embedUrl: string;
   thumbnail: string;
-  platform: 'youtube' | 'facebook' | 'tiktok' | 'vimeo' | 'direct' | 'other';
+  platform: 'youtube' | 'facebook' | 'tiktok' | 'instagram' | 'vimeo' | 'direct' | 'other';
+  label: string;
 }
 
 /**
@@ -27,8 +28,21 @@ export function getApiBaseUrl(): string {
 }
 
 /**
- * Résout les URLs relatives (ex: /uploads/xxx.mp4 ou /uploads/xxx.jpg)
- * vers l'adresse absolue du serveur Render en production.
+ * Détecte l'URL du frontend boutique pour les médias statiques (/images/...)
+ */
+export function getClientBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return '';
+    }
+  }
+  return 'https://onoot-boutique.vercel.app';
+}
+
+/**
+ * Résout les URLs relatives (ex: /uploads/xxx.mp4 ou /images/xxx.png)
+ * vers l'adresse absolue adaptée à l'environnement.
  */
 export function resolveMediaUrl(rawUrl?: string | null): string {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
@@ -44,112 +58,204 @@ export function resolveMediaUrl(rawUrl?: string | null): string {
     return trimmed;
   }
 
-  const base = getApiBaseUrl();
   const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+
+  // Les images publiques du catalogue (ex: /images/speaker.png) sont hébergées sur le client Vercel
+  if (path.startsWith('/images/')) {
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocal) {
+      return path;
+    }
+    return `https://onoot-boutique.vercel.app${path}`;
+  }
+
+  // Fichiers uploadés (/uploads/...) hébergés sur le backend Render
+  const base = getApiBaseUrl();
   return base ? `${base}${path}` : path;
 }
 
 /**
- * Parse une URL vidéo (YouTube, Facebook Reels/Vidéos, TikTok, Vimeo, Dropbox, MP4 direct)
+ * Normalise les liens Facebook (Reels, Watch, Partages mobiles share/r/ ou share/v/)
+ * afin de produire une URL canonique propre et un lien iframe compatible.
+ */
+export function normalizeFacebookUrl(raw: string): { canonicalUrl: string; embedUrl: string } {
+  let url = raw.trim();
+
+  // Si l'URL est déjà une URL plugin avec href=..., extraire la vraie URL cible
+  if (url.includes('plugins/video.php')) {
+    try {
+      const qIndex = url.indexOf('?');
+      if (qIndex !== -1) {
+        const params = new URLSearchParams(url.slice(qIndex));
+        const href = params.get('href');
+        if (href) url = decodeURIComponent(href);
+      }
+    } catch {}
+  }
+
+  // Nettoyage des paramètres de tracking mobiles (mibextid, rdid, ref, etc.)
+  try {
+    const fakeBase = url.startsWith('http') ? url : `https://${url}`;
+    const parsed = new URL(fakeBase);
+    const trackingKeys = ['mibextid', 'rdid', 'ref', 'sfnsn', 'notif_id', 'notif_t', 'checkpoint_src', 'fbclid', '__tn__'];
+    trackingKeys.forEach((k) => parsed.searchParams.delete(k));
+    url = parsed.origin + parsed.pathname + (parsed.search ? parsed.search : '');
+  } catch {}
+
+  // 1. Détection des partages Facebook Reels : facebook.com/share/r/ID
+  const shareReelMatch = url.match(/facebook\.com\/share\/r\/([^/?&#]+)/i);
+  if (shareReelMatch && shareReelMatch[1]) {
+    const reelId = shareReelMatch[1];
+    const canonical = `https://www.facebook.com/reel/${reelId}/`;
+    return {
+      canonicalUrl: canonical,
+      embedUrl: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(canonical)}&show_text=0`,
+    };
+  }
+
+  // 2. Détection des partages Facebook Vidéos : facebook.com/share/v/ID
+  const shareVideoMatch = url.match(/facebook\.com\/share\/v\/([^/?&#]+)/i);
+  if (shareVideoMatch && shareVideoMatch[1]) {
+    const vidId = shareVideoMatch[1];
+    const canonical = `https://www.facebook.com/watch/?v=${vidId}`;
+    return {
+      canonicalUrl: canonical,
+      embedUrl: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(canonical)}&show_text=0`,
+    };
+  }
+
+  // 3. Détection des Reels directs : facebook.com/reel/ID
+  const directReelMatch = url.match(/facebook\.com\/reel\/([^/?&#]+)/i);
+  if (directReelMatch && directReelMatch[1]) {
+    const canonical = `https://www.facebook.com/reel/${directReelMatch[1]}/`;
+    return {
+      canonicalUrl: canonical,
+      embedUrl: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(canonical)}&show_text=0`,
+    };
+  }
+
+  // 4. Détection des vidéos directes (watch/?v=ID ou facebook.com/.../videos/ID)
+  const canonical = url;
+  const embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(canonical)}&show_text=0`;
+  return {
+    canonicalUrl: canonical,
+    embedUrl,
+  };
+}
+
+/**
+ * Parse une URL vidéo (YouTube, Facebook Reels/Vidéos, TikTok, Instagram, Vimeo, Dropbox, MP4 direct)
  * et retourne le lien embed d'affichage ainsi que la miniature éventuelle.
  */
 export function parseVideoSource(rawUrl?: string | null): ParsedVideoSource {
   if (!rawUrl || typeof rawUrl !== 'string') {
-    return { url: '', isEmbed: false, embedUrl: '', thumbnail: '', platform: 'other' };
+    return { url: '', isEmbed: false, embedUrl: '', thumbnail: '', platform: 'other', label: 'Aucune vidéo' };
   }
 
   const trimmed = rawUrl.trim();
   if (!trimmed) {
-    return { url: '', isEmbed: false, embedUrl: '', thumbnail: '', platform: 'other' };
+    return { url: '', isEmbed: false, embedUrl: '', thumbnail: '', platform: 'other', label: 'Aucune vidéo' };
   }
 
-  // 1. YouTube detection (watch?v=, youtu.be, shorts, embed)
+  // 1. YouTube detection (watch?v=, youtu.be, shorts, embed, m.youtube.com)
   const ytMatch = trimmed.match(
     /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i
   );
   if (ytMatch && ytMatch[1]) {
     const videoId = ytMatch[1];
+    const canonicalUrl = `https://www.youtube.com/watch?v=${videoId}`;
     return {
-      url: `https://www.youtube.com/embed/${videoId}`,
+      url: canonicalUrl,
       embedUrl: `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1`,
       isEmbed: true,
       thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
       platform: 'youtube',
+      label: 'YouTube',
     };
   }
 
-  // 2. Facebook Videos & Reels (facebook.com/reel/..., facebook.com/watch/..., fb.watch/..., plugins/video.php)
+  // 2. Facebook Videos & Reels (facebook.com/reel/..., facebook.com/share/r/..., facebook.com/watch/..., fb.watch/...)
   if (trimmed.includes('facebook.com') || trimmed.includes('fb.watch')) {
-    if (trimmed.includes('plugins/video.php')) {
-      return {
-        url: trimmed,
-        embedUrl: trimmed,
-        isEmbed: true,
-        thumbnail: '',
-        platform: 'facebook',
-      };
-    }
-    const cleanFb = trimmed;
-    const embedPluginUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(cleanFb)}&show_text=0`;
+    const { canonicalUrl, embedUrl } = normalizeFacebookUrl(trimmed);
     return {
-      url: cleanFb,
-      embedUrl: embedPluginUrl,
+      url: canonicalUrl,
+      embedUrl,
       isEmbed: true,
       thumbnail: '',
       platform: 'facebook',
+      label: 'Facebook Reel / Vidéo',
     };
   }
 
-  // 3. Vimeo
+  // 3. TikTok
+  const tiktokMatch = trimmed.match(/tiktok\.com\/(?:@?[^\/]+\/video\/|v\/|t\/)?(\d+|[a-zA-Z0-9_-]+)/i);
+  if (trimmed.includes('tiktok.com')) {
+    const ttIdMatch = trimmed.match(/video\/(\d+)/i) || trimmed.match(/tiktok\.com\/t\/([a-zA-Z0-9]+)/i);
+    const ttId = ttIdMatch ? ttIdMatch[1] : '';
+    return {
+      url: trimmed,
+      embedUrl: ttId ? `https://www.tiktok.com/embed/v2/${ttId}` : trimmed,
+      isEmbed: Boolean(ttId),
+      thumbnail: '',
+      platform: 'tiktok',
+      label: 'TikTok',
+    };
+  }
+
+  // 4. Instagram Reels & Posts
+  if (trimmed.includes('instagram.com/reel/') || trimmed.includes('instagram.com/p/')) {
+    const cleanIg = trimmed.split('?')[0];
+    const igEmbed = cleanIg.endsWith('/') ? `${cleanIg}embed` : `${cleanIg}/embed`;
+    return {
+      url: cleanIg,
+      embedUrl: igEmbed,
+      isEmbed: true,
+      thumbnail: '',
+      platform: 'instagram',
+      label: 'Instagram Reel',
+    };
+  }
+
+  // 5. Vimeo
   const vimeoMatch = trimmed.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|)(\d+)/i);
   if (vimeoMatch && vimeoMatch[3]) {
     const vId = vimeoMatch[3];
     return {
-      url: `https://player.vimeo.com/video/${vId}`,
+      url: `https://vimeo.com/${vId}`,
       embedUrl: `https://player.vimeo.com/video/${vId}?autoplay=1&muted=1`,
       isEmbed: true,
       thumbnail: '',
       platform: 'vimeo',
+      label: 'Vimeo',
     };
   }
 
-  // 4. TikTok
-  const tiktokMatch = trimmed.match(/tiktok\.com\/@?[^\/]+\/video\/(\d+)/i);
-  if (tiktokMatch && tiktokMatch[1]) {
-    const ttId = tiktokMatch[1];
-    return {
-      url: `https://www.tiktok.com/embed/v2/${ttId}`,
-      embedUrl: `https://www.tiktok.com/embed/v2/${ttId}`,
-      isEmbed: true,
-      thumbnail: '',
-      platform: 'tiktok',
-    };
-  }
-
-  // 5. Dropbox
-  if (trimmed.includes('dropbox.com') && trimmed.includes('dl=0')) {
-    const directUrl = trimmed.replace('dl=0', 'raw=1');
+  // 6. Dropbox direct stream
+  if (trimmed.includes('dropbox.com') && (trimmed.includes('dl=0') || trimmed.includes('dl=1'))) {
+    const directUrl = trimmed.replace(/dl=[01]/, 'raw=1');
     return {
       url: directUrl,
       isEmbed: false,
       embedUrl: '',
       thumbnail: '',
       platform: 'direct',
+      label: 'Dropbox Vidéo',
     };
   }
 
-  // 6. Generic embed (already has /embed/ or plugins/video.php)
-  if (trimmed.includes('/embed/') || trimmed.includes('plugins/video.php')) {
+  // 7. Generic embed URL (already contains /embed/)
+  if (trimmed.includes('/embed/')) {
     return {
       url: trimmed,
       isEmbed: true,
       embedUrl: trimmed,
       thumbnail: '',
       platform: 'other',
+      label: 'Vidéo intégrée',
     };
   }
 
-  // 7. Direct MP4, WebM, MOV, /uploads/... or other direct video links
+  // 8. Direct MP4, WebM, MOV, /uploads/... or other direct video links
   const resolved = resolveMediaUrl(trimmed);
   return {
     url: resolved,
@@ -157,6 +263,7 @@ export function parseVideoSource(rawUrl?: string | null): ParsedVideoSource {
     embedUrl: '',
     thumbnail: '',
     platform: 'direct',
+    label: 'Fichier Vidéo (MP4 / WebM)',
   };
 }
 
@@ -208,9 +315,7 @@ export async function captureVideoFrame(file: File): Promise<Blob | null> {
 }
 
 /**
- * Téléverse un fichier (vidéo ou image) sur le serveur.
- * Si l'application est exécutée sur Vercel, on téléverse directement sur Render
- * pour contourner la limite stricte de 4,5 Mo imposée par les rewrites Vercel.
+ * Téléverse un fichier (vidéo ou image) sur le serveur avec gestion de fallback résiliente.
  */
 export async function uploadMediaFile(file: File): Promise<{ url: string; absoluteUrl: string }> {
   const token = localStorage.getItem('adminToken');
@@ -225,13 +330,46 @@ export async function uploadMediaFile(file: File): Promise<{ url: string; absolu
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(uploadEndpoint, {
-    method: 'POST',
-    headers,
-    body: formData,
-  });
+  let res: Response;
+  try {
+    res = await fetch(uploadEndpoint, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+  } catch (netErr: any) {
+    // Si l'URL absolue distante échoue (CORS, offline, etc.), tenter le proxy relatif
+    if (apiBase) {
+      try {
+        res = await fetch('/api/admin/upload', {
+          method: 'POST',
+          headers,
+          body: formData,
+        });
+      } catch {
+        throw new Error("Impossible de joindre le serveur. Vérifiez que votre connexion Internet est active.");
+      }
+    } else {
+      throw new Error(netErr?.message || "Erreur de connexion au serveur d'envoi.");
+    }
+  }
 
   if (!res.ok) {
+    // Tentative de fallback relative si le serveur Render renvoie une erreur 502/504
+    if (apiBase && (res.status >= 500 || res.status === 404)) {
+      try {
+        const fallbackRes = await fetch('/api/admin/upload', {
+          method: 'POST',
+          headers,
+          body: formData,
+        });
+        if (fallbackRes.ok) {
+          const fbData = await fallbackRes.json();
+          const abs = resolveMediaUrl(fbData.url);
+          return { url: abs, absoluteUrl: abs };
+        }
+      } catch {}
+    }
     const errData = await res.json().catch(() => null);
     throw new Error(errData?.error || `Erreur de téléversement (${res.status})`);
   }

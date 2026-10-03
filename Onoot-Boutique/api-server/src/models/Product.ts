@@ -4,9 +4,11 @@ export interface IProduct extends Document {
   name: string;
   description?: string;
   price: number;
+  discountPrice?: number;
   stock: number;
   category: string;
   imageUrl?: string;
+  images?: string[];
   video?: string;
   externalLink?: string;
   status: 'Publié' | 'Brouillon' | 'En attente';
@@ -15,6 +17,14 @@ export interface IProduct extends Document {
   bestSeller?: boolean;
   flashSale?: boolean;
   flashSaleEndDate?: Date;
+  slug?: string;
+  subCategory?: string;
+  brand?: string;
+  colors?: string[];
+  tags?: string[];
+  rating?: number;
+  reviewCount?: number;
+  salesCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -88,6 +88,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
   const initialVid = initialProduct?.video || initialProduct?.videoUrls?.[0] || '';
   const [videoUrl, setVideoUrl] = useState(initialVid);
   const [videoPreview, setVideoPreview] = useState(initialVid);
+  const [videoPlaybackError, setVideoPlaybackError] = useState(false);
   
   const [featured, setFeatured] = useState(Boolean(initialProduct?.featured));
   const [newArrival, setNewArrival] = useState(Boolean(initialProduct?.newArrival));
@@ -127,6 +128,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
     const vid = initialProduct?.video || initialProduct?.videoUrls?.[0] || '';
     setVideoUrl(vid);
     setVideoPreview(vid);
+    setVideoPlaybackError(false);
     
     setFeatured(Boolean(initialProduct?.featured));
     setNewArrival(Boolean(initialProduct?.newArrival));
@@ -156,17 +158,18 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
   };
 
   const handleVideoFile = async (file: File) => {
-    // Instant local preview
+    // 1. Aperçu instantané immédiat et fluide avec Blob local
     const previewUrl = URL.createObjectURL(file);
     objectUrls.current.push(previewUrl);
     setVideoPreview(previewUrl);
+    setVideoPlaybackError(false);
     setIsUploadingVideo(true);
 
     try {
       const result = await uploadMediaFile(file);
+      // On sauvegarde l'URL distante pour la persistance en base de données
       setVideoUrl(result.absoluteUrl);
-      setVideoPreview(result.absoluteUrl);
-      toast.success('Vidéo importée avec succès !');
+      toast.success('Vidéo prête et importée avec succès !');
     } catch (err: any) {
       console.error('Erreur vidéo:', err);
       toast.error(err.message || "Erreur lors de l'importation de la vidéo. Vérifiez le format ou la taille.");
@@ -178,6 +181,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
   const handleVideoUrlChange = (val: string) => {
     setVideoUrl(val);
     setVideoPreview(val.trim());
+    setVideoPlaybackError(false);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -200,7 +204,9 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
       const trimmedVid = videoUrl.trim();
       if (trimmedVid) {
         const parsed = parseVideoSource(trimmedVid);
-        finalVideoUrl = parsed.isEmbed && parsed.embedUrl ? parsed.embedUrl : (parsed.url || trimmedVid);
+        // Sauvegarde de l'URL canonique réelle (ex: https://facebook.com/reel/123 ou /uploads/123.mp4),
+        // sans polluer la base de données avec l'iframe d'intégration
+        finalVideoUrl = parsed.url || trimmedVid;
       }
 
       await onSubmit({
@@ -379,7 +385,15 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
                       src={imagePreview}
                       alt="Aperçu du produit"
                       className="h-full w-full object-contain p-2"
-                      onError={() => setImageError(true)}
+                      onError={() => {
+                        const trimmed = imageUrl.trim();
+                        const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+                        if (path.startsWith('/images/') && !imagePreview.includes('onoot-boutique.vercel.app')) {
+                          setImagePreview(`https://onoot-boutique.vercel.app${path}`);
+                        } else {
+                          setImageError(true);
+                        }
+                      }}
                     />
                     <button
                       type="button"
@@ -473,17 +487,26 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
 
               {/* Video Preview Player */}
               <div className="pt-2">
-                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Eye className="w-3.5 h-3.5 text-orange-500" />
-                  <span>Aperçu du lecteur vidéo :</span>
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Eye className="w-3.5 h-3.5 text-orange-500" />
+                    <span>Aperçu du lecteur vidéo :</span>
+                  </p>
+                  {parsedVideo.platform !== 'other' && parsedVideo.url && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 border border-orange-500/20">
+                      {parsedVideo.label}
+                    </span>
+                  )}
+                </div>
+
                 <div className={`relative ${videoPreview && (videoPreview.includes('/reel/') || videoPreview.includes('/shorts/') || videoPreview.includes('tiktok.com')) ? 'h-64 aspect-[9/16]' : 'aspect-video max-h-52'} rounded-xl overflow-hidden bg-black mx-auto border border-border shadow-inner flex items-center justify-center`}>
                   {parsedVideo.embedUrl ? (
                     <div className="relative w-full h-full group">
                       <iframe
+                        key={parsedVideo.embedUrl}
                         src={parsedVideo.embedUrl}
                         className="w-full h-full border-0"
-                        allow="autoplay; encrypted-media; fullscreen"
+                        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                         allowFullScreen
                       />
                       <button
@@ -491,6 +514,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
                         onClick={() => {
                           setVideoUrl('');
                           setVideoPreview('');
+                          setVideoPlaybackError(false);
                         }}
                         className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 hover:bg-red-600 text-white transition-colors z-20 shadow-md"
                         title="Supprimer la vidéo"
@@ -502,9 +526,10 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
                     <div className="relative w-full h-full group flex items-center justify-center bg-black/95">
                       <video
                         key={parsedVideo.url || videoPreview}
-                        src={parsedVideo.url || videoPreview}
+                        src={videoPreview.startsWith('blob:') ? videoPreview : (parsedVideo.url || videoPreview)}
                         controls
                         playsInline
+                        onError={() => setVideoPlaybackError(true)}
                         className="h-full w-full object-contain"
                       />
                       <button
@@ -512,6 +537,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
                         onClick={() => {
                           setVideoUrl('');
                           setVideoPreview('');
+                          setVideoPlaybackError(false);
                         }}
                         className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 hover:bg-red-600 text-white transition-colors z-20 shadow-md"
                         title="Supprimer la vidéo"
@@ -526,6 +552,36 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
                     </div>
                   )}
                 </div>
+
+                {/* Bouton de test direct et information de compatibilité */}
+                {(parsedVideo.url || videoUrl) && (
+                  <div className="mt-2.5 p-2.5 rounded-xl bg-muted/60 border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-semibold text-foreground shrink-0">{parsedVideo.label} :</span>
+                      <span className="truncate text-muted-foreground font-mono text-[11px]">{parsedVideo.url || videoUrl}</span>
+                    </div>
+                    <a
+                      href={parsedVideo.url || videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 inline-flex items-center justify-center gap-1 px-3 py-1 rounded-lg bg-orange-500/10 text-orange-600 hover:bg-orange-500/20 font-bold text-[11px] transition-colors"
+                    >
+                      <span>Tester / Ouvrir ↗</span>
+                    </a>
+                  </div>
+                )}
+
+                {parsedVideo.platform === 'facebook' && (
+                  <p className="mt-1.5 text-[11px] text-muted-foreground leading-tight">
+                    💡 <strong>Astuce Facebook :</strong> Si l’aperçu affiche « Vidéo non disponible », vérifiez que la publication est bien en mode <u>Public</u> sur Facebook (non réservée aux amis). Vous pouvez vérifier son accès avec le bouton Tester ci-dessus.
+                  </p>
+                )}
+
+                {videoPlaybackError && (
+                  <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs">
+                    ⚠️ Ce fichier vidéo n'a pas pu être lu directement dans ce navigateur (fréquent avec les vidéos HEVC d'iPhone). Le fichier sera tout de même enregistré et accessible sur les appareils compatibles.
+                  </div>
+                )}
               </div>
             </div>
           </div>

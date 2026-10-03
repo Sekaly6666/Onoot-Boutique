@@ -151,7 +151,18 @@ export default function ProductDetail() {
                 if (ytMatch && ytMatch[1]) {
                   embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&playsinline=1`;
                 } else if (vidRaw.includes('facebook.com') || vidRaw.includes('fb.watch')) {
-                  embedUrl = vidRaw.includes('plugins/video.php') ? vidRaw : `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(vidRaw)}&show_text=0`;
+                  let cleanFb = vidRaw;
+                  const shareRMatch = vidRaw.match(/facebook\.com\/share\/r\/([^/?&#]+)/i);
+                  const shareVMatch = vidRaw.match(/facebook\.com\/share\/v\/([^/?&#]+)/i);
+                  const reelMatch = vidRaw.match(/facebook\.com\/reel\/([^/?&#]+)/i);
+                  if (shareRMatch && shareRMatch[1]) {
+                    cleanFb = `https://www.facebook.com/reel/${shareRMatch[1]}/`;
+                  } else if (shareVMatch && shareVMatch[1]) {
+                    cleanFb = `https://www.facebook.com/watch/?v=${shareVMatch[1]}`;
+                  } else if (reelMatch && reelMatch[1]) {
+                    cleanFb = `https://www.facebook.com/reel/${reelMatch[1]}/`;
+                  }
+                  embedUrl = cleanFb.includes('plugins/video.php') ? cleanFb : `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(cleanFb)}&show_text=0`;
                 } else if (vidRaw.includes('tiktok.com')) {
                   const ttMatch = vidRaw.match(/tiktok\.com\/@?[^\/]+\/video\/(\d+)/i);
                   if (ttMatch && ttMatch[1]) embedUrl = `https://www.tiktok.com/embed/v2/${ttMatch[1]}`;

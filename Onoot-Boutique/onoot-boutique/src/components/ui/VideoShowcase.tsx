@@ -91,6 +91,18 @@ function getEmbedAutoplayUrl(url: string, muted: boolean): string {
 
   // Facebook video & reels plugin
   if (url.includes("facebook.com") || url.includes("fb.watch")) {
+    let cleanFb = url;
+    const shareRMatch = url.match(/facebook\.com\/share\/r\/([^/?&#]+)/i);
+    const shareVMatch = url.match(/facebook\.com\/share\/v\/([^/?&#]+)/i);
+    const reelMatch = url.match(/facebook\.com\/reel\/([^/?&#]+)/i);
+    if (shareRMatch && shareRMatch[1]) {
+      cleanFb = `https://www.facebook.com/reel/${shareRMatch[1]}/`;
+    } else if (shareVMatch && shareVMatch[1]) {
+      cleanFb = `https://www.facebook.com/watch/?v=${shareVMatch[1]}`;
+    } else if (reelMatch && reelMatch[1]) {
+      cleanFb = `https://www.facebook.com/reel/${reelMatch[1]}/`;
+    }
+
     if (url.includes("plugins/video.php")) {
       try {
         const u = new URL(url);
@@ -105,7 +117,7 @@ function getEmbedAutoplayUrl(url: string, muted: boolean): string {
         return `${cleaned}${sep}autoplay=1&mute=${muted ? "1" : "0"}`;
       }
     }
-    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0&autoplay=1&mute=${muted ? "1" : "0"}`;
+    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(cleanFb)}&show_text=0&autoplay=1&mute=${muted ? "1" : "0"}`;
   }
 
   try {

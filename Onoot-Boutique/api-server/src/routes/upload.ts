@@ -54,23 +54,27 @@ const upload = multer({
 });
 
 // Admin upload route with graceful error handling
-router.post('/admin/upload', requireAdmin, (req, res, next) => {
-  upload.single('file')(req, res, (err) => {
+router.post('/admin/upload', requireAdmin, (req, res): void => {
+  upload.single('file')(req, res, (err): void => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'Fichier trop volumineux. La taille maximale autorisée est de 500 Mo.' });
+        res.status(400).json({ error: 'Fichier trop volumineux. La taille maximale autorisée est de 500 Mo.' });
+        return;
       }
       logger.warn({ err }, 'Multer upload error');
-      return res.status(400).json({ error: `Erreur d'importation : ${err.message}` });
+      res.status(400).json({ error: `Erreur d'importation : ${err.message}` });
+      return;
     }
 
     if (err) {
       logger.warn({ err }, 'Upload error');
-      return res.status(400).json({ error: err.message || 'Erreur lors du téléversement du fichier.' });
+      res.status(400).json({ error: err.message || 'Erreur lors du téléversement du fichier.' });
+      return;
     }
 
     if (!req.file) {
-      return res.status(400).json({ error: 'Aucun fichier reçu' });
+      res.status(400).json({ error: 'Aucun fichier reçu' });
+      return;
     }
 
     // Return static URL
@@ -82,6 +86,7 @@ router.post('/admin/upload', requireAdmin, (req, res, next) => {
       size: req.file.size,
       mimetype: req.file.mimetype,
     });
+    return;
   });
 });
 
