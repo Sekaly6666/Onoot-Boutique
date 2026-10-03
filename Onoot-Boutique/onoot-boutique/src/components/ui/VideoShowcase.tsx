@@ -28,6 +28,12 @@ import { Button } from "./button";
 import { VideoMarquee } from "./VideoMarquee";
 import { useListProducts } from "@workspace/api-client-react";
 import { useCartContext } from "@/contexts/CartContext";
+import {
+  resolveMediaUrl,
+  isEmbedVideo,
+  isVerticalVideo,
+  getEmbedAutoplayUrl,
+} from "@/lib/videoUtils";
 
 interface PromoVideo {
   _id: string;
@@ -60,76 +66,6 @@ function cleanBadgeText(badge?: string): string {
       .replace(/\p{Extended_Pictographic}/gu, "")
       .trim() || "LIVE DÉMO"
   );
-}
-
-function isEmbedVideo(url?: string): boolean {
-  if (!url) return false;
-  return (
-    url.includes("youtube.com") ||
-    url.includes("youtu.be") ||
-    url.includes("vimeo.com") ||
-    url.includes("facebook.com") ||
-    url.includes("fb.watch") ||
-    url.includes("plugins/video.php") ||
-    url.includes("tiktok.com") ||
-    url.includes("/embed/")
-  );
-}
-
-function isVerticalVideo(url?: string): boolean {
-  if (!url) return false;
-  return (
-    url.includes("/reel/") ||
-    url.includes("/shorts/") ||
-    url.includes("tiktok.com") ||
-    url.includes("instagram.com")
-  );
-}
-
-function getEmbedAutoplayUrl(url: string, muted: boolean): string {
-  if (!url) return "";
-
-  // Facebook video & reels plugin
-  if (url.includes("facebook.com") || url.includes("fb.watch")) {
-    let cleanFb = url;
-    const shareRMatch = url.match(/facebook\.com\/share\/r\/([^/?&#]+)/i);
-    const shareVMatch = url.match(/facebook\.com\/share\/v\/([^/?&#]+)/i);
-    const reelMatch = url.match(/facebook\.com\/reel\/([^/?&#]+)/i);
-    if (shareRMatch && shareRMatch[1]) {
-      cleanFb = `https://www.facebook.com/reel/${shareRMatch[1]}/`;
-    } else if (shareVMatch && shareVMatch[1]) {
-      cleanFb = `https://www.facebook.com/watch/?v=${shareVMatch[1]}`;
-    } else if (reelMatch && reelMatch[1]) {
-      cleanFb = `https://www.facebook.com/reel/${reelMatch[1]}/`;
-    }
-
-    if (url.includes("plugins/video.php")) {
-      try {
-        const u = new URL(url);
-        u.searchParams.delete("width");
-        u.searchParams.set("show_text", "0");
-        u.searchParams.set("autoplay", "1");
-        u.searchParams.set("mute", muted ? "1" : "0");
-        return u.toString();
-      } catch {
-        const cleaned = url.replace(/&width=\d+/g, "");
-        const sep = cleaned.includes("?") ? "&" : "?";
-        return `${cleaned}${sep}autoplay=1&mute=${muted ? "1" : "0"}`;
-      }
-    }
-    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(cleanFb)}&show_text=0&autoplay=1&mute=${muted ? "1" : "0"}`;
-  }
-
-  try {
-    const parsed = new URL(url);
-    parsed.searchParams.set("autoplay", "1");
-    parsed.searchParams.set("mute", muted ? "1" : "0");
-    parsed.searchParams.set("rel", "0");
-    return parsed.toString();
-  } catch {
-    const sep = url.includes("?") ? "&" : "?";
-    return `${url}${sep}autoplay=1&mute=${muted ? "1" : "0"}&rel=0`;
-  }
 }
 
 
@@ -169,7 +105,12 @@ export function VideoShowcase() {
   }, []);
 
   const activeVideo = videos[selectedIndex] || null;
-  const isVertical = isVerticalVideo(activeVideo?.videoUrl);
+  const [isVideoMetadataVertical, setIsVideoMetadataVertical] = useState(false);
+  const isVertical = isVerticalVideo(activeVideo?.videoUrl) || isVideoMetadataVertical;
+
+  useEffect(() => {
+    setIsVideoMetadataVertical(false);
+  }, [selectedIndex]);
 
   // Resolve matching product dynamically to ensure 100% accurate direct redirection
   const resolvedProduct = useMemo(() => {
@@ -379,7 +320,7 @@ export function VideoShowcase() {
   const displayDiscount = activeVideo.discountPrice ?? resolvedProduct?.discountPrice ?? null;
   const hasDiscount = Boolean(displayDiscount && displayDiscount < displayPrice);
   const displayTitle = activeVideo.title || activeVideo.productName || resolvedProduct?.name || "Produit Démo";
-  const displayImage = activeVideo.thumbnailUrl || resolvedProduct?.images?.[0] || "/images/zfold_case.jpg";
+  const displayImage = resolveMediaUrl(activeVideo.thumbnailUrl || resolvedProduct?.images?.[0] || "/images/zfold_case.jpg");
 
   return (
     <section className="py-12 sm:py-16 bg-gradient-to-b from-slate-950 via-[#0a0f1d] to-slate-950 text-white relative overflow-hidden select-none">
@@ -417,8 +358,8 @@ export function VideoShowcase() {
               onClick={activeVideo && !isEmbedVideo(activeVideo.videoUrl) ? togglePlay : undefined}
               className={`relative w-full rounded-3xl overflow-hidden bg-black border border-white/10 shadow-2xl shadow-black/90 group flex items-center justify-center cursor-pointer transition-all duration-300 ${
                 isVertical 
-                  ? "h-[500px] sm:h-[560px] md:h-[620px] max-w-sm sm:max-w-md mx-auto aspect-[9/16]" 
-                  : "aspect-video"
+                  ? "max-w-[380px] sm:max-w-[420px] aspect-[9/16] max-h-[580px] sm:max-h-[640px] mx-auto" 
+                  : "aspect-video max-h-[540px] mx-auto"
               }`}
             >
               {/* Single persistent Video element or Iframe */}
@@ -428,15 +369,23 @@ export function VideoShowcase() {
                   title={activeVideo.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
-                  className="w-full h-full border-0 pointer-events-auto"
+                  className="w-full h-full border-0 pointer-events-auto object-contain"
                 />
               ) : (
                 <video
                   ref={videoRef}
-                  poster={activeVideo?.thumbnailUrl || displayImage}
+                  poster={activeVideo?.thumbnailUrl ? resolveMediaUrl(activeVideo.thumbnailUrl) : displayImage}
                   autoPlay
                   playsInline
                   muted={isMuted}
+                  onLoadedMetadata={(e) => {
+                    const v = e.currentTarget;
+                    if (v.videoHeight > v.videoWidth) {
+                      setIsVideoMetadataVertical(true);
+                    } else {
+                      setIsVideoMetadataVertical(false);
+                    }
+                  }}
                   onEnded={handleVideoEnded}
                   onTimeUpdate={handleTimeUpdate}
                   onError={handleVideoError}
@@ -651,7 +600,8 @@ export function VideoShowcase() {
             >
               {videos.map((item, idx) => {
                 const isCurrent = idx === selectedIndex;
-                const itemThumb = item.thumbnailUrl || (allProducts.find((p) => p.id === item.productId || p.name === item.productName)?.images?.[0]) || "/images/zfold_case.jpg";
+                const rawThumb = item.thumbnailUrl || (allProducts.find((p) => p.id === item.productId || p.name === item.productName)?.images?.[0]) || "/images/zfold_case.jpg";
+                const itemThumb = resolveMediaUrl(rawThumb);
 
                 return (
                   <motion.div
@@ -673,7 +623,7 @@ export function VideoShowcase() {
                       <img
                         src={itemThumb}
                         alt={item.title}
-                        className="w-full h-full object-cover bg-slate-900"
+                        className="w-full h-full object-contain bg-slate-900"
                       />
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                         <div
@@ -742,7 +692,7 @@ export function VideoShowcase() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6"
           >
-            <div className={`relative w-full ${isVertical ? "max-w-sm sm:max-w-md h-[88vh] aspect-[9/16]" : "max-w-5xl aspect-video"} bg-black rounded-3xl overflow-hidden border border-white/20 shadow-2xl flex flex-col justify-center items-center`}>
+            <div className={`relative w-full ${isVertical ? "max-w-[420px] aspect-[9/16] max-h-[85vh]" : "max-w-5xl aspect-video max-h-[85vh]"} bg-black rounded-3xl overflow-hidden border border-white/20 shadow-2xl flex flex-col justify-center items-center`}>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
@@ -757,7 +707,7 @@ export function VideoShowcase() {
                   title={activeVideo.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
-                  className="w-full h-full border-0"
+                  className="w-full h-full border-0 object-contain"
                 />
               ) : (
                 <video
@@ -766,7 +716,7 @@ export function VideoShowcase() {
                   autoPlay
                   controls
                   onEnded={handleVideoEnded}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain bg-black"
                 />
               )}
 

@@ -23,9 +23,13 @@ import {
   Check,
   ExternalLink,
   Image as ImageIcon,
-  Camera
+  Camera,
+  Lightbulb,
+  Info,
+  AlertCircle
 } from 'lucide-react';
 import DeleteConfirm from '../components/DeleteConfirm';
+import { parseVideoSource, resolveMediaUrl, captureVideoFrame } from '../utils/videoUtils';
 
 interface PromoVideo {
   _id: string;
@@ -320,20 +324,29 @@ export default function AdsVideos() {
                 className={`bg-card rounded-2xl border overflow-hidden shadow-sm flex flex-col transition-all duration-200 hover:shadow-md ${video.isActive ? 'border-border' : 'border-border/60 opacity-75'}`}
               >
                 {/* Video / Preview Header */}
-                <div className="relative aspect-video bg-black/90 group overflow-hidden">
-                  <video
-                    id={`video-${video._id}`}
-                    src={video.videoUrl}
-                    poster={video.thumbnailUrl}
-                    controls={isPlaying}
-                    muted={!isPlaying}
-                    loop
-                    className="w-full h-full object-cover"
-                    onEnded={() => setPlayingId(null)}
-                  />
+                <div className="relative aspect-video bg-black group overflow-hidden flex items-center justify-center">
+                  {parseVideoSource(video.videoUrl).isEmbed ? (
+                    <iframe
+                      src={parseVideoSource(video.videoUrl).embedUrl}
+                      className="w-full h-full border-0 pointer-events-auto"
+                      allow="autoplay; encrypted-media; fullscreen"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      id={`video-${video._id}`}
+                      src={resolveMediaUrl(video.videoUrl)}
+                      poster={video.thumbnailUrl ? resolveMediaUrl(video.thumbnailUrl) : undefined}
+                      controls={isPlaying}
+                      muted={!isPlaying}
+                      loop
+                      className="w-full h-full object-contain bg-black"
+                      onEnded={() => setPlayingId(null)}
+                    />
+                  )}
 
                   {/* Play overlay button */}
-                  {!isPlaying && (
+                  {!parseVideoSource(video.videoUrl).isEmbed && !isPlaying && (
                     <button
                       onClick={() => {
                         const el = document.getElementById(`video-${video._id}`) as HTMLVideoElement;
@@ -497,84 +510,6 @@ export default function AdsVideos() {
 }
 
 /* ─── Promo Video Modal Form ─── */
-function parseVideoSource(rawUrl: string) {
-  if (!rawUrl) return { url: '', isEmbed: false, embedUrl: '', thumbnail: '' };
-  const trimmed = rawUrl.trim();
-
-  // YouTube detection: standard watch, short URL, shorts, embed
-  const ytMatch = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i);
-  if (ytMatch && ytMatch[1]) {
-    const videoId = ytMatch[1];
-    return {
-      url: `https://www.youtube.com/embed/${videoId}`,
-      embedUrl: `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1`,
-      isEmbed: true,
-      thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
-    };
-  }
-
-  // Facebook Video & Reels (facebook.com/reel/..., facebook.com/watch/..., fb.watch/..., plugins/video.php)
-  if (trimmed.includes('facebook.com') || trimmed.includes('fb.watch')) {
-    if (trimmed.includes('plugins/video.php')) {
-      return {
-        url: trimmed,
-        embedUrl: trimmed,
-        isEmbed: true,
-        thumbnail: '',
-      };
-    }
-    const cleanFb = trimmed;
-    const embedPluginUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(cleanFb)}&show_text=0`;
-    return {
-      url: cleanFb,
-      embedUrl: embedPluginUrl,
-      isEmbed: true,
-      thumbnail: '',
-    };
-  }
-
-  // Vimeo
-  const vimeoMatch = trimmed.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|)(\d+)/i);
-  if (vimeoMatch && vimeoMatch[3]) {
-    const vId = vimeoMatch[3];
-    return {
-      url: `https://player.vimeo.com/video/${vId}`,
-      embedUrl: `https://player.vimeo.com/video/${vId}?autoplay=1&muted=1`,
-      isEmbed: true,
-      thumbnail: '',
-    };
-  }
-
-  // TikTok
-  const tiktokMatch = trimmed.match(/tiktok\.com\/@?[^\/]+\/video\/(\d+)/i);
-  if (tiktokMatch && tiktokMatch[1]) {
-    const ttId = tiktokMatch[1];
-    return {
-      url: `https://www.tiktok.com/embed/v2/${ttId}`,
-      embedUrl: `https://www.tiktok.com/embed/v2/${ttId}`,
-      isEmbed: true,
-      thumbnail: '',
-    };
-  }
-
-  // Dropbox
-  if (trimmed.includes('dropbox.com') && trimmed.includes('dl=0')) {
-    return {
-      url: trimmed.replace('dl=0', 'raw=1'),
-      isEmbed: false,
-      embedUrl: '',
-      thumbnail: '',
-    };
-  }
-
-  return {
-    url: trimmed,
-    isEmbed: trimmed.includes('/embed/') || trimmed.includes('plugins/video.php'),
-    embedUrl: trimmed.includes('/embed/') || trimmed.includes('plugins/video.php') ? trimmed : '',
-    thumbnail: '',
-  };
-}
-
 function PromoVideoModal({
   initialVideo,
   onClose,
@@ -593,6 +528,7 @@ function PromoVideoModal({
   const [description, setDescription] = useState(initialVideo?.description || '');
   const [videoUrl, setVideoUrl] = useState(initialVideo?.videoUrl || '');
   const [thumbnailUrl, setThumbnailUrl] = useState(initialVideo?.thumbnailUrl || '');
+  const [thumbError, setThumbError] = useState(false);
   const [productName, setProductName] = useState(initialVideo?.productName || '');
   const [productLink, setProductLink] = useState(initialVideo?.productLink || '/products');
   const [price, setPrice] = useState(initialVideo?.price ? String(initialVideo.price) : '');
@@ -605,45 +541,6 @@ function PromoVideoModal({
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Helper to extract a snapshot frame from a video file
-  const captureVideoFrame = (videoFile: File): Promise<Blob | null> => {
-    return new Promise((resolve) => {
-      const video = document.createElement('video');
-      video.preload = 'metadata';
-      video.src = URL.createObjectURL(videoFile);
-      video.muted = true;
-      video.playsInline = true;
-      video.currentTime = 1;
-      video.onloadeddata = () => {
-        video.currentTime = 1;
-      };
-      video.onseeked = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth || 640;
-          canvas.height = video.videoHeight || 360;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob((blob) => {
-              URL.revokeObjectURL(video.src);
-              resolve(blob);
-            }, 'image/jpeg', 0.85);
-            return;
-          }
-        } catch {
-          // ignore
-        }
-        URL.revokeObjectURL(video.src);
-        resolve(null);
-      };
-      video.onerror = () => {
-        URL.revokeObjectURL(video.src);
-        resolve(null);
-      };
-    });
-  };
 
   // File upload handler
   const handleFileUpload = async (file: File, type: 'video' | 'image') => {
@@ -686,6 +583,7 @@ function PromoVideoModal({
                 const thumbData = await thumbRes.json();
                 if (thumbData.url) {
                   setThumbnailUrl(thumbData.url);
+                  setThumbError(false);
                   toast.success('Capture de la vidéo extraite automatiquement !');
                 }
               }
@@ -696,6 +594,7 @@ function PromoVideoModal({
         }
       } else {
         setThumbnailUrl(data.url);
+        setThumbError(false);
         toast.success('Miniature uploadée !');
       }
     } catch (err: any) {
@@ -714,7 +613,7 @@ function PromoVideoModal({
     }
 
     const parsed = parseVideoSource(videoUrl.trim());
-    const finalVideoUrl = parsed.isEmbed && parsed.embedUrl ? parsed.embedUrl : (parsed.url || videoUrl.trim());
+    const finalVideoUrl = parsed.url || videoUrl.trim();
     let finalThumbnail = thumbnailUrl.trim() || undefined;
     if (!finalThumbnail && parsed.thumbnail) {
       finalThumbnail = parsed.thumbnail;
@@ -977,14 +876,15 @@ function PromoVideoModal({
           <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <label className="block text-xs font-bold text-foreground uppercase tracking-wide">
-                  📸 Capture d'écran / Image de la vidéo (Miniature Boutique)
+                <label className="flex items-center gap-1.5 text-xs font-bold text-foreground uppercase tracking-wide">
+                  <Camera className="w-4 h-4 text-orange-500" />
+                  <span>Capture d'écran / Image de la vidéo (Miniature Boutique)</span>
                 </label>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   C'est cette capture qui apparaîtra sur la page boutique dans la liste et sur le lecteur.
                 </p>
               </div>
-              {thumbnailUrl && (
+              {thumbnailUrl && !thumbError && (
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center gap-1">
                   <Check className="w-3 h-3" /> Capture prête
                 </span>
@@ -994,18 +894,35 @@ function PromoVideoModal({
             <div className="flex flex-col sm:flex-row items-center gap-4">
               {/* Preview Box */}
               <div className="w-28 h-20 rounded-xl overflow-hidden bg-black/60 border border-border flex items-center justify-center shrink-0 relative group">
-                {thumbnailUrl ? (
-                  <img src={thumbnailUrl} alt="Capture" className="w-full h-full object-cover" />
+                {thumbnailUrl && !thumbError ? (
+                  <img
+                    src={resolveMediaUrl(thumbnailUrl.trim())}
+                    alt="Capture"
+                    onError={() => setThumbError(true)}
+                    className="w-full h-full object-contain bg-black"
+                  />
                 ) : (
                   <div className="text-center p-2">
-                    <ImageIcon className="w-6 h-6 mx-auto text-muted-foreground/60" />
-                    <span className="text-[9px] text-muted-foreground block mt-1">Aucune capture</span>
+                    {thumbError ? (
+                      <>
+                        <AlertCircle className="w-5 h-5 mx-auto text-red-500" />
+                        <span className="text-[9px] text-red-400 block mt-1 leading-tight">Image inaccessible</span>
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon className="w-6 h-6 mx-auto text-muted-foreground/60" />
+                        <span className="text-[9px] text-muted-foreground block mt-1">Aucune capture</span>
+                      </>
+                    )}
                   </div>
                 )}
                 {thumbnailUrl && (
                   <button
                     type="button"
-                    onClick={() => setThumbnailUrl('')}
+                    onClick={() => {
+                      setThumbnailUrl('');
+                      setThumbError(false);
+                    }}
                     className="absolute top-1 right-1 p-1 rounded-md bg-black/80 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Supprimer la miniature"
                   >
@@ -1039,13 +956,19 @@ function PromoVideoModal({
                   <input
                     type="text"
                     value={thumbnailUrl}
-                    onChange={(e) => setThumbnailUrl(e.target.value)}
-                    placeholder="Ou collez l'URL d'une image (https://...)"
+                    onChange={(e) => {
+                      setThumbnailUrl(e.target.value);
+                      setThumbError(false);
+                    }}
+                    placeholder="Ou collez l'URL d'une image (https://... ou /uploads/...)"
                     className="flex-1 bg-background border border-border rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  💡 <strong>Pour Facebook / Reels :</strong> Prenez une capture d'écran de la vidéo sur votre téléphone ou PC et cliquez sur <em>Téléverser une capture</em> pour un rendu net et professionnel sur la boutique !
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>
+                    <strong>Pour Facebook / Reels / Web :</strong> Vous pouvez coller le lien direct d'une image ou téléverser une capture d'écran de la vidéo pour un rendu optimal sur la boutique.
+                  </span>
                 </p>
               </div>
             </div>
