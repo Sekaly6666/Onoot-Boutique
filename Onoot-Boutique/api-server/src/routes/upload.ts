@@ -18,7 +18,18 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
+    let ext = path.extname(file.originalname).toLowerCase();
+    if (!ext) {
+      if (file.mimetype.includes('quicktime') || file.mimetype.includes('mov')) ext = '.mov';
+      else if (file.mimetype.startsWith('video/')) ext = '.mp4';
+      else if (file.mimetype.startsWith('image/')) {
+        if (file.mimetype.includes('png')) ext = '.png';
+        else if (file.mimetype.includes('webp')) ext = '.webp';
+        else ext = '.jpg';
+      } else {
+        ext = '.mp4';
+      }
+    }
     const safeName = `${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`;
     cb(null, safeName);
   },
@@ -29,11 +40,12 @@ const upload = multer({
   limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB max for videos & images
   fileFilter: (_req, file, cb) => {
     const isImage = file.mimetype.startsWith('image/');
-    const isVideo = file.mimetype.startsWith('video/');
-    const allowedExtensions = /\.(jpg|jpeg|png|gif|webp|svg|bmp|heic|heif|mp4|mov|avi|mkv|webm|m4v|3gp|flv|wmv|ts|ogv)$/i;
+    const isVideo = file.mimetype.startsWith('video/') || file.mimetype.includes('quicktime');
+    const allowedExtensions = /\.(jpg|jpeg|png|gif|webp|svg|bmp|heic|heif|mp4|mov|avi|mkv|webm|m4v|3gp|flv|wmv|ts|ogv|qt)$/i;
     const hasAllowedExt = allowedExtensions.test(path.extname(file.originalname));
+    const isOctetStream = file.mimetype === 'application/octet-stream';
 
-    if (isImage || isVideo || hasAllowedExt) {
+    if (isImage || isVideo || hasAllowedExt || isOctetStream) {
       cb(null, true);
     } else {
       cb(new Error('Format de fichier non supporté. Veuillez choisir une image ou une vidéo (MP4, MOV, WebM, etc.).'));

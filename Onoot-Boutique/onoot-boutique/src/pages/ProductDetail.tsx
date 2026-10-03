@@ -143,26 +143,59 @@ export default function ProductDetail() {
             )}
 
             {/* Main viewer */}
-            <div className="aspect-square max-w-md mx-auto bg-gray-50 border border-border rounded-2xl overflow-hidden flex items-center justify-center p-6">
-              {selectedMedia === 'video' && (product as any).video ? (
-                <video
-                  key={(product as any).video}
-                  src={(product as any).video}
-                  controls
-                  controlsList="nodownload"
-                  className="w-full h-full object-contain rounded-xl"
-                  poster={product.images?.[0] || product.imageUrl || undefined}
-                >
-                  Votre navigateur ne supporte pas la lecture vidéo.
-                </video>
-              ) : (
-                <img
-                  src={product.images?.[selectedImage] || (product as any).imageUrl || "/images/smartwatch.png"}
-                  alt={product.name}
-                  className="w-full h-full object-contain mix-blend-multiply"
-                  onError={(e) => { e.currentTarget.src = "/images/smartwatch.png"; }}
-                />
-              )}
+            <div className="aspect-square max-w-md mx-auto bg-gray-50 border border-border rounded-2xl overflow-hidden flex items-center justify-center p-2 relative">
+              {selectedMedia === 'video' && (product as any).video ? (() => {
+                const vidRaw = (product as any).video as string;
+                const ytMatch = vidRaw.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i);
+                let embedUrl = '';
+                if (ytMatch && ytMatch[1]) {
+                  embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&playsinline=1`;
+                } else if (vidRaw.includes('facebook.com') || vidRaw.includes('fb.watch')) {
+                  embedUrl = vidRaw.includes('plugins/video.php') ? vidRaw : `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(vidRaw)}&show_text=0`;
+                } else if (vidRaw.includes('tiktok.com')) {
+                  const ttMatch = vidRaw.match(/tiktok\.com\/@?[^\/]+\/video\/(\d+)/i);
+                  if (ttMatch && ttMatch[1]) embedUrl = `https://www.tiktok.com/embed/v2/${ttMatch[1]}`;
+                } else if (vidRaw.includes('/embed/')) {
+                  embedUrl = vidRaw;
+                }
+
+                if (embedUrl) {
+                  return (
+                    <iframe
+                      src={embedUrl}
+                      className="w-full h-full border-0 rounded-xl"
+                      allow="autoplay; encrypted-media; fullscreen"
+                      allowFullScreen
+                    />
+                  );
+                }
+
+                const resolvedVid = vidRaw.startsWith('/uploads/') ? `https://onoot-boutique.onrender.com${vidRaw}` : vidRaw;
+                return (
+                  <video
+                    key={resolvedVid}
+                    src={resolvedVid}
+                    controls
+                    playsInline
+                    controlsList="nodownload"
+                    className="w-full h-full object-contain rounded-xl bg-black"
+                    poster={product.images?.[0] || product.imageUrl || undefined}
+                  >
+                    Votre navigateur ne supporte pas la lecture vidéo.
+                  </video>
+                );
+              })() : (() => {
+                const rawImg = product.images?.[selectedImage] || (product as any).imageUrl || "/images/smartwatch.png";
+                const resolvedImg = rawImg.startsWith('/uploads/') ? `https://onoot-boutique.onrender.com${rawImg}` : rawImg;
+                return (
+                  <img
+                    src={resolvedImg}
+                    alt={product.name}
+                    className="w-full h-full object-contain mix-blend-multiply"
+                    onError={(e) => { e.currentTarget.src = "/images/smartwatch.png"; }}
+                  />
+                );
+              })()}
             </div>
 
             {/* Thumbnails (images only) */}

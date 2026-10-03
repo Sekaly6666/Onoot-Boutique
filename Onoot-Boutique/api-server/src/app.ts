@@ -146,10 +146,14 @@ if (!fs.existsSync(uploadsDir)) {
 app.use('/uploads', express.static(uploadsDir, {
   setHeaders: (res, filePath) => {
     res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Access-Control-Allow-Origin', '*');
     const ext = path.extname(filePath).toLowerCase();
     if (ext === '.mp4') res.setHeader('Content-Type', 'video/mp4');
     else if (ext === '.webm') res.setHeader('Content-Type', 'video/webm');
-    else if (ext === '.mov') res.setHeader('Content-Type', 'video/quicktime');
+    else if (ext === '.mov' || ext === '.qt') res.setHeader('Content-Type', 'video/quicktime');
+    else if (ext === '.jpg' || ext === '.jpeg') res.setHeader('Content-Type', 'image/jpeg');
+    else if (ext === '.png') res.setHeader('Content-Type', 'image/png');
+    else if (ext === '.webp') res.setHeader('Content-Type', 'image/webp');
   },
 }));
 
