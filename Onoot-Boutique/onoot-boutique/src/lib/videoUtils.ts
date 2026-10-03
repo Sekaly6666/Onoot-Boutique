@@ -107,13 +107,18 @@ export function isEmbedVideo(url?: string): boolean {
 }
 
 export function isVerticalVideo(url?: string): boolean {
-  if (!url) return false;
+  if (!url) return true;
+  let decoded = url;
+  try {
+    decoded = decodeURIComponent(url);
+  } catch {}
   return (
-    url.includes('/reel/') ||
-    url.includes('/share/r/') ||
-    url.includes('/shorts/') ||
-    url.includes('tiktok.com') ||
-    url.includes('instagram.com')
+    decoded.includes('/reel/') ||
+    decoded.includes('/share/r/') ||
+    decoded.includes('/shorts/') ||
+    decoded.includes('tiktok.com') ||
+    decoded.includes('instagram.com') ||
+    !decoded.includes('youtube.com/watch')
   );
 }
 
@@ -131,21 +136,9 @@ export function getEmbedAutoplayUrl(rawUrl?: string, muted: boolean = true): str
     return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=${muted ? '1' : '0'}&playsinline=1&rel=0&modestbranding=1`;
   }
 
-  // 2. Facebook
+  // 2. Facebook (Reels & Vidéos)
   if (trimmed.includes('facebook.com') || trimmed.includes('fb.watch')) {
     const { canonicalUrl } = normalizeFacebookUrl(trimmed);
-    if (trimmed.includes('plugins/video.php')) {
-      try {
-        const u = new URL(trimmed);
-        u.searchParams.set('autoplay', '1');
-        u.searchParams.set('mute', muted ? '1' : '0');
-        u.searchParams.set('show_text', '0');
-        return u.toString();
-      } catch {
-        const sep = trimmed.includes('?') ? '&' : '?';
-        return `${trimmed}${sep}autoplay=1&mute=${muted ? '1' : '0'}&show_text=0`;
-      }
-    }
     return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(canonicalUrl)}&show_text=0&autoplay=1&mute=${muted ? '1' : '0'}`;
   }
 

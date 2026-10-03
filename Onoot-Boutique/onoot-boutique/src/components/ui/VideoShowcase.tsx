@@ -320,7 +320,19 @@ export function VideoShowcase() {
   const displayDiscount = activeVideo.discountPrice ?? resolvedProduct?.discountPrice ?? null;
   const hasDiscount = Boolean(displayDiscount && displayDiscount < displayPrice);
   const displayTitle = activeVideo.title || activeVideo.productName || resolvedProduct?.name || "Produit Démo";
-  const displayImage = resolveMediaUrl(activeVideo.thumbnailUrl || resolvedProduct?.images?.[0] || "/images/zfold_case.jpg");
+  const activeRawThumb = activeVideo.thumbnailUrl;
+  const isActiveThumbVideo = Boolean(
+    activeRawThumb && (
+      activeRawThumb.includes('facebook.com') ||
+      activeRawThumb.includes('fb.watch') ||
+      activeRawThumb.includes('tiktok.com') ||
+      activeRawThumb.includes('instagram.com') ||
+      activeRawThumb.includes('.mp4')
+    )
+  );
+  const displayImage = (!activeRawThumb || isActiveThumbVideo)
+    ? resolveMediaUrl(resolvedProduct?.images?.[0] || "/images/zfold_case.jpg")
+    : resolveMediaUrl(activeRawThumb);
 
   return (
     <section className="py-12 sm:py-16 bg-gradient-to-b from-slate-950 via-[#0a0f1d] to-slate-950 text-white relative overflow-hidden select-none">
@@ -356,36 +368,26 @@ export function VideoShowcase() {
           <div className="lg:col-span-8 flex flex-col">
             <div 
               onClick={activeVideo && !isEmbedVideo(activeVideo.videoUrl) ? togglePlay : undefined}
-              className={`relative w-full rounded-3xl overflow-hidden bg-black border border-white/10 shadow-2xl shadow-black/90 group flex items-center justify-center cursor-pointer transition-all duration-300 ${
-                isVertical 
-                  ? "max-w-[380px] sm:max-w-[420px] aspect-[9/16] max-h-[580px] sm:max-h-[640px] mx-auto" 
-                  : "aspect-video max-h-[540px] mx-auto"
-              }`}
+              className="relative w-full max-w-[380px] sm:max-w-[420px] aspect-[9/16] max-h-[580px] sm:max-h-[640px] mx-auto rounded-3xl overflow-hidden bg-black border border-white/10 shadow-2xl shadow-black/90 group flex items-center justify-center cursor-pointer transition-all duration-300"
             >
               {/* Single persistent Video element or Iframe */}
               {activeVideo && isEmbedVideo(activeVideo.videoUrl) ? (
                 <iframe
+                  key={activeVideo._id}
                   src={getEmbedAutoplayUrl(activeVideo.videoUrl, isMuted)}
                   title={activeVideo.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
-                  className="w-full h-full border-0 pointer-events-auto object-contain"
+                  className="w-full h-full border-0 pointer-events-auto"
                 />
               ) : (
                 <video
+                  key={activeVideo?._id}
                   ref={videoRef}
-                  poster={activeVideo?.thumbnailUrl ? resolveMediaUrl(activeVideo.thumbnailUrl) : displayImage}
+                  poster={displayImage}
                   autoPlay
                   playsInline
                   muted={isMuted}
-                  onLoadedMetadata={(e) => {
-                    const v = e.currentTarget;
-                    if (v.videoHeight > v.videoWidth) {
-                      setIsVideoMetadataVertical(true);
-                    } else {
-                      setIsVideoMetadataVertical(false);
-                    }
-                  }}
                   onEnded={handleVideoEnded}
                   onTimeUpdate={handleTimeUpdate}
                   onError={handleVideoError}
@@ -600,8 +602,20 @@ export function VideoShowcase() {
             >
               {videos.map((item, idx) => {
                 const isCurrent = idx === selectedIndex;
-                const rawThumb = item.thumbnailUrl || (allProducts.find((p) => p.id === item.productId || p.name === item.productName)?.images?.[0]) || "/images/zfold_case.jpg";
-                const itemThumb = resolveMediaUrl(rawThumb);
+                const rawThumb = item.thumbnailUrl;
+                const isItemThumbVideo = Boolean(
+                  rawThumb && (
+                    rawThumb.includes('facebook.com') ||
+                    rawThumb.includes('fb.watch') ||
+                    rawThumb.includes('tiktok.com') ||
+                    rawThumb.includes('instagram.com') ||
+                    rawThumb.includes('.mp4')
+                  )
+                );
+                const matchedProd = allProducts.find((p) => p.id === item.productId || p.name === item.productName);
+                const itemThumb = (!rawThumb || isItemThumbVideo)
+                  ? resolveMediaUrl(matchedProd?.images?.[0] || "/images/zfold_case.jpg")
+                  : resolveMediaUrl(rawThumb);
 
                 return (
                   <motion.div
@@ -623,6 +637,9 @@ export function VideoShowcase() {
                       <img
                         src={itemThumb}
                         alt={item.title}
+                        onError={(e) => {
+                          e.currentTarget.src = "/images/zfold_case.jpg";
+                        }}
                         className="w-full h-full object-contain bg-slate-900"
                       />
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
@@ -692,7 +709,7 @@ export function VideoShowcase() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6"
           >
-            <div className={`relative w-full ${isVertical ? "max-w-[420px] aspect-[9/16] max-h-[85vh]" : "max-w-5xl aspect-video max-h-[85vh]"} bg-black rounded-3xl overflow-hidden border border-white/20 shadow-2xl flex flex-col justify-center items-center`}>
+            <div className="relative w-full max-w-[420px] aspect-[9/16] max-h-[85vh] bg-black rounded-3xl overflow-hidden border border-white/20 shadow-2xl flex flex-col justify-center items-center">
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}

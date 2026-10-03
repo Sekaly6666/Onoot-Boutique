@@ -267,6 +267,22 @@ export function parseVideoSource(rawUrl?: string | null): ParsedVideoSource {
   };
 }
 
+export function isVerticalVideo(url?: string): boolean {
+  if (!url) return true;
+  let decoded = url;
+  try {
+    decoded = decodeURIComponent(url);
+  } catch {}
+  return (
+    decoded.includes('/reel/') ||
+    decoded.includes('/share/r/') ||
+    decoded.includes('/shorts/') ||
+    decoded.includes('tiktok.com') ||
+    decoded.includes('instagram.com') ||
+    !decoded.includes('youtube.com/watch')
+  );
+}
+
 /**
  * Capture automatique d'une image/frame d'une vidéo locale pour miniature
  */

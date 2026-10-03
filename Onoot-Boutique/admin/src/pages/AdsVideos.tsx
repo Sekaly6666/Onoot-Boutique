@@ -615,6 +615,9 @@ function PromoVideoModal({
     const parsed = parseVideoSource(videoUrl.trim());
     const finalVideoUrl = parsed.url || videoUrl.trim();
     let finalThumbnail = thumbnailUrl.trim() || undefined;
+    if (finalThumbnail && (finalThumbnail.includes('facebook.com') || finalThumbnail.includes('fb.watch'))) {
+      finalThumbnail = undefined;
+    }
     if (!finalThumbnail && parsed.thumbnail) {
       finalThumbnail = parsed.thumbnail;
     }
@@ -894,7 +897,13 @@ function PromoVideoModal({
             <div className="flex flex-col sm:flex-row items-center gap-4">
               {/* Preview Box */}
               <div className="w-28 h-20 rounded-xl overflow-hidden bg-black/60 border border-border flex items-center justify-center shrink-0 relative group">
-                {thumbnailUrl && !thumbError ? (
+                {thumbnailUrl && (thumbnailUrl.includes('facebook.com') || thumbnailUrl.includes('fb.watch')) ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-blue-500/10 text-blue-500 p-2 text-center">
+                    <Tv className="w-6 h-6 mb-1 text-blue-500" />
+                    <span className="text-[9px] font-bold leading-tight">Vidéo Facebook</span>
+                    <span className="text-[8px] text-muted-foreground mt-0.5">Miniature auto</span>
+                  </div>
+                ) : thumbnailUrl && !thumbError ? (
                   <img
                     src={resolveMediaUrl(thumbnailUrl.trim())}
                     alt="Capture"
@@ -903,17 +912,8 @@ function PromoVideoModal({
                   />
                 ) : (
                   <div className="text-center p-2">
-                    {thumbError ? (
-                      <>
-                        <AlertCircle className="w-5 h-5 mx-auto text-red-500" />
-                        <span className="text-[9px] text-red-400 block mt-1 leading-tight">Image inaccessible</span>
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="w-6 h-6 mx-auto text-muted-foreground/60" />
-                        <span className="text-[9px] text-muted-foreground block mt-1">Aucune capture</span>
-                      </>
-                    )}
+                    <ImageIcon className="w-6 h-6 mx-auto text-muted-foreground/60" />
+                    <span className="text-[9px] text-muted-foreground block mt-1">Aucune capture</span>
                   </div>
                 )}
                 {thumbnailUrl && (
@@ -957,7 +957,15 @@ function PromoVideoModal({
                     type="text"
                     value={thumbnailUrl}
                     onChange={(e) => {
-                      setThumbnailUrl(e.target.value);
+                      const val = e.target.value;
+                      const ytMatch = val.match(
+                        /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i
+                      );
+                      if (ytMatch && ytMatch[1]) {
+                        setThumbnailUrl(`https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`);
+                      } else {
+                        setThumbnailUrl(val);
+                      }
                       setThumbError(false);
                     }}
                     placeholder="Ou collez l'URL d'une image (https://... ou /uploads/...)"
