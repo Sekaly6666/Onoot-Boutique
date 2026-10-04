@@ -28,50 +28,37 @@ router.get('/', async (req, res): Promise<void> => {
   }
 });
 
-// CREATE product
+// CREATE product(s) - Supports creating a single product or multiple individual products
 router.post('/', async (req, res): Promise<void> => {
   try {
-    const {
-      name,
-      description,
-      price,
-      discountPrice,
-      stock,
-      category,
-      imageUrl,
-      images,
-      video,
-      externalLink,
-      status,
-      featured,
-      newArrival,
-      bestSeller,
-      flashSale,
-      flashSaleEndDate,
-    } = req.body;
-    const newProduct = new Product({
-      name,
-      description,
-      price,
-      discountPrice,
-      stock,
-      category,
-      imageUrl,
-      images,
-      video,
-      externalLink,
-      status,
-      featured,
-      newArrival,
-      bestSeller,
-      flashSale,
-      flashSaleEndDate,
-      slug: name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now(),
-    });
-    await newProduct.save();
-    res.status(201).json(newProduct);
+    const rawItems = Array.isArray(req.body) ? req.body : [req.body];
+    if (!rawItems.length) {
+      res.status(400).json({ error: 'No product data provided' });
+      return;
+    }
+
+    const createdProducts = [];
+    const timestamp = Date.now();
+
+    for (let i = 0; i < rawItems.length; i++) {
+      const item = rawItems[i];
+      const baseSlug = (item.name || 'produit')
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '');
+      const uniqueSuffix = `${timestamp}-${i}-${Math.round(Math.random() * 1e4)}`;
+
+      const newProduct = new Product({
+        ...item,
+        slug: item.slug || `${baseSlug}-${uniqueSuffix}`,
+      });
+      await newProduct.save();
+      createdProducts.push(newProduct);
+    }
+
+    res.status(201).json(Array.isArray(req.body) ? createdProducts : createdProducts[0]);
   } catch (err) {
-    logger.error({ err }, 'Failed to create product');
+    logger.error({ err }, 'Failed to create product(s)');
     res.status(400).json({ error: 'Invalid product data' });
   }
 });

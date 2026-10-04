@@ -7,10 +7,11 @@ import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { StarRating } from "./star-rating";
 import { Button } from "./button";
-import { ShoppingCart, Eye } from "lucide-react";
+import { ShoppingCart, Eye, Play } from "lucide-react";
 import { Badge } from "./badge";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { resolveMediaUrl } from "@/lib/videoUtils";
 
 interface ProductCardProps {
   product: Product;
@@ -47,6 +48,20 @@ export function ProductCard({ product, className }: ProductCardProps) {
     : 0;
 
   const isExample = product.id.startsWith("example-");
+  const videoRaw = (product as any).video as string | undefined;
+  const imageRaw = product.images?.[0] || product.imageUrl;
+
+  // Extraction automatique de la miniature YouTube si aucune image n'est renseignée
+  const youtubeThumbnail = React.useMemo(() => {
+    if (!videoRaw) return null;
+    const ytMatch = videoRaw.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i);
+    if (ytMatch && ytMatch[1]) {
+      return `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+    }
+    return null;
+  }, [videoRaw]);
+
+  const displayImage = imageRaw ? resolveMediaUrl(imageRaw) : (youtubeThumbnail || null);
 
   const CardContent = (
     <motion.div
@@ -77,16 +92,40 @@ export function ProductCard({ product, className }: ProductCardProps) {
             Nouveau
           </Badge>
         )}
+        {videoRaw && (
+          <Badge className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-[10px] px-2 flex items-center gap-1 shadow-sm">
+            <Play className="w-2.5 h-2.5 fill-white" /> Vidéo
+          </Badge>
+        )}
       </div>
 
-      {/* Image */}
-      <div className="relative aspect-square bg-gray-50 overflow-hidden flex items-center justify-center p-6">
-        <img
-          src={product.images?.[0] || product.imageUrl || "/images/smartwatch.png"}
-          alt={product.name}
-          className="object-contain w-full h-full mix-blend-multiply transition-transform duration-500 group-hover:scale-110"
-          onError={(e) => { e.currentTarget.src = "/images/smartwatch.png"; }}
-        />
+      {/* Image / Video thumbnail */}
+      <div className="relative aspect-square bg-gray-50 dark:bg-gray-900/50 overflow-hidden flex items-center justify-center p-4">
+        {videoRaw && !displayImage ? (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-muted/40 rounded-xl text-orange-500 relative group-hover:scale-105 transition-transform duration-300">
+            <div className="w-12 h-12 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/30">
+              <Play className="w-5 h-5 fill-white ml-0.5" />
+            </div>
+            <span className="text-[11px] font-bold text-foreground mt-2">Voir la vidéo</span>
+          </div>
+        ) : (
+          <div className="relative w-full h-full flex items-center justify-center">
+            <img
+              src={displayImage || "/images/smartwatch.png"}
+              alt={product.name}
+              className="object-contain w-full h-full mix-blend-multiply dark:mix-blend-normal transition-transform duration-500 group-hover:scale-110"
+              onError={(e) => { e.currentTarget.src = "/images/smartwatch.png"; }}
+            />
+            {videoRaw && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-xs text-white flex items-center justify-center shadow-md opacity-85 group-hover:opacity-100 group-hover:scale-110 transition-all">
+                  <Play className="w-4 h-4 fill-white ml-0.5" />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Quick action overlay (desktop/hover) */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100">
           <motion.div initial={{ y: 10, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} className="flex gap-2">

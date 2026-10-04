@@ -399,3 +399,24 @@ export async function uploadMediaFile(file: File): Promise<{ url: string; absolu
     absoluteUrl,
   };
 }
+
+/**
+ * Téléverse plusieurs fichiers médias (images ou vidéos) avec suivi de progression.
+ */
+export async function uploadMultipleMediaFiles(
+  files: File[],
+  onProgress?: (completed: number, total: number) => void
+): Promise<Array<{ url: string; absoluteUrl: string; file: File }>> {
+  const results: Array<{ url: string; absoluteUrl: string; file: File }> = [];
+  let completed = 0;
+
+  for (const file of files) {
+    const res = await uploadMediaFile(file);
+    results.push({ ...res, file });
+    completed++;
+    onProgress?.(completed, files.length);
+  }
+
+  return results;
+}
+

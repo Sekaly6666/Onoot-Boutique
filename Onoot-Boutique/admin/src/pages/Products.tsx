@@ -90,11 +90,13 @@ const StatusBadge = ({ status }: { status?: string }) => {
  */
 const ProductImageThumb = ({
   rawUrl,
+  videoUrl,
   alt,
   hasVideo,
   className = "w-12 h-12",
 }: {
   rawUrl?: string;
+  videoUrl?: string;
   alt: string;
   hasVideo?: boolean;
   className?: string;
@@ -102,15 +104,22 @@ const ProductImageThumb = ({
   const [hasError, setHasError] = useState(false);
   const [srcIndex, setSrcIndex] = useState(0);
 
-  const candidates = useMemo(() => {
-    if (!rawUrl || typeof rawUrl !== 'string') return [];
-    const trimmed = rawUrl.trim();
-    if (!trimmed) return [];
+  const effectiveMedia = useMemo(() => {
+    if (rawUrl && rawUrl.trim()) return rawUrl.trim();
+    if (videoUrl && videoUrl.trim()) {
+      const parsed = parseVideoSource(videoUrl.trim());
+      if (parsed.thumbnail) return parsed.thumbnail;
+    }
+    return '';
+  }, [rawUrl, videoUrl]);
 
-    const resolved = resolveMediaUrl(trimmed);
+  const candidates = useMemo(() => {
+    if (!effectiveMedia) return [];
+
+    const resolved = resolveMediaUrl(effectiveMedia);
     const list: string[] = [resolved];
 
-    const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    const path = effectiveMedia.startsWith('/') ? effectiveMedia : `/${effectiveMedia}`;
     if (path.startsWith('/images/')) {
       const cdnUrl = `https://onoot-boutique.vercel.app${path}`;
       if (!list.includes(cdnUrl)) list.push(cdnUrl);
@@ -124,12 +133,12 @@ const ProductImageThumb = ({
     }
 
     return list;
-  }, [rawUrl]);
+  }, [effectiveMedia]);
 
   React.useEffect(() => {
     setHasError(false);
     setSrcIndex(0);
-  }, [rawUrl]);
+  }, [effectiveMedia]);
 
   const currentSrc = candidates[srcIndex];
 
@@ -152,10 +161,15 @@ const ProductImageThumb = ({
           onError={handleImgError}
           loading="lazy"
         />
+      ) : hasVideo ? (
+        <div className="flex flex-col items-center justify-center text-orange-500">
+          <Video className="w-5 h-5" />
+          <span className="text-[9px] font-bold mt-0.5">Vidéo</span>
+        </div>
       ) : (
         <ImageIcon className="w-5 h-5 text-accent-yellow opacity-60" />
       )}
-      {hasVideo && (
+      {hasVideo && currentSrc && !hasError && (
         <span
           className="absolute bottom-0 right-0 bg-orange-500 text-white p-0.5 rounded-tl-lg shadow"
           title="Ce produit contient une vidéo"
@@ -187,9 +201,11 @@ const Products: React.FC = () => {
   });
 
   const createProduct = useMutation({
-    mutationFn: (data: ProductInput) => adminFetch<Product>('/api/admin/products', { method: 'POST', body: JSON.stringify(data) }),
-    onSuccess: () => {
-      toast.success('Produit ajouté avec succès !');
+    mutationFn: (data: ProductInput | ProductInput[]) =>
+      adminFetch<Product | Product[]>('/api/admin/products', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: (_, variables) => {
+      const count = Array.isArray(variables) ? variables.length : 1;
+      toast.success(count > 1 ? `${count} produits individuels créés avec succès !` : 'Produit ajouté avec succès !');
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
     },
     onError: (error: any) => { toast.error(error.message || "Erreur lors de l'ajout"); },
@@ -229,9 +245,10 @@ const Products: React.FC = () => {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const handleSubmit = async (product: ProductInput) => {
+  const handleSubmit = async (product: ProductInput | ProductInput[]) => {
     if (editingProduct) {
-      await updateProduct.mutateAsync({ id: productId(editingProduct), data: product });
+      const single = Array.isArray(product) ? product[0] : product;
+      await updateProduct.mutateAsync({ id: productId(editingProduct), data: single });
       setEditingProduct(null);
     } else {
       await createProduct.mutateAsync(product);
@@ -367,6 +384,7 @@ const Products: React.FC = () => {
               <div className="flex gap-3">
                 <ProductImageThumb
                   rawUrl={image}
+                  videoUrl={product.video}
                   alt={product.name}
                   hasVideo={Boolean(product.video)}
                   className="w-20 h-20"
@@ -479,6 +497,7 @@ const Products: React.FC = () => {
                       >
                         <ProductImageThumb
                           rawUrl={image}
+                          videoUrl={product.video}
                           alt={product.name}
                           hasVideo={Boolean(product.video)}
                           className="w-12 h-12"

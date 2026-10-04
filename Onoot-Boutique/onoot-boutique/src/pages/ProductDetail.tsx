@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Truck, ShieldCheck, ArrowLeft, Loader2, Star, Pencil, PlayCircle, CheckCircle2, ShoppingBag } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { resolveMediaUrl } from "@/lib/videoUtils";
 
 const exampleProducts = [
   { id: "example-1", name: "Smartwatch Pro S8", price: 45000, discountPrice: 38000, images: ["/images/smartwatch.png"], category: "smartwatches", stock: 10, rating: 4.5, reviewCount: 24, featured: true, description: "Superbe montre connectée avec suivi santé, appels et notifications." },
@@ -76,11 +77,15 @@ export default function ProductDetail() {
   const [selectedColor, setSelectedColor] = React.useState<string | undefined>(undefined);
   const [quantity, setQuantity] = React.useState(1);
 
-  // Set default selected image and color when product loads
+  // Set default selected image, color, and media type when product loads
   React.useEffect(() => {
     if (product) {
       if (product.colors && product.colors.length > 0 && !selectedColor) {
         setSelectedColor(product.colors[0]);
+      }
+      const hasImages = (product.images && product.images.length > 0) || Boolean((product as any).imageUrl);
+      if ((product as any).video && !hasImages) {
+        setSelectedMedia('video');
       }
     }
   }, [product, selectedColor]);
@@ -181,7 +186,7 @@ export default function ProductDetail() {
                   );
                 }
 
-                const resolvedVid = vidRaw.startsWith('/uploads/') ? `https://onoot-boutique.onrender.com${vidRaw}` : vidRaw;
+                const resolvedVid = resolveMediaUrl(vidRaw);
                 return (
                   <video
                     key={resolvedVid}
@@ -190,14 +195,14 @@ export default function ProductDetail() {
                     playsInline
                     controlsList="nodownload"
                     className="w-full h-full object-contain rounded-xl bg-black"
-                    poster={product.images?.[0] || product.imageUrl || undefined}
+                    poster={product.images?.[0] ? resolveMediaUrl(product.images[0]) : (product.imageUrl ? resolveMediaUrl(product.imageUrl) : undefined)}
                   >
                     Votre navigateur ne supporte pas la lecture vidéo.
                   </video>
                 );
               })() : (() => {
                 const rawImg = product.images?.[selectedImage] || (product as any).imageUrl || "/images/smartwatch.png";
-                const resolvedImg = rawImg.startsWith('/uploads/') ? `https://onoot-boutique.onrender.com${rawImg}` : rawImg;
+                const resolvedImg = resolveMediaUrl(rawImg);
                 return (
                   <img
                     src={resolvedImg}

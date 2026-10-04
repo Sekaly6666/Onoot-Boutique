@@ -1,9 +1,30 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import toast from 'react-hot-toast';
-import { Check, ChevronDown, ImageIcon, Package, Video, X, RefreshCw, Eye, Upload, Trash2 } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { parseVideoSource, resolveMediaUrl, uploadMediaFile } from '../utils/videoUtils';
+import { 
+  Check, 
+  ChevronDown, 
+  ImageIcon, 
+  Package, 
+  Video, 
+  X, 
+  RefreshCw, 
+  Eye, 
+  Upload, 
+  Trash2, 
+  Plus, 
+  Sparkles, 
+  Layers, 
+  ExternalLink,
+  Film
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  parseVideoSource, 
+  resolveMediaUrl, 
+  uploadMediaFile, 
+  captureVideoFrame 
+} from '../utils/videoUtils';
 
 export interface CategoryOption {
   name: string;
@@ -19,6 +40,7 @@ export interface ProductInput {
   stock: number;
   imageUrl?: string;
   images?: string[];
+  video?: string;
   videoUrls?: string[];
   flashSaleStart?: Date;
   flashSaleEnd?: Date;
@@ -28,14 +50,20 @@ export interface ProductInput {
   newArrival?: boolean;
   bestSeller?: boolean;
   flashSale?: boolean;
-  video?: string;
   externalLink?: string;
+}
+
+export interface VideoItem {
+  url: string;
+  thumbnail?: string;
+  platform?: string;
+  label?: string;
 }
 
 interface ProductFormProps {
   categories: CategoryOption[];
   onClose: () => void;
-  onSubmit: (product: ProductInput) => void | Promise<void>;
+  onSubmit: (product: ProductInput | ProductInput[]) => void | Promise<void>;
   initialProduct?: ProductInput;
   submitLabel?: string;
 }
@@ -72,35 +100,53 @@ const toDateTimeLocal = (value?: string | Date) => {
 };
 
 const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit, initialProduct, submitLabel = 'Ajouter' }) => {
+  const isEditing = Boolean(initialProduct);
+
   const [name, setName] = useState(initialProduct?.name || '');
   const [description, setDescription] = useState(initialProduct?.description || '');
   const [category, setCategory] = useState(initialProduct?.category || '');
   const [price, setPrice] = useState(initialProduct ? String(initialProduct.price) : '');
   const [discountPrice, setDiscountPrice] = useState(initialProduct?.discountPrice ? String(initialProduct.discountPrice) : '');
   const [stock, setStock] = useState(initialProduct ? String(initialProduct.stock) : '');
-  
-  const [imageUrl, setImageUrl] = useState(resolveMediaUrl(initialProduct?.imageUrl || initialProduct?.images?.[0] || ''));
-  const [imagePreview, setImagePreview] = useState(resolveMediaUrl(initialProduct?.imageUrl || initialProduct?.images?.[0] || ''));
-  const [imageError, setImageError] = useState(false);
-  
   const [status, setStatus] = useState(initialProduct?.status || 'Publié');
-  
-  const initialVid = initialProduct?.video || initialProduct?.videoUrls?.[0] || '';
-  const [videoUrl, setVideoUrl] = useState(initialVid);
-  const [videoPreview, setVideoPreview] = useState(initialVid);
-  const [videoPlaybackError, setVideoPlaybackError] = useState(false);
-  
+
+  // Images list state
+  const initialImages: string[] = initialProduct?.images?.length
+    ? initialProduct.images.map(resolveMediaUrl)
+    : initialProduct?.imageUrl
+    ? [resolveMediaUrl(initialProduct.imageUrl)]
+    : [];
+  const [imagesList, setImagesList] = useState<string[]>(initialImages);
+  const [singleImageUrlInput, setSingleImageUrlInput] = useState('');
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [uploadImagesProgress, setUploadImagesProgress] = useState({ current: 0, total: 0 });
+
+  // Videos list state
+  const initialVideos: VideoItem[] = initialProduct?.videoUrls?.length
+    ? initialProduct.videoUrls.map((u) => {
+        const parsed = parseVideoSource(u);
+        return { url: parsed.url || u, thumbnail: parsed.thumbnail, platform: parsed.platform, label: parsed.label };
+      })
+    : initialProduct?.video
+    ? (() => {
+        const parsed = parseVideoSource(initialProduct.video);
+        return [{ url: parsed.url || initialProduct.video, thumbnail: parsed.thumbnail, platform: parsed.platform, label: parsed.label }];
+      })()
+    : [];
+  const [videosList, setVideosList] = useState<VideoItem[]>(initialVideos);
+  const [singleVideoUrlInput, setSingleVideoUrlInput] = useState('');
+  const [isUploadingVideos, setIsUploadingVideos] = useState(false);
+  const [uploadVideosProgress, setUploadVideosProgress] = useState({ current: 0, total: 0 });
+
   const [featured, setFeatured] = useState(Boolean(initialProduct?.featured));
   const [newArrival, setNewArrival] = useState(Boolean(initialProduct?.newArrival));
   const [bestSeller, setBestSeller] = useState(Boolean(initialProduct?.bestSeller));
   const [flashSale, setFlashSale] = useState(Boolean(initialProduct?.flashSale));
-  const [flashSaleEndDate, setFlashSaleEndDate] = useState(toDateTimeLocal(initialProduct?.flashSaleEndDate || initialProduct?.flashSaleEnd));
-  
-  const [isSaving, setIsSaving] = useState(false);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [flashSaleEndDate, setFlashSaleEndDate] = useState(toDateTimeLocal(initialProduct?.flashSaleEndDate || (initialProduct as any)?.flashSaleEnd));
 
-  // Track object URLs to revoke them on unmount to avoid memory leaks
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Track object URLs to revoke them on unmount
   const objectUrls = useRef<string[]>([]);
   useEffect(() => {
     return () => {
@@ -110,84 +156,183 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
     };
   }, []);
 
+  // Update when initialProduct changes
   useEffect(() => {
-    setName(initialProduct?.name || '');
-    setDescription(initialProduct?.description || '');
-    setCategory(initialProduct?.category || '');
-    setPrice(initialProduct ? String(initialProduct.price) : '');
-    setDiscountPrice(initialProduct?.discountPrice ? String(initialProduct.discountPrice) : '');
-    setStock(initialProduct ? String(initialProduct.stock) : '');
-    
-    const initImg = resolveMediaUrl(initialProduct?.imageUrl || initialProduct?.images?.[0] || '');
-    setImageUrl(initImg);
-    setImagePreview(initImg);
-    setImageError(false);
-    
-    setStatus(initialProduct?.status || 'Publié');
-    
-    const vid = initialProduct?.video || initialProduct?.videoUrls?.[0] || '';
-    setVideoUrl(vid);
-    setVideoPreview(vid);
-    setVideoPlaybackError(false);
-    
-    setFeatured(Boolean(initialProduct?.featured));
-    setNewArrival(Boolean(initialProduct?.newArrival));
-    setBestSeller(Boolean(initialProduct?.bestSeller));
-    setFlashSale(Boolean(initialProduct?.flashSale));
-    setFlashSaleEndDate(toDateTimeLocal(initialProduct?.flashSaleEndDate || initialProduct?.flashSaleEnd));
+    if (initialProduct) {
+      setName(initialProduct.name || '');
+      setDescription(initialProduct.description || '');
+      setCategory(initialProduct.category || '');
+      setPrice(String(initialProduct.price));
+      setDiscountPrice(initialProduct.discountPrice ? String(initialProduct.discountPrice) : '');
+      setStock(String(initialProduct.stock));
+      setStatus(initialProduct.status || 'Publié');
+
+      const imgs = initialProduct.images?.length
+        ? initialProduct.images.map(resolveMediaUrl)
+        : initialProduct.imageUrl
+        ? [resolveMediaUrl(initialProduct.imageUrl)]
+        : [];
+      setImagesList(imgs);
+
+      const vids: VideoItem[] = initialProduct.videoUrls?.length
+        ? initialProduct.videoUrls.map((u) => {
+            const parsed = parseVideoSource(u);
+            return { url: parsed.url || u, thumbnail: parsed.thumbnail, platform: parsed.platform, label: parsed.label };
+          })
+        : initialProduct.video
+        ? (() => {
+            const parsed = parseVideoSource(initialProduct.video);
+            return [{ url: parsed.url || initialProduct.video, thumbnail: parsed.thumbnail, platform: parsed.platform, label: parsed.label }];
+          })()
+        : [];
+      setVideosList(vids);
+
+      setFeatured(Boolean(initialProduct.featured));
+      setNewArrival(Boolean(initialProduct.newArrival));
+      setBestSeller(Boolean(initialProduct.bestSeller));
+      setFlashSale(Boolean(initialProduct.flashSale));
+      setFlashSaleEndDate(toDateTimeLocal(initialProduct.flashSaleEndDate || (initialProduct as any)?.flashSaleEnd));
+    }
   }, [initialProduct]);
 
-  const handleImageFile = async (file: File) => {
-    const previewUrl = URL.createObjectURL(file);
-    objectUrls.current.push(previewUrl);
-    setImagePreview(previewUrl);
-    setImageError(false);
-    setIsUploadingImage(true);
-    
-    try {
-      const result = await uploadMediaFile(file);
-      setImageUrl(result.absoluteUrl);
-      setImagePreview(result.absoluteUrl);
-      toast.success('Image importée avec succès !');
-    } catch (err: any) {
-      console.error('Erreur image:', err);
-      toast.error(err.message || "Erreur lors de l'envoi de l'image");
-    } finally {
-      setIsUploadingImage(false);
+  // Handle uploading multiple image files
+  const handleMultipleImageFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const fileArray = Array.from(files);
+
+    setIsUploadingImages(true);
+    setUploadImagesProgress({ current: 0, total: fileArray.length });
+
+    const newUrls: string[] = [];
+    let successCount = 0;
+
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i];
+      setUploadImagesProgress({ current: i + 1, total: fileArray.length });
+      try {
+        const result = await uploadMediaFile(file);
+        newUrls.push(result.absoluteUrl);
+        successCount++;
+      } catch (err: any) {
+        console.error(`Erreur d'importation pour ${file.name}:`, err);
+        toast.error(`Erreur pour "${file.name}": ${err.message || 'Échec de téléversement'}`);
+      }
+    }
+
+    setIsUploadingImages(false);
+    if (newUrls.length > 0) {
+      setImagesList((prev) => [...prev, ...newUrls]);
+      toast.success(`${successCount} image(s) ajoutée(s) avec succès !`);
     }
   };
 
-  const handleVideoFile = async (file: File) => {
-    // 1. Aperçu instantané immédiat et fluide avec Blob local
-    const previewUrl = URL.createObjectURL(file);
-    objectUrls.current.push(previewUrl);
-    setVideoPreview(previewUrl);
-    setVideoPlaybackError(false);
-    setIsUploadingVideo(true);
+  // Add image URL manually
+  const handleAddImageUrl = () => {
+    const trimmed = singleImageUrlInput.trim();
+    if (!trimmed) return;
+    const resolved = resolveMediaUrl(trimmed);
+    if (imagesList.includes(resolved)) {
+      toast.error('Cette image est déjà dans la liste');
+      return;
+    }
+    setImagesList((prev) => [...prev, resolved]);
+    setSingleImageUrlInput('');
+    toast.success('Image ajoutée à la liste !');
+  };
 
-    try {
-      const result = await uploadMediaFile(file);
-      // On sauvegarde l'URL distante pour la persistance en base de données
-      setVideoUrl(result.absoluteUrl);
-      toast.success('Vidéo prête et importée avec succès !');
-    } catch (err: any) {
-      console.error('Erreur vidéo:', err);
-      toast.error(err.message || "Erreur lors de l'importation de la vidéo. Vérifiez le format ou la taille.");
-    } finally {
-      setIsUploadingVideo(false);
+  // Remove image from list
+  const handleRemoveImage = (indexToRemove: number) => {
+    setImagesList((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  // Handle uploading multiple video files
+  const handleMultipleVideoFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const fileArray = Array.from(files);
+
+    setIsUploadingVideos(true);
+    setUploadVideosProgress({ current: 0, total: fileArray.length });
+
+    const newVideos: VideoItem[] = [];
+    let successCount = 0;
+
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i];
+      setUploadVideosProgress({ current: i + 1, total: fileArray.length });
+      try {
+        // Try extracting thumbnail frame first
+        let thumbnailBlob: Blob | null = null;
+        try {
+          thumbnailBlob = await captureVideoFrame(file);
+        } catch {}
+
+        let thumbnailUrl = '';
+        if (thumbnailBlob) {
+          try {
+            const thumbFile = new File([thumbnailBlob], `thumb-${Date.now()}.jpg`, { type: 'image/jpeg' });
+            const thumbRes = await uploadMediaFile(thumbFile);
+            thumbnailUrl = thumbRes.absoluteUrl;
+          } catch {}
+        }
+
+        const videoRes = await uploadMediaFile(file);
+        newVideos.push({
+          url: videoRes.absoluteUrl,
+          thumbnail: thumbnailUrl || undefined,
+          platform: 'direct',
+          label: file.name.slice(0, 24),
+        });
+        successCount++;
+      } catch (err: any) {
+        console.error(`Erreur d'importation pour ${file.name}:`, err);
+        toast.error(`Erreur vidéo "${file.name}": ${err.message || 'Échec de téléversement'}`);
+      }
+    }
+
+    setIsUploadingVideos(false);
+    if (newVideos.length > 0) {
+      setVideosList((prev) => [...prev, ...newVideos]);
+      toast.success(`${successCount} vidéo(s) ajoutée(s) avec succès !`);
     }
   };
 
-  const handleVideoUrlChange = (val: string) => {
-    setVideoUrl(val);
-    setVideoPreview(val.trim());
-    setVideoPlaybackError(false);
+  // Add video URL manually (YouTube, Facebook, TikTok, MP4 direct)
+  const handleAddVideoUrl = () => {
+    const trimmed = singleVideoUrlInput.trim();
+    if (!trimmed) return;
+    const parsed = parseVideoSource(trimmed);
+    const finalUrl = parsed.url || trimmed;
+
+    if (videosList.some((v) => v.url === finalUrl)) {
+      toast.error('Cette vidéo est déjà dans la liste');
+      return;
+    }
+
+    setVideosList((prev) => [
+      ...prev,
+      {
+        url: finalUrl,
+        thumbnail: parsed.thumbnail || undefined,
+        platform: parsed.platform,
+        label: parsed.label,
+      },
+    ]);
+    setSingleVideoUrlInput('');
+    toast.success(`Vidéo ${parsed.label} ajoutée à la liste !`);
   };
+
+  // Remove video from list
+  const handleRemoveVideo = (indexToRemove: number) => {
+    setVideosList((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  // Total medias count
+  const totalMedias = imagesList.length + videosList.length;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (isUploadingImage || isUploadingVideo) {
-      toast.error("Veuillez patienter pendant la fin de l'envoi du média.");
+    if (isUploadingImages || isUploadingVideos) {
+      toast.error("Veuillez patienter pendant la fin de l'envoi des médias.");
       return;
     }
 
@@ -197,50 +342,105 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
       const stockNum = Number(stock);
       const discountPriceNum = discountPrice ? Number(discountPrice) : undefined;
 
-      const trimmedImg = imageUrl.trim();
-      const finalImageUrl = trimmedImg ? resolveMediaUrl(trimmedImg) : undefined;
-
-      let finalVideoUrl: string | undefined = undefined;
-      const trimmedVid = videoUrl.trim();
-      if (trimmedVid) {
-        const parsed = parseVideoSource(trimmedVid);
-        // Sauvegarde de l'URL canonique réelle (ex: https://facebook.com/reel/123 ou /uploads/123.mp4),
-        // sans polluer la base de données avec l'iframe d'intégration
-        finalVideoUrl = parsed.url || trimmedVid;
-      }
-
-      await onSubmit({
+      const commonFields: Omit<ProductInput, 'imageUrl' | 'images' | 'video' | 'videoUrls'> = {
         name,
         description: description.trim() || undefined,
         category: category || 'autre',
         price: Number.isNaN(priceNum) ? 0 : priceNum,
         discountPrice: discountPriceNum && !Number.isNaN(discountPriceNum) ? discountPriceNum : undefined,
         stock: Number.isNaN(stockNum) ? 0 : stockNum,
-        imageUrl: finalImageUrl,
-        images: finalImageUrl ? [finalImageUrl] : undefined,
-        video: finalVideoUrl,
-        videoUrls: finalVideoUrl ? [finalVideoUrl] : undefined,
         status,
         featured,
         newArrival,
         bestSeller,
         flashSale,
         flashSaleEndDate: flashSale && flashSaleEndDate ? new Date(flashSaleEndDate).toISOString() : undefined,
-      });
+      };
+
+      // Si on est en mode édition (mise à jour d'un produit existant)
+      if (isEditing) {
+        const primaryImage = imagesList[0] || undefined;
+        const primaryVideo = videosList[0]?.url || undefined;
+        await onSubmit({
+          ...commonFields,
+          imageUrl: primaryImage,
+          images: imagesList.length > 0 ? imagesList : (primaryImage ? [primaryImage] : undefined),
+          video: primaryVideo,
+          videoUrls: videosList.length > 0 ? videosList.map((v) => v.url) : (primaryVideo ? [primaryVideo] : undefined),
+        });
+        return;
+      }
+
+      // Si on est en mode création (ajout de nouveaux produits)
+      // Si l'administrateur a ajouté plusieurs images ou plusieurs vidéos :
+      // On crée des produits individuels pour chaque média (séparés individuellement dans la boutique et catalogue)
+      if (totalMedias > 1) {
+        const productsToCreate: ProductInput[] = [];
+
+        // 1. Un produit individuel pour chaque image
+        imagesList.forEach((imgUrl) => {
+          productsToCreate.push({
+            ...commonFields,
+            imageUrl: imgUrl,
+            images: [imgUrl],
+            video: undefined,
+            videoUrls: undefined,
+          });
+        });
+
+        // 2. Un produit individuel pour chaque vidéo
+        videosList.forEach((vid) => {
+          productsToCreate.push({
+            ...commonFields,
+            imageUrl: vid.thumbnail || undefined,
+            images: vid.thumbnail ? [vid.thumbnail] : [],
+            video: vid.url,
+            videoUrls: [vid.url],
+          });
+        });
+
+        await onSubmit(productsToCreate);
+      } else if (totalMedias === 1) {
+        // Un seul média au total
+        if (imagesList.length === 1) {
+          await onSubmit({
+            ...commonFields,
+            imageUrl: imagesList[0],
+            images: [imagesList[0]],
+          });
+        } else if (videosList.length === 1) {
+          const vid = videosList[0];
+          await onSubmit({
+            ...commonFields,
+            imageUrl: vid.thumbnail || undefined,
+            images: vid.thumbnail ? [vid.thumbnail] : [],
+            video: vid.url,
+            videoUrls: [vid.url],
+          });
+        }
+      } else {
+        // Aucun média renseigné
+        await onSubmit({
+          ...commonFields,
+        });
+      }
     } finally {
       setIsSaving(false);
     }
   };
 
-  const parsedVideo = parseVideoSource(videoPreview || videoUrl);
-
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4">
-      <motion.div initial={{ opacity: 0, scale: 0.96, y: 18 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 18 }} className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl border border-border relative max-h-[92vh] flex flex-col overflow-hidden">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-3 sm:p-4">
+      <motion.div initial={{ opacity: 0, scale: 0.96, y: 18 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 18 }} className="bg-card rounded-2xl shadow-2xl w-full max-w-3xl border border-border relative max-h-[92vh] flex flex-col overflow-hidden">
+        {/* Header */}
         <div className="px-4 sm:px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between flex-shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-foreground">{initialProduct ? 'Modifier le produit' : 'Ajouter un produit'}</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Catalogue Onoot Boutique</p>
+            <h2 className="text-lg font-bold text-foreground">
+              {isEditing ? 'Modifier le produit' : 'Ajouter un ou plusieurs produits'}
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Catalogue Onoot Boutique • Multi-images et multi-vidéos
+            </p>
           </div>
           <button type="button" onClick={onClose} className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
             <X className="w-5 h-5" />
@@ -254,11 +454,24 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
               <SectionHeader icon={Package} title="Informations générales" />
               <div>
                 <label className={labelClass}>Nom du produit *</label>
-                <input type="text" placeholder="Ex: Coque Premium iPhone 15" value={name} onChange={(e) => setName(e.target.value)} required className={inputClass} />
+                <input 
+                  type="text" 
+                  placeholder="Ex: Coque Antichoc iPhone 15 Pro Max" 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)} 
+                  required 
+                  className={inputClass} 
+                />
               </div>
               <div>
                 <label className={labelClass}>Description</label>
-                <textarea placeholder="Description complète du produit..." value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className={inputClass + ' resize-none'} />
+                <textarea 
+                  placeholder="Description complète du produit, caractéristiques..." 
+                  value={description} 
+                  onChange={(e) => setDescription(e.target.value)} 
+                  rows={3} 
+                  className={inputClass + ' resize-none'} 
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -286,7 +499,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
                 </div>
               </div>
               <div>
-                <label className={labelClass}>Stock</label>
+                <label className={labelClass}>Stock disponible</label>
                 <input type="number" min="0" placeholder="0" value={stock} onChange={(e) => setStock(e.target.value)} required className={inputClass} />
               </div>
               <div>
@@ -316,286 +529,362 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
               )}
             </div>
 
-            {/* Image Section */}
-            <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-3">
-              <div className="flex items-center justify-between">
+            {/* Section Multi-Images */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-muted/30 border border-border space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-primary/10">
-                    <ImageIcon className="w-4 h-4 text-primary" />
+                  <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                    <ImageIcon className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground text-sm">Image principale du produit</h3>
-                    <p className="text-[11px] text-muted-foreground">Visible sur PC, tablette et téléphone dans la boutique et l'admin.</p>
+                    <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
+                      <span>Images du produit</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-semibold">
+                        {imagesList.length} ajoutée{imagesList.length > 1 ? 's' : ''}
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      Sélectionnez plusieurs photos en même temps depuis votre appareil ou ajoutez des liens web.
+                    </p>
                   </div>
                 </div>
-                {imagePreview && !imageError && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> Image prête
-                  </span>
-                )}
               </div>
 
-              <div>
-                <label className={labelClass}>Lien direct de l'image (URL Web)</label>
+              {/* Input lien URL image + bouton Ajouter */}
+              <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="https://images.unsplash.com/... ou lien d'image"
-                  value={imageUrl}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setImageUrl(val);
-                    setImagePreview(resolveMediaUrl(val));
-                    setImageError(false);
+                  placeholder="Coller un lien d'image direct (https://...)"
+                  value={singleImageUrlInput}
+                  onChange={(e) => setSingleImageUrlInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddImageUrl();
+                    }
                   }}
-                  className={inputClass}
+                  className={inputClass + ' flex-1'}
                 />
+                <button
+                  type="button"
+                  onClick={handleAddImageUrl}
+                  disabled={!singleImageUrlInput.trim()}
+                  className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:opacity-90 disabled:opacity-40 transition-all flex items-center gap-1.5 shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Ajouter</span>
+                </button>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
-                <label className="flex-shrink-0 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-2 transition-all">
+              {/* Bouton choix multi-fichiers */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <label className="flex-shrink-0 px-4 py-2.5 bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-2 transition-all shadow-xs">
                   <Upload className="w-4 h-4" />
-                  <span>Choisir depuis PC / Téléphone</span>
+                  <span>Choisir plusieurs photos (PC / Téléphone)</span>
                   <input
                     type="file"
+                    multiple
                     accept="image/png,image/jpeg,image/webp,image/jpg,image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleImageFile(file);
-                    }}
+                    onChange={(e) => handleMultipleImageFiles(e.target.files)}
                     className="hidden"
                   />
                 </label>
                 <span className="text-[11px] text-muted-foreground text-center sm:text-left">
-                  Formats acceptés : JPG, PNG, WEBP (Photos de votre galerie ou appareil)
+                  Vous pouvez sélectionner <strong>plusieurs photos à la fois</strong> dans votre galerie.
                 </span>
               </div>
 
-              {isUploadingImage && (
-                <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl flex items-center gap-2 text-xs text-primary font-medium">
+              {/* Indicateur de chargement multi-images */}
+              {isUploadingImages && (
+                <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl flex items-center gap-2.5 text-xs text-primary font-medium animate-pulse">
                   <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" />
-                  <span>Téléversement de l'image en cours depuis votre appareil...</span>
+                  <span>
+                    Téléversement des images en cours : {uploadImagesProgress.current} / {uploadImagesProgress.total}...
+                  </span>
                 </div>
               )}
 
-              {/* Image Preview Box */}
-              <div className="relative w-full h-48 rounded-xl border border-dashed border-border bg-black/5 dark:bg-black/30 flex items-center justify-center overflow-hidden">
-                {imagePreview && !imageError ? (
-                  <div className="relative w-full h-full group flex items-center justify-center">
-                    <img
-                      src={imagePreview}
-                      alt="Aperçu du produit"
-                      className="h-full w-full object-contain p-2"
-                      onError={() => {
-                        const trimmed = imageUrl.trim();
-                        const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-                        if (path.startsWith('/images/') && !imagePreview.includes('onoot-boutique.vercel.app')) {
-                          setImagePreview(`https://onoot-boutique.vercel.app${path}`);
-                        } else {
-                          setImageError(true);
-                        }
-                      }}
-                    />
+              {/* Galerie d'aperçu des images ajoutées */}
+              {imagesList.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                    <span>Photos prêtes ({imagesList.length}) :</span>
                     <button
                       type="button"
-                      onClick={() => {
-                        setImageUrl('');
-                        setImagePreview('');
-                        setImageError(false);
-                      }}
-                      className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 hover:bg-red-600 text-white transition-colors z-20 shadow-md"
-                      title="Supprimer l'image"
+                      onClick={() => setImagesList([])}
+                      className="text-red-500 hover:underline text-[11px]"
                     >
-                      <X className="w-4 h-4" />
+                      Tout effacer
                     </button>
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground p-4 text-center">
-                    <ImageIcon className="w-8 h-8 opacity-40" />
-                    <span className="text-xs">
-                      {imageError ? "Impossible de charger l'image (Vérifiez le lien)" : "Aucune image sélectionnée — L'aperçu apparaîtra ici"}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Video Section */}
-            <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-orange-500/10">
-                    <Video className="w-4 h-4 text-orange-500" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground text-sm">Vidéo du produit</h3>
-                    <p className="text-[11px] text-muted-foreground">Compatible YouTube, Facebook Reels, TikTok, Vimeo ou fichier direct de votre PC/téléphone.</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
+                    {imagesList.map((imgUrl, idx) => (
+                      <motion.div
+                        key={`${imgUrl}-${idx}`}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="group relative aspect-square rounded-xl border border-border bg-background overflow-hidden shadow-xs flex items-center justify-center p-1"
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`Aperçu image ${idx + 1}`}
+                          className="w-full h-full object-contain rounded-lg"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/images/smartwatch.png';
+                          }}
+                        />
+                        <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/70 text-[10px] text-white font-bold">
+                          #{idx + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(idx)}
+                          className="absolute top-1.5 right-1.5 p-1 rounded-full bg-red-600/90 text-white hover:bg-red-700 transition-colors shadow-sm"
+                          title="Supprimer cette image"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </motion.div>
+                    ))}
                   </div>
                 </div>
-                {videoPreview && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> Vidéo prête
-                  </span>
-                )}
+              ) : (
+                <div className="p-4 rounded-xl border border-dashed border-border bg-black/5 dark:bg-black/20 text-center text-muted-foreground text-xs flex flex-col items-center gap-1.5">
+                  <ImageIcon className="w-6 h-6 opacity-40" />
+                  <span>Aucune image ajoutée pour le moment.</span>
+                </div>
+              )}
+            </div>
+
+            {/* Section Multi-Vidéos */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-muted/30 border border-border space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-orange-500/10 text-orange-500">
+                    <Video className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
+                      <span>Vidéos du produit</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-orange-500/10 text-orange-600 dark:text-orange-400 font-semibold">
+                        {videosList.length} ajoutée{videosList.length > 1 ? 's' : ''}
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      Sélectionnez plusieurs vidéos depuis votre appareil ou collez des liens YouTube, Facebook Reels, TikTok, MP4.
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className={labelClass}>Lien Vidéo (YouTube, Facebook, TikTok ou lien MP4)</label>
+              {/* Input lien URL vidéo + bouton Ajouter */}
+              <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="https://www.youtube.com/watch?v=... ou https://fb.watch/... ou .mp4"
-                  value={videoUrl}
-                  onChange={(e) => handleVideoUrlChange(e.target.value)}
-                  className={inputClass}
+                  placeholder="Lien YouTube, Facebook Reel, TikTok, ou lien .mp4 direct"
+                  value={singleVideoUrlInput}
+                  onChange={(e) => setSingleVideoUrlInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddVideoUrl();
+                    }
+                  }}
+                  className={inputClass + ' flex-1'}
                 />
+                <button
+                  type="button"
+                  onClick={handleAddVideoUrl}
+                  disabled={!singleVideoUrlInput.trim()}
+                  className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold disabled:opacity-40 transition-all flex items-center gap-1.5 shrink-0 shadow-xs"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Ajouter la vidéo</span>
+                </button>
               </div>
 
-              {/* Supported Links Badges */}
+              {/* Badges compatibilité liens */}
               <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span className="font-bold uppercase tracking-wider text-[10px] text-foreground">Liens compatibles :</span>
-                <span className="px-2 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 font-semibold border border-red-500/20">YouTube (Watch & Shorts)</span>
-                <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold border border-blue-500/20">Facebook (Reels & Vidéos)</span>
+                <span className="font-bold uppercase tracking-wider text-[10px] text-foreground">Compatible :</span>
+                <span className="px-2 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 font-semibold border border-red-500/20">YouTube</span>
+                <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold border border-blue-500/20">Facebook Reels</span>
                 <span className="px-2 py-0.5 rounded-md bg-muted border border-border font-medium">TikTok</span>
-                <span className="px-2 py-0.5 rounded-md bg-muted border border-border font-medium">Lien MP4 direct</span>
-                <span className="px-2 py-0.5 rounded-md bg-muted border border-border font-medium">Vimeo / Dropbox</span>
+                <span className="px-2 py-0.5 rounded-md bg-muted border border-border font-medium">MP4 direct</span>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
-                <label className="flex-shrink-0 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-sm transition-all">
+              {/* Bouton choix multi-fichiers vidéos */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <label className="flex-shrink-0 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-xs transition-all">
                   <Upload className="w-4 h-4" />
-                  <span>Prendre vidéo PC / Téléphone</span>
+                  <span>Prendre plusieurs vidéos (PC / Téléphone)</span>
                   <input
                     type="file"
+                    multiple
                     accept="video/mp4,video/webm,video/ogg,video/quicktime,video/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleVideoFile(file);
-                    }}
+                    onChange={(e) => handleMultipleVideoFiles(e.target.files)}
                     className="hidden"
                   />
                 </label>
                 <span className="text-[11px] text-muted-foreground text-center sm:text-left">
-                  Téléversez directement une vidéo depuis votre appareil (jusqu'à 500 Mo).
+                  Téléversez plusieurs vidéos en même temps (jusqu'à 500 Mo par vidéo).
                 </span>
               </div>
 
-              {isUploadingVideo && (
-                <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400 font-medium">
+              {/* Indicateur de chargement multi-vidéos */}
+              {isUploadingVideos && (
+                <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-center gap-2.5 text-xs text-orange-600 dark:text-orange-400 font-medium animate-pulse">
                   <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" />
-                  <span>Téléversement de la vidéo en cours... Veuillez patienter quelques instants.</span>
+                  <span>
+                    Téléversement des vidéos en cours : {uploadVideosProgress.current} / {uploadVideosProgress.total}... Veuillez patienter.
+                  </span>
                 </div>
               )}
 
-              {/* Video Preview Player */}
-              <div className="pt-2">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Eye className="w-3.5 h-3.5 text-orange-500" />
-                    <span>Aperçu du lecteur vidéo :</span>
-                  </p>
-                  {parsedVideo.platform !== 'other' && parsedVideo.url && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 border border-orange-500/20">
-                      {parsedVideo.label}
-                    </span>
-                  )}
-                </div>
-
-                <div className={`relative ${videoPreview && (videoPreview.includes('/reel/') || videoPreview.includes('/shorts/') || videoPreview.includes('tiktok.com')) ? 'h-64 aspect-[9/16]' : 'aspect-video max-h-52'} rounded-xl overflow-hidden bg-black mx-auto border border-border shadow-inner flex items-center justify-center`}>
-                  {parsedVideo.embedUrl ? (
-                    <div className="relative w-full h-full group">
-                      <iframe
-                        key={parsedVideo.embedUrl}
-                        src={parsedVideo.embedUrl}
-                        className="w-full h-full border-0"
-                        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-                        allowFullScreen
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setVideoUrl('');
-                          setVideoPreview('');
-                          setVideoPlaybackError(false);
-                        }}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 hover:bg-red-600 text-white transition-colors z-20 shadow-md"
-                        title="Supprimer la vidéo"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (parsedVideo.url || videoPreview) ? (
-                    <div className="relative w-full h-full group flex items-center justify-center bg-black/95">
-                      <video
-                        key={parsedVideo.url || videoPreview}
-                        src={videoPreview.startsWith('blob:') ? videoPreview : (parsedVideo.url || videoPreview)}
-                        controls
-                        playsInline
-                        onError={() => setVideoPlaybackError(true)}
-                        className="h-full w-full object-contain"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setVideoUrl('');
-                          setVideoPreview('');
-                          setVideoPlaybackError(false);
-                        }}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 hover:bg-red-600 text-white transition-colors z-20 shadow-md"
-                        title="Supprimer la vidéo"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground p-4 text-center">
-                      <Video className="w-8 h-8 opacity-40 text-orange-500" />
-                      <span className="text-xs">Aucune vidéo renseignée — L'aperçu vidéo apparaîtra ici</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Bouton de test direct et information de compatibilité */}
-                {(parsedVideo.url || videoUrl) && (
-                  <div className="mt-2.5 p-2.5 rounded-xl bg-muted/60 border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="font-semibold text-foreground shrink-0">{parsedVideo.label} :</span>
-                      <span className="truncate text-muted-foreground font-mono text-[11px]">{parsedVideo.url || videoUrl}</span>
-                    </div>
-                    <a
-                      href={parsedVideo.url || videoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 inline-flex items-center justify-center gap-1 px-3 py-1 rounded-lg bg-orange-500/10 text-orange-600 hover:bg-orange-500/20 font-bold text-[11px] transition-colors"
+              {/* Liste des vidéos ajoutées */}
+              {videosList.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                    <span>Vidéos prêtes ({videosList.length}) :</span>
+                    <button
+                      type="button"
+                      onClick={() => setVideosList([])}
+                      className="text-red-500 hover:underline text-[11px]"
                     >
-                      <span>Tester / Ouvrir ↗</span>
-                    </a>
+                      Tout effacer
+                    </button>
                   </div>
-                )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {videosList.map((vid, idx) => {
+                      const parsed = parseVideoSource(vid.url);
+                      return (
+                        <div
+                          key={`${vid.url}-${idx}`}
+                          className="p-3 rounded-xl border border-border bg-background flex flex-col gap-2 relative shadow-xs"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 text-xs font-bold">
+                                Vidéo #{idx + 1}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md bg-muted text-[10px] font-semibold text-muted-foreground">
+                                {parsed.label}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveVideo(idx)}
+                              className="p-1 rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                              title="Supprimer cette vidéo"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
 
-                {parsedVideo.platform === 'facebook' && (
-                  <p className="mt-1.5 text-[11px] text-muted-foreground leading-tight">
-                    💡 <strong>Astuce Facebook :</strong> Si l’aperçu affiche « Vidéo non disponible », vérifiez que la publication est bien en mode <u>Public</u> sur Facebook (non réservée aux amis). Vous pouvez vérifier son accès avec le bouton Tester ci-dessus.
-                  </p>
-                )}
+                          {/* Mini player or preview */}
+                          <div className="relative aspect-video max-h-36 rounded-lg bg-black overflow-hidden flex items-center justify-center">
+                            {parsed.embedUrl ? (
+                              <iframe
+                                src={parsed.embedUrl}
+                                className="w-full h-full border-0 pointer-events-none"
+                                title={`Aperçu vidéo ${idx + 1}`}
+                              />
+                            ) : vid.thumbnail ? (
+                              <img src={vid.thumbnail} alt={`Miniature vidéo ${idx + 1}`} className="w-full h-full object-cover" />
+                            ) : (
+                              <video
+                                src={vid.url}
+                                playsInline
+                                muted
+                                preload="metadata"
+                                className="w-full h-full object-contain"
+                              />
+                            )}
+                          </div>
 
-                {videoPlaybackError && (
-                  <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs">
-                    ⚠️ Ce fichier vidéo n'a pas pu être lu directement dans ce navigateur (fréquent avec les vidéos HEVC d'iPhone). Le fichier sera tout de même enregistré et accessible sur les appareils compatibles.
+                          <div className="flex items-center justify-between gap-2 text-[11px]">
+                            <span className="truncate text-muted-foreground font-mono text-[10px]">
+                              {vid.url}
+                            </span>
+                            <a
+                              href={vid.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-orange-500 hover:underline shrink-0 flex items-center gap-1 font-semibold"
+                            >
+                              <span>Ouvrir</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl border border-dashed border-border bg-black/5 dark:bg-black/20 text-center text-muted-foreground text-xs flex flex-col items-center gap-1.5">
+                  <Film className="w-6 h-6 opacity-40 text-orange-500" />
+                  <span>Aucune vidéo ajoutée pour le moment.</span>
+                </div>
+              )}
             </div>
+
+            {/* Récapitulatif dynamique des produits créés */}
+            {!isEditing && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 space-y-2">
+                <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                  <Sparkles className="w-4 h-4" />
+                  <span>
+                    {totalMedias > 1 
+                      ? `${totalMedias} produits individuels seront créés !`
+                      : totalMedias === 1
+                      ? '1 produit individuel sera créé'
+                      : 'Informations prêtes'}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {totalMedias > 1 ? (
+                    <>
+                      Vous avez sélectionné <strong>{imagesList.length} image(s)</strong> et <strong>{videosList.length} vidéo(s)</strong>.
+                      <br />
+                      Comme demandé, <strong>chacun apparaîtra séparément de façon individuelle</strong> sur la page <strong>Boutique</strong> et le <strong>Catalogue</strong> avec toutes les mêmes informations saisies ci-dessus (nom, prix, catégorie, description, etc.).
+                    </>
+                  ) : (
+                    <>
+                      Sur la page boutique et catalogue, ce produit apparaîtra avec les informations et médias configurés ci-dessus.
+                    </>
+                  )}
+                </p>
+              </div>
+            )}
           </div>
 
-          <div className="flex justify-end items-center gap-3 px-6 py-4 border-t border-border bg-muted/20 flex-shrink-0">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl bg-muted hover:bg-border text-foreground font-medium transition-colors">
+          {/* Footer Submit */}
+          <div className="flex justify-end items-center gap-3 px-4 sm:px-6 py-4 border-t border-border bg-muted/20 flex-shrink-0">
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className="px-4 py-2.5 rounded-xl bg-muted hover:bg-border text-foreground font-semibold text-sm transition-colors"
+            >
               Annuler
             </button>
             <button
               type="submit"
-              disabled={isSaving || isUploadingImage || isUploadingVideo}
-              className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground hover:opacity-95 disabled:opacity-50 font-semibold shadow-md transition-all active:scale-95"
+              disabled={isSaving || isUploadingImages || isUploadingVideos}
+              className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground hover:opacity-95 disabled:opacity-50 font-bold text-sm shadow-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
             >
-              {isSaving ? 'Enregistrement en cours...' : submitLabel}
+              {isSaving ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Enregistrement en cours...</span>
+                </>
+              ) : isEditing ? (
+                'Mettre à jour le produit'
+              ) : totalMedias > 1 ? (
+                `Créer les ${totalMedias} produits individuels`
+              ) : (
+                submitLabel
+              )}
             </button>
           </div>
         </form>

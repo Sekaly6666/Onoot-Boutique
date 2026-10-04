@@ -90,4 +90,42 @@ router.post('/admin/upload', requireAdmin, (req, res): void => {
   });
 });
 
+// Admin multiple upload route
+router.post('/admin/upload-multiple', requireAdmin, (req, res): void => {
+  upload.array('files', 50)(req, res, (err): void => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        res.status(400).json({ error: 'Un ou plusieurs fichiers sont trop volumineux. La taille maximale par fichier est de 500 Mo.' });
+        return;
+      }
+      logger.warn({ err }, 'Multer batch upload error');
+      res.status(400).json({ error: `Erreur d'importation : ${err.message}` });
+      return;
+    }
+
+    if (err) {
+      logger.warn({ err }, 'Batch upload error');
+      res.status(400).json({ error: err.message || 'Erreur lors du téléversement des fichiers.' });
+      return;
+    }
+
+    const files = (req.files as Express.Multer.File[]) || [];
+    if (!files.length) {
+      res.status(400).json({ error: 'Aucun fichier reçu' });
+      return;
+    }
+
+    const results = files.map((file) => ({
+      url: `/uploads/${file.filename}`,
+      filename: file.filename,
+      size: file.size,
+      mimetype: file.mimetype,
+    }));
+
+    logger.info({ count: results.length }, 'Files uploaded successfully in batch');
+    res.json({ files: results });
+  });
+});
+
 export default router;
+
