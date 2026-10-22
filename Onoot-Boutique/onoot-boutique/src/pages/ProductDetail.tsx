@@ -15,10 +15,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { StarRating } from "@/components/ui/star-rating";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, Truck, ShieldCheck, ArrowLeft, Loader2, Star, Pencil, PlayCircle, CheckCircle2, ShoppingBag } from "lucide-react";
+import { ShoppingCart, Truck, ShieldCheck, ArrowLeft, Loader2, Star, Pencil, PlayCircle, CheckCircle2, ShoppingBag, MessageCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { resolveMediaUrl } from "@/lib/videoUtils";
+import { resolveMediaUrl, isEmbedVideo, isVerticalVideo, getEmbedAutoplayUrl, getPublicShareableMediaUrl } from "@/lib/videoUtils";
 
 const exampleProducts = [
   { id: "example-1", name: "Smartwatch Pro S8", price: 45000, discountPrice: 38000, images: ["/images/smartwatch.png"], category: "smartwatches", stock: 10, rating: 4.5, reviewCount: 24, featured: true, description: "Superbe montre connectée avec suivi santé, appels et notifications." },
@@ -72,6 +72,15 @@ export default function ProductDetail() {
     );
   }, [user, userOrdersData, productId]);
 
+function isValidImageSource(src?: string | null): boolean {
+  if (!src || typeof src !== 'string') return false;
+  const s = src.trim();
+  if (!s) return false;
+  if (s.includes('facebook.com') || s.includes('fb.watch')) return false;
+  if ((s.includes('youtube.com') || s.includes('youtu.be')) && !s.includes('img.youtube.com')) return false;
+  return true;
+}
+
   const [selectedImage, setSelectedImage] = React.useState(0);
   const [selectedMedia, setSelectedMedia] = React.useState<'image' | 'video'>('image');
   const [selectedColor, setSelectedColor] = React.useState<string | undefined>(undefined);
@@ -83,8 +92,18 @@ export default function ProductDetail() {
       if (product.colors && product.colors.length > 0 && !selectedColor) {
         setSelectedColor(product.colors[0]);
       }
-      const hasImages = (product.images && product.images.length > 0) || Boolean((product as any).imageUrl);
-      if ((product as any).video && !hasImages) {
+      const rawImg = product.images?.[0] || (product as any).imageUrl;
+      const hasRealImg = isValidImageSource(rawImg);
+      const hasVid = Boolean((product as any).video);
+
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const wantVideo = params?.get('media') === 'video';
+
+      if (hasVid && (!hasRealImg || wantVideo)) {
+        setSelectedMedia('video');
+      } else if (hasRealImg) {
+        setSelectedMedia('image');
+      } else if (hasVid) {
         setSelectedMedia('video');
       }
     }
@@ -148,82 +167,113 @@ export default function ProductDetail() {
             )}
 
             {/* Main viewer */}
-            <div className="aspect-square max-w-md mx-auto bg-gray-50 border border-border rounded-2xl overflow-hidden flex items-center justify-center p-2 relative">
-              {selectedMedia === 'video' && (product as any).video ? (() => {
-                const vidRaw = (product as any).video as string;
-                const ytMatch = vidRaw.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i);
-                let embedUrl = '';
-                if (ytMatch && ytMatch[1]) {
-                  embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&playsinline=1`;
-                } else if (vidRaw.includes('facebook.com') || vidRaw.includes('fb.watch')) {
-                  let cleanFb = vidRaw;
-                  const shareRMatch = vidRaw.match(/facebook\.com\/share\/r\/([^/?&#]+)/i);
-                  const shareVMatch = vidRaw.match(/facebook\.com\/share\/v\/([^/?&#]+)/i);
-                  const reelMatch = vidRaw.match(/facebook\.com\/reel\/([^/?&#]+)/i);
-                  if (shareRMatch && shareRMatch[1]) {
-                    cleanFb = `https://www.facebook.com/reel/${shareRMatch[1]}/`;
-                  } else if (shareVMatch && shareVMatch[1]) {
-                    cleanFb = `https://www.facebook.com/watch/?v=${shareVMatch[1]}`;
-                  } else if (reelMatch && reelMatch[1]) {
-                    cleanFb = `https://www.facebook.com/reel/${reelMatch[1]}/`;
-                  }
-                  embedUrl = cleanFb.includes('plugins/video.php') ? cleanFb : `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(cleanFb)}&show_text=0`;
-                } else if (vidRaw.includes('tiktok.com')) {
-                  const ttMatch = vidRaw.match(/tiktok\.com\/@?[^\/]+\/video\/(\d+)/i);
-                  if (ttMatch && ttMatch[1]) embedUrl = `https://www.tiktok.com/embed/v2/${ttMatch[1]}`;
-                } else if (vidRaw.includes('/embed/')) {
-                  embedUrl = vidRaw;
-                }
+            {(() => {
+              const vidRaw = ((product as any)?.video as string) || "";
+              const isVideoSelected = selectedMedia === 'video' && Boolean(vidRaw);
+              const isVertical = isVideoSelected && isVerticalVideo(vidRaw);
 
-                if (embedUrl) {
+              return (
+                <div
+                  className={`mx-auto rounded-2xl overflow-hidden relative transition-all duration-300 ${
+                    isVideoSelected
+                      ? isVertical
+                        ? "w-full max-w-[340px] sm:max-w-[380px] aspect-[9/16] max-h-[580px] sm:max-h-[640px] bg-black border border-border/80 shadow-2xl flex items-center justify-center p-0"
+                        : "w-full max-w-xl aspect-video max-h-[460px] bg-black border border-border/80 shadow-xl flex items-center justify-center p-0"
+                      : "aspect-square max-w-md bg-gray-50 dark:bg-gray-900 border border-border flex items-center justify-center p-2"
+                  }`}
+                >
+                  {isVideoSelected ? (
+                    isEmbedVideo(vidRaw) ? (
+                      <iframe
+                        key={vidRaw}
+                        src={getEmbedAutoplayUrl(vidRaw, false)}
+                        title={product.name}
+                        className="w-full h-full border-0 pointer-events-auto rounded-2xl"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        scrolling="no"
+                      />
+                    ) : (
+                      <video
+                        key={resolveMediaUrl(vidRaw)}
+                        src={resolveMediaUrl(vidRaw)}
+                        controls
+                        autoPlay
+                        playsInline
+                        controlsList="nodownload"
+                        className="w-full h-full object-contain bg-black rounded-2xl"
+                        poster={
+                          product.images?.[0]
+                            ? resolveMediaUrl(product.images[0])
+                            : (product as any).imageUrl
+                            ? resolveMediaUrl((product as any).imageUrl)
+                            : undefined
+                        }
+                      >
+                        Votre navigateur ne supporte pas la lecture vidéo.
+                      </video>
+                    )
+                  ) : (() => {
+                const rawImg = product.images?.[selectedImage] || (product as any).imageUrl;
+                const hasValid = isValidImageSource(rawImg);
+                const hasVid = Boolean((product as any).video);
+
+                if (!hasValid && hasVid) {
                   return (
-                    <iframe
-                      src={embedUrl}
-                      className="w-full h-full border-0 rounded-xl"
-                      allow="autoplay; encrypted-media; fullscreen"
-                      allowFullScreen
-                    />
+                    <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-black/5 dark:bg-black/30 rounded-xl">
+                      <PlayCircle className="w-14 h-14 text-primary mb-3 animate-pulse" />
+                      <p className="text-sm font-bold text-foreground">Démonstration Vidéo disponible</p>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMedia('video')}
+                        className="mt-3 px-5 py-2 rounded-full bg-primary text-white text-xs font-bold hover:opacity-90 shadow-md transition-all"
+                      >
+                        Voir la vidéo
+                      </button>
+                    </div>
                   );
                 }
 
-                const resolvedVid = resolveMediaUrl(vidRaw);
-                return (
-                  <video
-                    key={resolvedVid}
-                    src={resolvedVid}
-                    controls
-                    playsInline
-                    controlsList="nodownload"
-                    className="w-full h-full object-contain rounded-xl bg-black"
-                    poster={product.images?.[0] ? resolveMediaUrl(product.images[0]) : (product.imageUrl ? resolveMediaUrl(product.imageUrl) : undefined)}
-                  >
-                    Votre navigateur ne supporte pas la lecture vidéo.
-                  </video>
-                );
-              })() : (() => {
-                const rawImg = product.images?.[selectedImage] || (product as any).imageUrl || "/images/smartwatch.png";
+                if (!hasValid) {
+                  return (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gray-50 dark:bg-gray-800/40 rounded-xl">
+                      <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                        <ShoppingBag className="w-8 h-8 text-primary" />
+                      </div>
+                      <p className="text-sm font-bold text-foreground line-clamp-2 max-w-[260px]">{product.name}</p>
+                      <span className="text-xs text-muted-foreground mt-1">Onoot Boutique</span>
+                    </div>
+                  );
+                }
+
                 const resolvedImg = resolveMediaUrl(rawImg);
                 return (
                   <img
                     src={resolvedImg}
                     alt={product.name}
                     className="w-full h-full object-contain mix-blend-multiply"
-                    onError={(e) => { e.currentTarget.src = "/images/smartwatch.png"; }}
+                    onError={() => {
+                      if (hasVid) {
+                        setSelectedMedia('video');
+                      }
+                    }}
                   />
                 );
               })()}
             </div>
+          );
+        })()}
 
             {/* Thumbnails (images only) */}
-            {selectedMedia === 'image' && product.images && product.images.length > 1 && (
+            {selectedMedia === 'image' && product.images && product.images.filter(isValidImageSource).length > 1 && (
               <div className="grid grid-cols-4 gap-3 max-w-md mx-auto">
-                {product.images.map((image, index) => (
+                {product.images.filter(isValidImageSource).map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
                     className={`aspect-square rounded-xl border-2 p-1.5 bg-gray-50 flex items-center justify-center transition-all ${selectedImage === index ? 'border-primary ring-2 ring-primary/20' : 'border-transparent hover:border-gray-300'}`}
                   >
-                    <img src={image} alt="" className="w-full h-full object-contain mix-blend-multiply" onError={(e) => { e.currentTarget.src = "/images/smartwatch.png"; }} />
+                    <img src={resolveMediaUrl(image)} alt="" className="w-full h-full object-contain mix-blend-multiply" />
                   </button>
                 ))}
               </div>
@@ -251,7 +301,15 @@ export default function ProductDetail() {
             </div>
 
             <div className="mb-5">
-              {hasDiscount ? (
+              {(product as any).isPriceInbox ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 text-xl font-bold">
+                    <MessageCircle className="w-5 h-5 fill-current" />
+                    <span>{(product as any).priceInboxText || "Prix en Inbox"}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground font-medium">Prix négociable directement avec le vendeur sur WhatsApp</span>
+                </div>
+              ) : hasDiscount ? (
                 <div className="flex items-center gap-3">
                   <span className="text-2xl md:text-3xl font-bold text-accent">{product.discountPrice?.toLocaleString()} FCFA</span>
                   <span className="text-lg text-muted-foreground line-through">{product.price.toLocaleString()} FCFA</span>
@@ -319,37 +377,69 @@ export default function ProductDetail() {
                     +
                   </button>
                 </div>
-                <Button 
-                  size="lg" 
-                  className="w-full sm:flex-1 h-12 bg-accent hover:bg-accent/90 text-white font-bold rounded-xl shadow-md active:scale-[0.98] transition-all text-base"
-                  disabled={isOutOfStock}
-                  onClick={() => {
-                    if (!user) {
-                      toast({
-                        title: "Connexion requise",
-                        description: "Veuillez vous connecter pour ajouter des produits au panier.",
-                        variant: "destructive"
-                      });
-                      setLocation("/auth/login");
-                      return;
-                    }
-                    addItem(product.id, quantity, selectedColor);
-                    toast({ title: "Produit ajouté au panier" });
-                  }}
-                >
-                  <ShoppingCart className="mr-2 h-5 w-5" />
-                  Ajouter au panier
-                </Button>
+                {(() => {
+                  const shareMediaUrl = getPublicShareableMediaUrl({
+                    videoUrl: (product as any)?.video,
+                    imageUrl: product.images?.[0] || (product as any)?.imageUrl,
+                    productId: product.id,
+                  });
+
+                  const inboxWhatsAppMessage =
+                    `Bonjour Onoot Boutique !\n\n` +
+                    `Je souhaite échanger au sujet de ce produit :\n` +
+                    `► *${product.name}*\n` +
+                    `► Mention : *${(product as any).priceInboxText || "Prix en Inbox"} (à discuter)*\n\n` +
+                    `${shareMediaUrl}\n\n` +
+                    `Pouvons-nous échanger à ce sujet pour trouver un accord ? Merci !`;
+
+                  if ((product as any).isPriceInbox) {
+                    return (
+                      <a
+                        href={`https://wa.me/2250503648312?text=${encodeURIComponent(inboxWhatsAppMessage)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full sm:flex-1 h-12 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-[0.98] text-base"
+                      >
+                        <MessageCircle className="h-5 w-5 fill-white" />
+                        <span>Discuter du prix sur WhatsApp</span>
+                      </a>
+                    );
+                  }
+
+                  return (
+                    <Button 
+                      size="lg" 
+                      className="w-full sm:flex-1 h-12 bg-accent hover:bg-accent/90 text-white font-bold rounded-xl shadow-md active:scale-[0.98] transition-all text-base"
+                      disabled={isOutOfStock}
+                      onClick={() => {
+                        if (!user) {
+                          toast({
+                            title: "Connexion requise",
+                            description: "Veuillez vous connecter pour ajouter des produits au panier.",
+                            variant: "destructive"
+                          });
+                          setLocation("/auth/login");
+                          return;
+                        }
+                        addItem(product.id, quantity, selectedColor);
+                        toast({ title: "Produit ajouté au panier" });
+                      }}
+                    >
+                      <ShoppingCart className="mr-2 h-5 w-5" />
+                      Ajouter au panier
+                    </Button>
+                  );
+                })()}
               </div>
             </div>
 
-            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-              <div className="flex items-center gap-3 text-sm text-gray-700">
-                <Truck className="h-5 w-5 text-primary" />
+            <div className="bg-gray-50 dark:bg-card border border-border rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-3 text-sm text-foreground">
+                <Truck className="h-5 w-5 text-primary flex-shrink-0" />
                 <span>Livraison rapide partout en Côte d'Ivoire</span>
               </div>
-              <div className="flex items-center gap-3 text-sm text-gray-700">
-                <ShieldCheck className="h-5 w-5 text-primary" />
+              <div className="flex items-center gap-3 text-sm text-foreground">
+                <ShieldCheck className="h-5 w-5 text-primary flex-shrink-0" />
                 <span>Garantie constructeur 1 an</span>
               </div>
             </div>

@@ -43,8 +43,15 @@ app.use(
       // Allow requests with no origin (UptimeRobot, server-to-server, curl)
       if (!origin) return callback(null, true);
 
-      // Allow local development ports
-      if (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
+      // Allow local development ports and LAN/Expo devices
+      if (
+        origin.startsWith("http://localhost:") ||
+        origin.startsWith("http://127.0.0.1:") ||
+        origin.startsWith("http://192.168.") ||
+        origin.startsWith("http://10.") ||
+        origin.startsWith("exp://") ||
+        origin.startsWith("exps://")
+      ) {
         return callback(null, true);
       }
 

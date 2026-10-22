@@ -169,3 +169,56 @@ export function getEmbedAutoplayUrl(rawUrl?: string, muted: boolean = true): str
 
   return trimmed;
 }
+
+/**
+ * Extrait l'URL publique directe la plus adaptée (Facebook Reel, YouTube, CDN image)
+ * pour permettre à WhatsApp de générer une Rich Link Preview (miniature vidéo + titre)
+ */
+export function getPublicShareableMediaUrl(params: {
+  videoUrl?: string | null;
+  imageUrl?: string | null;
+  productId?: string | null;
+}): string {
+  const { videoUrl, imageUrl, productId } = params;
+
+  // 1. Vidéo Facebook (Reel, Share, Watch) -> Aperçu vidéo immersif avec bouton Play sur WhatsApp
+  if (videoUrl && (videoUrl.includes('facebook.com') || videoUrl.includes('fb.watch'))) {
+    const { canonicalUrl } = normalizeFacebookUrl(videoUrl);
+    if (canonicalUrl && canonicalUrl.startsWith('http')) {
+      return canonicalUrl;
+    }
+  }
+
+  // 2. Vidéo YouTube
+  if (videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'))) {
+    return videoUrl.trim();
+  }
+
+  // 3. Vidéo TikTok
+  if (videoUrl && videoUrl.includes('tiktok.com')) {
+    return videoUrl.trim();
+  }
+
+  // 4. Image publique hébergée (Render ou externe)
+  if (imageUrl) {
+    const resolved = resolveMediaUrl(imageUrl);
+    if (resolved && (resolved.startsWith('http://') || resolved.startsWith('https://')) && !resolved.includes('localhost') && !resolved.includes('127.0.0.1')) {
+      return resolved;
+    }
+  }
+
+  // 5. Vidéo MP4 directe publique
+  if (videoUrl) {
+    const resolved = resolveMediaUrl(videoUrl);
+    if (resolved && (resolved.startsWith('http://') || resolved.startsWith('https://')) && !resolved.includes('localhost') && !resolved.includes('127.0.0.1')) {
+      return resolved;
+    }
+  }
+
+  // 6. Fiche publique du produit en production
+  if (productId) {
+    return `https://onoot-boutique.vercel.app/products/${productId}`;
+  }
+
+  return 'https://onoot-boutique.vercel.app';
+}

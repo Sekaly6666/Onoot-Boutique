@@ -21,6 +21,7 @@ import {
   buildInteriorWhatsAppUrl,
   DeliveryZone,
 } from "@/lib/deliveryZones";
+import { getPublicShareableMediaUrl } from "@/lib/videoUtils";
 import {
   Truck,
   MapPin,
@@ -299,7 +300,23 @@ export default function Checkout() {
             const itemsList = cart.items
               .map((it: CartItem) => `• ${it.quantity}x ${it.product.name} (${(it.price * it.quantity).toLocaleString("fr-FR")} FCFA)`)
               .join("\n");
-            const whatsappMsg = `Bonjour Onoot Boutique,\n\nJe viens de valider ma commande #${orderNum} sur votre site pour expédition Hors d'Abidjan :\n\n${itemsList}\n\nSous-total articles : ${itemsTotal.toLocaleString("fr-FR")} FCFA\nVille de destination : ${interiorCity.trim()}${interiorStation.trim() ? ` (Gare : ${interiorStation.trim()})` : ""}\n\nPourriez-vous me confirmer les frais d'expédition en car/gare pour l'envoi ? Merci !`;
+
+            const mainItem = cart.items[0];
+            const shareMediaUrl = mainItem ? getPublicShareableMediaUrl({
+              videoUrl: (mainItem.product as any)?.video,
+              imageUrl: (mainItem.product as any)?.images?.[0] || (mainItem.product as any)?.imageUrl,
+              productId: mainItem.product?.id,
+            }) : "";
+
+            const whatsappMsg =
+              `Bonjour Onoot Boutique,\n\n` +
+              `Je viens de valider ma commande #${orderNum} pour expédition Hors d'Abidjan (Intérieur du pays en gare) :\n\n` +
+              `📦 *Articles commandés* :\n${itemsList}\n\n` +
+              `💰 *Sous-total articles* : ${itemsTotal.toLocaleString("fr-FR")} FCFA\n` +
+              `📍 *Ville de destination* : ${interiorCity.trim()}${interiorStation.trim() ? ` (Gare : ${interiorStation.trim()})` : ""}\n\n` +
+              (shareMediaUrl ? `${shareMediaUrl}\n\n` : "") +
+              `Pourriez-vous me confirmer les frais d'expédition en car/gare pour l'envoi ? Merci !`;
+
             const waUrl = `https://wa.me/2250503648312?text=${encodeURIComponent(whatsappMsg)}`;
 
             toast({
@@ -326,6 +343,30 @@ export default function Checkout() {
       }
     );
   };
+
+  if (!isAuthLoading && !user) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-16 max-w-md text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-primary/10 text-primary mx-auto flex items-center justify-center">
+            <Users className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Connexion obligatoire</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Pour valider et sécuriser votre commande, vous devez obligatoirement être inscrit et connecté à votre compte.
+          </p>
+          <div className="flex flex-col gap-2.5 pt-2">
+            <Button asChild className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-11">
+              <Link href="/auth/login?redirect=/checkout">Se connecter</Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full h-11">
+              <Link href="/auth/register?redirect=/checkout">Créer un compte</Link>
+            </Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (isCartLoading) {
     return (

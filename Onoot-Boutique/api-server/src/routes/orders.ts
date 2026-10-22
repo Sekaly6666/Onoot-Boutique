@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { Order } from "../models/Order";
 import { Product } from "../models/Product";
 import { User } from "../models/User";
+import { Cart } from "../models/Cart";
 import { AdminNotification } from "../models/AdminNotification";
 import {
   sendOrderConfirmation,
@@ -81,28 +82,48 @@ function formatOrder(order: any) {
 
   const formattedItems = (order.items || []).map((it: any) => {
     const rawIt = typeof it.toObject === 'function' ? it.toObject() : { ...it };
+    const productName = rawIt.productName || rawIt.name || 'Article Onoot';
+    const productImage = rawIt.productImage || rawIt.image || resolveItemImage(rawIt);
     return {
       ...rawIt,
-      productImage: rawIt.productImage || resolveItemImage(rawIt),
+      name: productName,
+      productName,
+      image: productImage,
+      productImage,
     };
   });
 
+  const orderNum = order.orderNumber || (order._id ? order._id.toString().slice(-6).toUpperCase() : 'CMD');
+  const mappedStatus =
+    order.orderStatus === 'delivered' ? 'Livrée' :
+    order.orderStatus === 'shipped' ? 'En cours de livraison' :
+    order.orderStatus === 'confirmed' ? 'Confirmée' :
+    order.orderStatus === 'cancelled' ? 'Annulée' : 'En attente';
+
   return {
-    id: order._id,
+    id: order._id?.toString() || order.id,
+    _id: order._id?.toString() || order.id,
+    orderNumber: orderNum,
     userId: order.userId ?? null,
+    customerName: order.shippingAddress?.fullName || 'Client Onoot',
     customerEmail: order.customerEmail ?? null,
+    customerPhone: order.shippingAddress?.phone || null,
+    deliveryAddress: order.shippingAddress?.address || null,
+    city: order.shippingAddress?.city || null,
     items: formattedItems,
     totalAmount: order.totalAmount,
     shippingCost,
+    shippingFee: shippingCost,
     itemsTotal,
     paymentMethod: order.paymentMethod,
     orderStatus: order.orderStatus,
+    status: mappedStatus,
     cancelReason: order.cancelReason ?? null,
     estimatedDeliveryDate: order.estimatedDeliveryDate ?? null,
     shippingAddress: order.shippingAddress,
     notes: order.notes ?? null,
-    createdAt: order.createdAt.toISOString(),
-    updatedAt: order.updatedAt.toISOString(),
+    createdAt: order.createdAt instanceof Date ? order.createdAt.toISOString() : (order.createdAt || new Date().toISOString()),
+    updatedAt: order.updatedAt instanceof Date ? order.updatedAt.toISOString() : (order.updatedAt || new Date().toISOString()),
   };
 }
 
@@ -113,12 +134,31 @@ router.get("/orders", async (req, res): Promise<void> => {
     return;
   }
 
-  const { userId, status, page = 1, limit = 20 } = params.data;
+  const { userId, status, page = 1, limit = 50 } = params.data;
   const skip = (page - 1) * limit;
 
+  const email = (req.query.email as string)?.trim();
+  const phone = (req.query.phone as string)?.trim();
+
   const filter: any = {};
-  if (userId) filter.userId = userId;
   if (status) filter.orderStatus = status;
+
+  if (userId || email || phone) {
+    const orConditions: any[] = [];
+    if (userId) {
+      orConditions.push({ userId });
+      if (mongoose.Types.ObjectId.isValid(userId)) {
+        orConditions.push({ userId: new mongoose.Types.ObjectId(userId) });
+      }
+    }
+    if (email) {
+      orConditions.push({ customerEmail: { $regex: new RegExp(`^${email}$`, 'i') } });
+    }
+    if (phone) {
+      orConditions.push({ "shippingAddress.phone": phone });
+    }
+    filter.$or = orConditions;
+  }
 
   const [orders, total] = await Promise.all([
     Order.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
@@ -129,6 +169,30 @@ router.get("/orders", async (req, res): Promise<void> => {
 });
 
 router.post("/orders", async (req, res): Promise<void> => {
+  // Normalize mobile flat payload if present
+  if (!req.body.shippingAddress && (req.body.customerName || req.body.deliveryAddress)) {
+    req.body.shippingAddress = {
+      fullName: req.body.customerName?.trim() || "Client Onoot",
+      phone: req.body.customerPhone?.trim() || "0700000000",
+      address: req.body.deliveryAddress?.trim() || "Abidjan",
+      city: req.body.city?.trim() || "Cocody",
+      country: req.body.country?.trim() || "Côte d'Ivoire",
+    };
+  }
+
+  // Normalize mobile items payload if present (name -> productName, image -> productImage)
+  if (Array.isArray(req.body.items)) {
+    req.body.items = req.body.items.map((it: any) => ({
+      productId: String(it.productId || it.id || "example-product"),
+      quantity: Math.max(1, Number(it.quantity) || 1),
+      price: Number(it.price) || 0,
+      productName: (it.productName || it.name || "Article Onoot").trim(),
+      productImage: it.productImage || it.image || null,
+      name: (it.productName || it.name || "Article Onoot").trim(),
+      color: it.color || null,
+    }));
+  }
+
   const parsed = CreateOrderBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -144,6 +208,11 @@ router.post("/orders", async (req, res): Promise<void> => {
     !shipping?.country?.trim()
   ) {
     res.status(400).json({ error: "Tous les champs de l'adresse de livraison sont obligatoires." });
+    return;
+  }
+
+  if (!parsed.data.userId) {
+    res.status(401).json({ error: "Vous devez être obligatoirement inscrit et connecté pour passer une commande." });
     return;
   }
 
@@ -274,8 +343,11 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   // Empty the cart
   if (parsed.data.sessionId) {
-    const CartModel = require('../models/Cart').Cart;
-    await CartModel.updateOne({ sessionId: parsed.data.sessionId }, { $set: { items: [] } });
+    try {
+      await Cart.updateOne({ sessionId: parsed.data.sessionId }, { $set: { items: [] } });
+    } catch {
+      // ignore
+    }
   }
 
   res.status(201).json(formatOrder(order));

@@ -5,6 +5,8 @@ export interface IProduct extends Document {
   description?: string;
   price: number;
   discountPrice?: number;
+  isPriceInbox?: boolean;
+  priceInboxText?: string;
   stock: number;
   category: string;
   imageUrl?: string;
@@ -34,12 +36,14 @@ const ProductSchema: Schema = new Schema(
     name: { type: String, required: true },
     description: { type: String },
     price: { type: Number, required: true },
+    discountPrice: { type: Number },
+    isPriceInbox: { type: Boolean, default: false },
+    priceInboxText: { type: String, default: 'Prix en Inbox' },
     stock: { type: Number, required: true },
     category: { type: String, required: true },
     imageUrl: { type: String },
     // Additional optional fields for compatibility with existing routes
     slug: { type: String },
-    discountPrice: { type: Number },
     subCategory: { type: String },
     brand: { type: String },
     images: { type: [String], default: [] },

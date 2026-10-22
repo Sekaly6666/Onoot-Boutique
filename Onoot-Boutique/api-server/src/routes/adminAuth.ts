@@ -51,13 +51,16 @@ router.post('/login', async (req, res) => {
       return;
     }
 
-    const defaultEmail = process.env.ADMIN_EMAIL || process.env.VITE_ADMIN_EMAIL || 'adminboutique@onoot.com';
-    const defaultPassword = process.env.ADMIN_PASSWORD || process.env.VITE_ADMIN_PASSWORD || 'admin1234';
+    const cleanEmail = (email || '').toLowerCase().trim();
+    const cleanPassword = (password || '').trim();
 
-    let admin = await Admin.findOne({ email });
+    const defaultEmail = (process.env.ADMIN_EMAIL || process.env.VITE_ADMIN_EMAIL || 'adminboutique@onoot.com').toLowerCase().trim();
+    const defaultPassword = (process.env.ADMIN_PASSWORD || process.env.VITE_ADMIN_PASSWORD || 'admin1234').trim();
+
+    let admin = await Admin.findOne({ email: { $regex: new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } });
     if (!admin) {
       // If admin not found, try to create default admin from env vars if credentials match
-      if (email.toLowerCase() === defaultEmail.toLowerCase() && password === defaultPassword) {
+      if (cleanEmail === defaultEmail && cleanPassword === defaultPassword) {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(defaultPassword, salt);
         admin = await Admin.create({ email: defaultEmail, passwordHash });
@@ -68,10 +71,10 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    let isMatch = await bcrypt.compare(password, admin.passwordHash);
+    let isMatch = await bcrypt.compare(cleanPassword, admin.passwordHash);
     if (!isMatch) {
       // If default admin credentials match, update the passwordHash to restore access
-      if (email.toLowerCase() === defaultEmail.toLowerCase() && password === defaultPassword) {
+      if (cleanEmail === defaultEmail && cleanPassword === defaultPassword) {
         const salt = await bcrypt.genSalt(10);
         admin.passwordHash = await bcrypt.hash(defaultPassword, salt);
         await admin.save();

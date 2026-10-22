@@ -12,7 +12,8 @@
     "build:api": "pnpm --filter @workspace/api-server build && node -e \"const fs=require('fs'); fs.cpSync('Onoot-Boutique/api-server/dist', 'dist', {recursive:true});\"",
     "start:api": "node --enable-source-maps Onoot-Boutique/api-server/dist/index.mjs",
     "build:admin": "pnpm --filter @workspace/admin build",
-    "build:boutique": "pnpm --filter @workspace/onoot-boutique build"
+    "build:boutique": "pnpm --filter @workspace/onoot-boutique build",
+    "mobile": "npx --prefix Onoot-Boutique/onoot-boutique-Appmobile expo start"
   },
   "private": true,
   "devDependencies": {

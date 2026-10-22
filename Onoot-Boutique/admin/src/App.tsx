@@ -70,7 +70,17 @@ class AdminErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
   }
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes de fraîcheur en cache pour navigation instantanée
+      gcTime: 1000 * 60 * 30, // 30 minutes de conservation en mémoire
+      refetchOnWindowFocus: false, // Évite les micro-rechargements intempestifs
+      refetchOnReconnect: true,
+      retry: 1,
+    },
+  },
+});
 function App() {
   return (
     <AdminErrorBoundary>

@@ -23,16 +23,20 @@ import {
   ShoppingCart,
   SkipForward,
   SkipBack,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "./button";
 import { VideoMarquee } from "./VideoMarquee";
 import { useListProducts } from "@workspace/api-client-react";
 import { useCartContext } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import {
   resolveMediaUrl,
   isEmbedVideo,
   isVerticalVideo,
   getEmbedAutoplayUrl,
+  getPublicShareableMediaUrl,
 } from "@/lib/videoUtils";
 
 interface PromoVideo {
@@ -47,9 +51,14 @@ interface PromoVideo {
   productId?: string;
   price?: number;
   discountPrice?: number;
+  isPriceInbox?: boolean;
+  priceInboxText?: string;
+  duration?: number;
   badge?: string;
   viewsCount?: number;
 }
+
+const WHATSAPP_PHONE = "2250503648312";
 
 // Fallback high-performance CDN videos verified to return 200 OK without hotlink blocking
 const RELIABLE_CDN_VIDEOS = [
@@ -68,7 +77,6 @@ function cleanBadgeText(badge?: string): string {
   );
 }
 
-
 export function VideoShowcase() {
   const [videos, setVideos] = useState<PromoVideo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +87,11 @@ export function VideoShowcase() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
+  const [embedCountdown, setEmbedCountdown] = useState<number | null>(null);
+  const [totalEmbedSec, setTotalEmbedSec] = useState<number>(35);
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const { toast } = useToast();
 
   const { addItem } = useCartContext();
   const { data: productsData } = useListProducts();
@@ -90,6 +102,7 @@ export function VideoShowcase() {
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const playlistContainerRef = useRef<HTMLDivElement>(null);
   const isInitialMount = useRef(true);
+  const embedTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch showcase videos
   useEffect(() => {
@@ -148,10 +161,53 @@ export function VideoShowcase() {
     return null;
   }, [activeVideo, allProducts]);
 
-  // Direct product target URL
-  const targetProductUrl = resolvedProduct 
-    ? `/products/${resolvedProduct.id}` 
-    : (activeVideo?.productId ? `/products/${activeVideo.productId}` : (activeVideo?.productLink && activeVideo.productLink !== "/products" ? activeVideo.productLink : "/products"));
+  // Direct product target URL: ALWAYS guarantees navigating to the exact product detail with video mode
+  const rawTargetUrl = activeVideo?.productId
+    ? `/products/${activeVideo.productId}`
+    : (resolvedProduct 
+        ? `/products/${resolvedProduct.id}` 
+        : (activeVideo?.productLink && activeVideo.productLink !== "/products" 
+            ? activeVideo.productLink 
+            : `/products/${activeVideo?._id}`));
+  const targetProductUrl = rawTargetUrl.includes('?') ? `${rawTargetUrl}&media=video` : `${rawTargetUrl}?media=video`;
+
+  // Displayed prices & metadata: prioritize activeVideo's own data, then fallback to matched product
+  const displayPrice = activeVideo?.price ?? resolvedProduct?.price ?? 25000;
+  const displayDiscount = activeVideo?.discountPrice ?? resolvedProduct?.discountPrice ?? null;
+  const hasDiscount = Boolean(displayDiscount && displayDiscount < displayPrice);
+  const displayTitle = activeVideo?.title || activeVideo?.productName || resolvedProduct?.name || "Produit Démo";
+  const activeRawThumb = activeVideo?.thumbnailUrl;
+  const isActiveThumbVideo = Boolean(
+    activeRawThumb && (
+      activeRawThumb.includes('facebook.com') ||
+      activeRawThumb.includes('fb.watch') ||
+      activeRawThumb.includes('tiktok.com') ||
+      activeRawThumb.includes('instagram.com') ||
+      activeRawThumb.includes('.mp4')
+    )
+  );
+  const displayImage = (!activeRawThumb || isActiveThumbVideo)
+    ? resolveMediaUrl(resolvedProduct?.images?.[0] || "/images/zfold_case.jpg")
+    : resolveMediaUrl(activeRawThumb);
+
+  const isItemPriceInbox = Boolean(activeVideo?.isPriceInbox || resolvedProduct?.isPriceInbox);
+  const inboxLabel = activeVideo?.priceInboxText || resolvedProduct?.priceInboxText || "Prix en Inbox";
+
+  const shareMediaUrl = getPublicShareableMediaUrl({
+    videoUrl: activeVideo?.videoUrl || (resolvedProduct as any)?.video,
+    imageUrl: displayImage,
+    productId: resolvedProduct?.id || activeVideo?.productId,
+  });
+
+  const whatsappInboxMessage =
+    `Bonjour Onoot Boutique !\n\n` +
+    `Je souhaite échanger au sujet de ce produit :\n` +
+    `► *${displayTitle}*\n` +
+    `► Mention : *${inboxLabel} (à discuter)*\n\n` +
+    `${shareMediaUrl}\n\n` +
+    `Pouvons-nous échanger à ce sujet pour trouver un terrain d'entente ? Merci !`;
+
+  const whatsappInboxUrl = `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(whatsappInboxMessage)}`;
 
   // Sequential playlist controls: 1 -> 2 -> 3... -> loops back to 1
   const nextVideo = (e?: React.MouseEvent) => {
@@ -193,17 +249,68 @@ export function VideoShowcase() {
     }
   }, [selectedIndex]);
 
+  // Listen for iframe postMessage from YouTube, Facebook or generic video players
+  useEffect(() => {
+    const handleWindowMessage = (e: MessageEvent) => {
+      try {
+        const data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+        // YouTube API ended state (info: 0)
+        if (data?.event === "onStateChange" && data?.info === 0) {
+          nextVideo();
+        }
+        // Facebook / other players ended event
+        if (data?.event === "ended" || data?.action === "finishedPlaying" || data?.type === "video_ended") {
+          nextVideo();
+        }
+      } catch {}
+    };
+    window.addEventListener("message", handleWindowMessage);
+    return () => window.removeEventListener("message", handleWindowMessage);
+  }, [videos.length]);
+
   // Update video playback when selectedIndex changes
   useEffect(() => {
     setVideoError(false);
     setProgress(0);
+
+    if (embedTimerRef.current) {
+      clearInterval(embedTimerRef.current);
+      embedTimerRef.current = null;
+    }
 
     if (!activeVideo) return;
 
     if (isEmbedVideo(activeVideo.videoUrl)) {
       setIsPlaying(true);
       fetch(`/api/promo-videos/${activeVideo._id}/view`, { method: "POST" }).catch(() => {});
-      return;
+      
+      // Auto-advance timer for embedded videos (Facebook, YouTube, TikTok)
+      // Guarantees that when a video ends (even with Facebook's related video overlay), it advances automatically!
+      const durationSec = activeVideo.duration && activeVideo.duration > 5 ? activeVideo.duration : 32;
+      setTotalEmbedSec(durationSec);
+      setEmbedCountdown(durationSec);
+
+      embedTimerRef.current = setInterval(() => {
+        setEmbedCountdown((prev) => {
+          if (prev === null || prev <= 1) {
+            if (embedTimerRef.current) clearInterval(embedTimerRef.current);
+            nextVideo();
+            return 0;
+          }
+          const nextVal = prev - 1;
+          setProgress(((durationSec - nextVal) / durationSec) * 100);
+          return nextVal;
+        });
+      }, 1000);
+
+      return () => {
+        if (embedTimerRef.current) {
+          clearInterval(embedTimerRef.current);
+          embedTimerRef.current = null;
+        }
+      };
+    } else {
+      setEmbedCountdown(null);
     }
 
     if (videoRef.current) {
@@ -246,6 +353,13 @@ export function VideoShowcase() {
 
     // View counter
     fetch(`/api/promo-videos/${activeVideo._id}/view`, { method: "POST" }).catch(() => {});
+
+    return () => {
+      if (embedTimerRef.current) {
+        clearInterval(embedTimerRef.current);
+        embedTimerRef.current = null;
+      }
+    };
   }, [selectedIndex, activeVideo, isModalOpen]);
 
   const handleTimeUpdate = () => {
@@ -253,6 +367,10 @@ export function VideoShowcase() {
       const current = videoRef.current.currentTime;
       const duration = videoRef.current.duration || 1;
       setProgress((current / duration) * 100);
+      // Auto-advance if video reaches within 0.4s of end
+      if (duration > 1 && current >= duration - 0.4) {
+        handleVideoEnded();
+      }
     }
   };
 
@@ -299,40 +417,30 @@ export function VideoShowcase() {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (resolvedProduct) {
-      addItem(resolvedProduct.id, 1);
-    } else if (activeVideo?.productId) {
-      addItem(activeVideo.productId, 1);
-    } else {
-      setLocation(targetProductUrl);
+    if (!user) {
+      toast({
+        title: "Connexion requise",
+        description: "Vous devez être obligatoirement inscrit et connecté pour commander ou ajouter au panier.",
+        variant: "destructive",
+      });
+      setLocation("/auth/login?redirect=/cart");
       return;
     }
-    setJustAdded(true);
-    setTimeout(() => setJustAdded(false), 2000);
+    const prodId = activeVideo?.productId || resolvedProduct?.id || activeVideo?._id;
+    if (prodId) {
+      addItem(prodId, 1);
+      setJustAdded(true);
+      setTimeout(() => setJustAdded(false), 2000);
+    } else {
+      setLocation(targetProductUrl);
+    }
   };
 
   if (loading || !activeVideo) {
     return null;
   }
 
-  // Displayed prices & metadata: prioritize activeVideo's own data, then fallback to matched product
-  const displayPrice = activeVideo.price ?? resolvedProduct?.price ?? 25000;
-  const displayDiscount = activeVideo.discountPrice ?? resolvedProduct?.discountPrice ?? null;
-  const hasDiscount = Boolean(displayDiscount && displayDiscount < displayPrice);
-  const displayTitle = activeVideo.title || activeVideo.productName || resolvedProduct?.name || "Produit Démo";
-  const activeRawThumb = activeVideo.thumbnailUrl;
-  const isActiveThumbVideo = Boolean(
-    activeRawThumb && (
-      activeRawThumb.includes('facebook.com') ||
-      activeRawThumb.includes('fb.watch') ||
-      activeRawThumb.includes('tiktok.com') ||
-      activeRawThumb.includes('instagram.com') ||
-      activeRawThumb.includes('.mp4')
-    )
-  );
-  const displayImage = (!activeRawThumb || isActiveThumbVideo)
-    ? resolveMediaUrl(resolvedProduct?.images?.[0] || "/images/zfold_case.jpg")
-    : resolveMediaUrl(activeRawThumb);
+
 
   return (
     <section className="py-12 sm:py-16 bg-gradient-to-b from-slate-950 via-[#0a0f1d] to-slate-950 text-white relative overflow-hidden select-none">
@@ -456,6 +564,22 @@ export function VideoShowcase() {
                 </div>
               </div>
 
+              {/* Embed Auto-Next countdown badge */}
+              {activeVideo && isEmbedVideo(activeVideo.videoUrl) && embedCountdown !== null && (
+                <div className="absolute top-14 left-3 sm:left-4 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/80 backdrop-blur-md border border-white/20 text-[11px] text-white shadow-lg pointer-events-auto">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>Suivante auto : <strong className="text-orange-400 font-mono">{embedCountdown}s</strong></span>
+                  <button
+                    type="button"
+                    onClick={nextVideo}
+                    className="ml-1 text-orange-400 hover:text-orange-300 font-bold flex items-center gap-0.5 transition-colors"
+                    title="Passer à la vidéo suivante maintenant"
+                  >
+                    <SkipForward className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* Big Center Play / Pause Indicator (native video) */}
               {activeVideo && !isEmbedVideo(activeVideo.videoUrl) && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -474,15 +598,13 @@ export function VideoShowcase() {
                 </div>
               )}
 
-              {/* Bottom Progress Bar */}
-              {activeVideo && !isEmbedVideo(activeVideo.videoUrl) && (
-                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20 z-20">
-                  <div
-                    className="h-full bg-gradient-to-r from-orange-500 via-amber-400 to-[#F5C430] transition-all duration-150"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              )}
+              {/* Bottom Progress Bar (Active for both native & embed) */}
+              <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20 z-20">
+                <div
+                  className="h-full bg-gradient-to-r from-orange-500 via-amber-400 to-[#F5C430] transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             </div>
 
             {/* Product Card Directly Below Video (Jumia Live Shopping Style) */}
@@ -496,6 +618,7 @@ export function VideoShowcase() {
                   <img
                     src={displayImage}
                     alt={displayTitle}
+                    loading="lazy"
                     className="w-full h-full object-contain group-hover/prod:scale-105 transition-transform"
                   />
                 </div>
@@ -517,59 +640,88 @@ export function VideoShowcase() {
 
               {/* Price & Action Buttons */}
               <div className="flex items-center justify-between md:justify-end gap-3.5 flex-shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-white/10">
-                <div className="text-left md:text-right">
-                  {hasDiscount ? (
-                    <>
-                      <div className="text-lg sm:text-xl font-extrabold text-orange-400">
-                        {displayDiscount?.toLocaleString("fr-FR")} FCFA
-                      </div>
-                      <div className="text-xs text-slate-400 line-through">
-                        {displayPrice.toLocaleString("fr-FR")} FCFA
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-lg sm:text-xl font-extrabold text-white">
-                      {displayPrice.toLocaleString("fr-FR")} FCFA
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Quick Add To Cart with ShoppingCart icon */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleAddToCart}
-                    className={`border-white/20 transition-all rounded-xl px-3.5 py-2 text-xs font-bold gap-1.5 shadow-sm ${
-                      justAdded
-                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
-                        : "bg-white/5 hover:bg-white/15 text-white hover:border-orange-500/50"
-                    }`}
-                    title="Ajouter au panier directement"
-                  >
-                    {justAdded ? (
+                {!isItemPriceInbox && (
+                  <div className="text-left md:text-right">
+                    {hasDiscount ? (
                       <>
-                        <Check className="w-4 h-4 text-emerald-400" />
-                        <span>Ajouté !</span>
+                        <div className="text-lg sm:text-xl font-extrabold text-orange-400">
+                          {displayDiscount?.toLocaleString("fr-FR")} FCFA
+                        </div>
+                        <div className="text-xs text-slate-400 line-through">
+                          {displayPrice.toLocaleString("fr-FR")} FCFA
+                        </div>
                       </>
                     ) : (
-                      <>
-                        <ShoppingCart className="w-4 h-4 text-orange-400" />
-                        <span>Ajouter</span>
-                      </>
+                      <div className="text-lg sm:text-xl font-extrabold text-white">
+                        {displayPrice.toLocaleString("fr-FR")} FCFA
+                      </div>
                     )}
-                  </Button>
+                  </div>
+                )}
 
-                  {/* Commander / Direct to Product */}
-                  <Button
-                    asChild
-                    className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold px-4 sm:px-5 py-2 rounded-xl shadow-lg shadow-orange-500/25 transition-all transform hover:scale-102 text-xs sm:text-sm"
-                  >
-                    <Link href={targetProductUrl}>
-                      <ShoppingBag className="w-4 h-4 mr-1.5" />
-                      <span>Commander</span>
-                    </Link>
-                  </Button>
+                <div className="flex items-center gap-2">
+                  {isItemPriceInbox ? (
+                    <>
+                      <a
+                        href={whatsappInboxUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold px-4 sm:px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-500/25 transition-all transform hover:scale-102 text-xs sm:text-sm active:scale-95"
+                        title="Discuter du prix directement sur WhatsApp"
+                      >
+                        <MessageCircle className="w-4 h-4 fill-white" />
+                        <span>Prix en Inbox</span>
+                      </a>
+                      <Button
+                        asChild
+                        variant="outline"
+                        className="border-white/20 bg-white/5 hover:bg-white/15 text-white font-semibold rounded-xl px-3 py-2 text-xs"
+                      >
+                        <Link href={targetProductUrl}>
+                          Détails
+                        </Link>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      {/* Quick Add To Cart with ShoppingCart icon */}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleAddToCart}
+                        className={`border-white/20 transition-all rounded-xl px-3.5 py-2 text-xs font-bold gap-1.5 shadow-sm ${
+                          justAdded
+                            ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
+                            : "bg-white/5 hover:bg-white/15 text-white hover:border-orange-500/50"
+                        }`}
+                        title="Ajouter au panier directement"
+                      >
+                        {justAdded ? (
+                          <>
+                            <Check className="w-4 h-4 text-emerald-400" />
+                            <span>Ajouté !</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-4 h-4 text-orange-400" />
+                            <span>Ajouter</span>
+                          </>
+                        )}
+                      </Button>
+
+                      {/* Commander / Direct to Product */}
+                      <Button
+                        asChild
+                        className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold px-4 sm:px-5 py-2 rounded-xl shadow-lg shadow-orange-500/25 transition-all transform hover:scale-102 text-xs sm:text-sm"
+                      >
+                        <Link href={targetProductUrl}>
+                          <ShoppingBag className="w-4 h-4 mr-1.5" />
+                          <span>Commander</span>
+                        </Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -737,28 +889,46 @@ export function VideoShowcase() {
                 />
               )}
 
-              {/* Direct Buy Bar inside modal */}
+              {/* Direct Buy / Inbox Bar inside modal */}
               <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-md p-3 rounded-2xl border border-white/20 flex items-center justify-between gap-4 z-30">
                 <div className="flex items-center gap-3 min-w-0">
                   <img src={displayImage} alt={displayTitle} className="w-10 h-10 object-contain rounded-lg bg-white/10 p-1" />
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-white truncate">{displayTitle}</p>
-                    <p className="text-xs font-bold text-orange-400">
-                      {(displayDiscount ?? displayPrice).toLocaleString("fr-FR")} FCFA
-                    </p>
+                    {isItemPriceInbox ? (
+                      <p className="text-xs font-bold text-emerald-400">
+                        💬 {inboxLabel}
+                      </p>
+                    ) : (
+                      <p className="text-xs font-bold text-orange-400">
+                        {(displayDiscount ?? displayPrice).toLocaleString("fr-FR")} FCFA
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                <Button
-                  asChild
-                  onClick={() => setIsModalOpen(false)}
-                  className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl px-4 py-2 shrink-0"
-                >
-                  <Link href={targetProductUrl}>
-                    <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
-                    <span>Acheter maintenant</span>
-                  </Link>
-                </Button>
+                {isItemPriceInbox ? (
+                  <a
+                    href={whatsappInboxUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-bold rounded-xl px-4 py-2 shrink-0 shadow-lg shadow-emerald-500/20"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                    <span>Discuter en Inbox</span>
+                  </a>
+                ) : (
+                  <Button
+                    asChild
+                    onClick={() => setIsModalOpen(false)}
+                    className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl px-4 py-2 shrink-0"
+                  >
+                    <Link href={targetProductUrl}>
+                      <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
+                      <span>Commander</span>
+                    </Link>
+                  </Button>
+                )}
               </div>
             </div>
           </motion.div>

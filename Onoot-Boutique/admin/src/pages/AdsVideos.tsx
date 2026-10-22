@@ -26,7 +26,8 @@ import {
   Camera,
   Lightbulb,
   Info,
-  AlertCircle
+  AlertCircle,
+  MessageCircle
 } from 'lucide-react';
 import DeleteConfirm from '../components/DeleteConfirm';
 import { parseVideoSource, resolveMediaUrl, captureVideoFrame } from '../utils/videoUtils';
@@ -41,8 +42,12 @@ interface PromoVideo {
   productLink?: string;
   productName?: string;
   productId?: string;
+  category?: string;
   price?: number;
   discountPrice?: number;
+  isPriceInbox?: boolean;
+  priceInboxText?: string;
+  duration?: number;
   badge?: string;
   placement: 'all' | 'marquee' | 'showcase';
   isActive: boolean;
@@ -59,8 +64,12 @@ interface PromoVideoInput {
   thumbnailUrl?: string;
   productLink?: string;
   productName?: string;
+  category?: string;
   price?: number;
   discountPrice?: number;
+  isPriceInbox?: boolean;
+  priceInboxText?: string;
+  duration?: number;
   badge?: string;
   placement: 'all' | 'marquee' | 'showcase';
   isActive: boolean;
@@ -410,7 +419,14 @@ export default function AdsVideos() {
                             {video.productName || 'Catalogue'}
                           </span>
                         </div>
-                        {video.price && (
+                        {video.isPriceInbox ? (
+                          <div className="text-right flex-shrink-0">
+                            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20 inline-flex items-center gap-1">
+                              <MessageCircle className="w-3 h-3" />
+                              {video.priceInboxText || 'Prix en Inbox'}
+                            </span>
+                          </div>
+                        ) : video.price ? (
                           <div className="text-right flex-shrink-0">
                             {video.discountPrice ? (
                               <>
@@ -427,7 +443,7 @@ export default function AdsVideos() {
                               </span>
                             )}
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     )}
                   </div>
@@ -531,8 +547,47 @@ function PromoVideoModal({
   const [thumbError, setThumbError] = useState(false);
   const [productName, setProductName] = useState(initialVideo?.productName || '');
   const [productLink, setProductLink] = useState(initialVideo?.productLink || '/products');
+  const [category, setCategory] = useState(initialVideo?.category || 'Accessoires');
+  const [isAddingNewCat, setIsAddingNewCat] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [isCreatingCat, setIsCreatingCat] = useState(false);
+
+  const queryClient = useQueryClient();
+  const { data: categories = [] } = useQuery<any[]>({
+    queryKey: ['admin-categories'],
+    queryFn: () => adminFetch<any[]>('/api/admin/categories'),
+  });
+
+  const handleQuickAddCategory = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = newCatName.trim();
+    if (!trimmed) {
+      toast.error('Veuillez entrer le nom de la catégorie');
+      return;
+    }
+    setIsCreatingCat(true);
+    try {
+      const res = await adminFetch<any>('/api/admin/categories', {
+        method: 'POST',
+        body: JSON.stringify({ name: trimmed }),
+      });
+      toast.success(`Catégorie "${trimmed}" créée avec succès !`);
+      await queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      setCategory(res.name || trimmed);
+      setNewCatName('');
+      setIsAddingNewCat(false);
+    } catch (err: any) {
+      toast.error(err.message || "Erreur lors de la création de la catégorie");
+    } finally {
+      setIsCreatingCat(false);
+    }
+  };
+
   const [price, setPrice] = useState(initialVideo?.price ? String(initialVideo.price) : '');
   const [discountPrice, setDiscountPrice] = useState(initialVideo?.discountPrice ? String(initialVideo.discountPrice) : '');
+  const [isPriceInbox, setIsPriceInbox] = useState(initialVideo?.isPriceInbox || false);
+  const [priceInboxText, setPriceInboxText] = useState(initialVideo?.priceInboxText || 'Prix en Inbox');
+  const [duration, setDuration] = useState(initialVideo?.duration ? String(initialVideo.duration) : '');
   const [badge, setBadge] = useState(initialVideo?.badge || 'PROMO EXCLUSIVE');
   const [placement, setPlacement] = useState<'all' | 'marquee' | 'showcase'>(initialVideo?.placement || 'all');
   const [isActive, setIsActive] = useState(initialVideo?.isActive !== undefined ? initialVideo.isActive : true);
@@ -632,8 +687,12 @@ function PromoVideoModal({
         thumbnailUrl: finalThumbnail,
         productName: productName.trim() || undefined,
         productLink: productLink.trim() || '/products',
-        price: price ? Number(price) : undefined,
-        discountPrice: discountPrice ? Number(discountPrice) : undefined,
+        category: category.trim() || undefined,
+        price: isPriceInbox ? undefined : (price ? Number(price) : undefined),
+        discountPrice: isPriceInbox ? undefined : (discountPrice ? Number(discountPrice) : undefined),
+        isPriceInbox: Boolean(isPriceInbox),
+        priceInboxText: priceInboxText.trim() || 'Prix en Inbox',
+        duration: duration ? Number(duration) : undefined,
         badge: cleanBadgeText(badge),
         placement,
         isActive,
@@ -995,6 +1054,77 @@ function PromoVideoModal({
               />
             </div>
 
+          {/* Catégorie du produit & Ajout rapide */}
+          <div className="p-4 rounded-2xl bg-muted/30 border border-border space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-foreground uppercase tracking-wide">
+                Catégorie du Produit
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsAddingNewCat(!isAddingNewCat)}
+                className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{isAddingNewCat ? 'Fermer' : 'Nouvelle Catégorie'}</span>
+              </button>
+            </div>
+
+            {isAddingNewCat ? (
+              <div className="flex gap-2 p-3 bg-background border border-primary/30 rounded-xl">
+                <input
+                  type="text"
+                  placeholder="Nom de la nouvelle catégorie..."
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleQuickAddCategory();
+                    }
+                  }}
+                  className="flex-1 bg-muted/40 border border-border rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  disabled={isCreatingCat || !newCatName.trim()}
+                  onClick={() => handleQuickAddCategory()}
+                  className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-40 flex items-center gap-1 shrink-0"
+                >
+                  {isCreatingCat ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  <span>Créer</span>
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none appearance-none pr-9 text-foreground"
+                >
+                  <option value="">Sélectionner une catégorie</option>
+                  {categories.map((c: any) => (
+                    <option key={c.id || c._id || c.slug || c.name} value={c.name || c.slug}>
+                      {c.name}
+                    </option>
+                  ))}
+                  <option value="Accessoires">Accessoires</option>
+                  <option value="Smartphones">Smartphones</option>
+                  <option value="Montres Connectées">Montres Connectées</option>
+                  <option value="Audio">Audio & Écouteurs</option>
+                  <option value="Coques & Protections">Coques & Protections</option>
+                  <option value="Autre">Autre</option>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-xs">
+                  ▼
+                </div>
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              La vidéo et sa fiche produit seront automatiquement classées dans cette catégorie.
+            </p>
+          </div>
+
           {/* Product Link & Name */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -1032,10 +1162,11 @@ function PromoVideoModal({
               </label>
               <input
                 type="number"
+                disabled={isPriceInbox}
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                placeholder="Ex: 45000"
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                placeholder={isPriceInbox ? "Mode Prix en Inbox actif" : "Ex: 45000"}
+                className={`w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none ${isPriceInbox ? 'opacity-40 cursor-not-allowed bg-muted/20' : ''}`}
               />
             </div>
 
@@ -1045,19 +1176,63 @@ function PromoVideoModal({
               </label>
               <input
                 type="number"
+                disabled={isPriceInbox}
                 value={discountPrice}
                 onChange={(e) => setDiscountPrice(e.target.value)}
-                placeholder="Ex: 38000"
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                placeholder={isPriceInbox ? "Mode Prix en Inbox actif" : "Ex: 38000"}
+                className={`w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none ${isPriceInbox ? 'opacity-40 cursor-not-allowed bg-muted/20' : ''}`}
               />
             </div>
           </div>
 
+          {/* Option Prix en Inbox / Négociation WhatsApp */}
+          <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="flex items-start sm:items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isPriceInbox}
+                  onChange={(e) => setIsPriceInbox(e.target.checked)}
+                  className="w-4 h-4 rounded mt-0.5 sm:mt-0 text-emerald-600 focus:ring-emerald-500/20"
+                />
+                <div>
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <MessageCircle className="w-4 h-4 text-emerald-500" />
+                    Activer l'option "Prix en Inbox" (Négociation directe sur WhatsApp)
+                  </span>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Pour les produits sans prix fixe qui se discutent directement entre le client et vous. Sur la boutique, un bouton WhatsApp vert de discussion s'affiche avec le nom du produit pré-rempli.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {isPriceInbox && (
+              <div className="pt-2 border-t border-emerald-500/20 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                    Texte affiché sur le bouton / badge
+                  </label>
+                  <input
+                    type="text"
+                    value={priceInboxText}
+                    onChange={(e) => setPriceInboxText(e.target.value)}
+                    placeholder="Ex: Prix en Inbox, Sur devis, À discuter..."
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
+                  />
+                </div>
+                <div className="flex items-center text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  ✓ Le client cliquera sur ce bouton pour ouvrir WhatsApp avec le nom du produit et la demande de négociation déjà préparée.
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Placement & Status */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-border">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2 border-t border-border">
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-                Emplacement d'affichage
+                Emplacement
               </label>
               <select
                 value={placement}
@@ -1072,13 +1247,27 @@ function PromoVideoModal({
 
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-                Ordre d'affichage
+                Ordre
               </label>
               <input
                 type="number"
                 value={order}
                 onChange={(e) => setOrder(e.target.value)}
                 placeholder="0"
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                Durée auto (sec)
+              </label>
+              <input
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                placeholder="30 (défaut)"
+                title="Nombre de secondes avant de passer automatiquement à la vidéo suivante si embed"
                 className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
               />
             </div>
@@ -1091,7 +1280,7 @@ function PromoVideoModal({
                   onChange={(e) => setIsActive(e.target.checked)}
                   className="w-4 h-4 rounded text-primary focus:ring-primary/20"
                 />
-                <span className="text-xs font-semibold text-foreground">Diffuser immédiatement</span>
+                <span className="text-xs font-semibold text-foreground">Diffuser</span>
               </label>
             </div>
           </div>

@@ -16,7 +16,8 @@ import {
   Sparkles, 
   Layers, 
   ExternalLink,
-  Film
+  Film,
+  MessageCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -37,6 +38,8 @@ export interface ProductInput {
   category: string;
   price: number;
   discountPrice?: number;
+  isPriceInbox?: boolean;
+  priceInboxText?: string;
   stock: number;
   imageUrl?: string;
   images?: string[];
@@ -107,6 +110,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
   const [category, setCategory] = useState(initialProduct?.category || '');
   const [price, setPrice] = useState(initialProduct ? String(initialProduct.price) : '');
   const [discountPrice, setDiscountPrice] = useState(initialProduct?.discountPrice ? String(initialProduct.discountPrice) : '');
+  const [isPriceInbox, setIsPriceInbox] = useState(Boolean((initialProduct as any)?.isPriceInbox));
+  const [priceInboxText, setPriceInboxText] = useState((initialProduct as any)?.priceInboxText || 'Prix en Inbox');
   const [stock, setStock] = useState(initialProduct ? String(initialProduct.stock) : '');
   const [status, setStatus] = useState(initialProduct?.status || 'Publié');
 
@@ -164,6 +169,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
       setCategory(initialProduct.category || '');
       setPrice(String(initialProduct.price));
       setDiscountPrice(initialProduct.discountPrice ? String(initialProduct.discountPrice) : '');
+      setIsPriceInbox(Boolean((initialProduct as any)?.isPriceInbox));
+      setPriceInboxText((initialProduct as any)?.priceInboxText || 'Prix en Inbox');
       setStock(String(initialProduct.stock));
       setStatus(initialProduct.status || 'Publié');
 
@@ -348,6 +355,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
         category: category || 'autre',
         price: Number.isNaN(priceNum) ? 0 : priceNum,
         discountPrice: discountPriceNum && !Number.isNaN(discountPriceNum) ? discountPriceNum : undefined,
+        isPriceInbox: Boolean(isPriceInbox),
+        priceInboxText: isPriceInbox ? (priceInboxText.trim() || 'Prix en Inbox') : undefined,
         stock: Number.isNaN(stockNum) ? 0 : stockNum,
         status,
         featured,
@@ -480,8 +489,43 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onClose, onSubmit
                 </div>
                 <div>
                   <label className={labelClass}>Prix promo (FCFA)</label>
-                  <input type="number" min="0" placeholder="Optionnel" value={discountPrice} onChange={(e) => setDiscountPrice(e.target.value)} className={inputClass} />
+                  <input type="number" min="0" placeholder="Optionnel" value={discountPrice} onChange={(e) => setDiscountPrice(e.target.value)} disabled={isPriceInbox} className={`${inputClass} ${isPriceInbox ? 'opacity-40 cursor-not-allowed' : ''}`} />
                 </div>
+              </div>
+
+              {/* Option Prix en Inbox / Négociation WhatsApp */}
+              <div className="p-3.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 space-y-2 mt-3">
+                <label className="flex items-start sm:items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isPriceInbox}
+                    onChange={(e) => setIsPriceInbox(e.target.checked)}
+                    className="w-4 h-4 rounded mt-0.5 sm:mt-0 text-emerald-600 focus:ring-emerald-500/20"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <MessageCircle className="w-4 h-4 text-emerald-500" />
+                      Activer l'option "Prix en Inbox" (Négociation directe sur WhatsApp)
+                    </span>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Cochez pour les produits dont le prix est à discuter sur WhatsApp. Sur la boutique, le bouton vert WhatsApp s'affichera à la place du bouton de commande classique.
+                    </p>
+                  </div>
+                </label>
+                {isPriceInbox && (
+                  <div className="pt-2 border-t border-emerald-500/20">
+                    <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                      Texte personnalisé du bouton
+                    </label>
+                    <input
+                      type="text"
+                      value={priceInboxText}
+                      onChange={(e) => setPriceInboxText(e.target.value)}
+                      placeholder="Prix en Inbox"
+                      className={inputClass}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

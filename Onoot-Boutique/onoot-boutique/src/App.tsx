@@ -54,8 +54,11 @@ if (typeof Node === "function" && Node.prototype) {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes de mise en cache : navigation ultra-rapide sans re-fetch
+      gcTime: 1000 * 60 * 30, // 30 minutes en mémoire
       retry: 1,
       refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
     },
   },
 });

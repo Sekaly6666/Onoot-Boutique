@@ -9,8 +9,12 @@ export interface IPromoVideo extends Document {
   productLink?: string;
   productName?: string;
   productId?: string;
+  category?: string;
   price?: number;
   discountPrice?: number;
+  isPriceInbox?: boolean;
+  priceInboxText?: string;
+  duration?: number;
   badge?: string;
   placement: 'all' | 'marquee' | 'showcase';
   isActive: boolean;
@@ -30,8 +34,12 @@ const PromoVideoSchema: Schema = new Schema(
     productLink: { type: String, required: false },
     productName: { type: String, required: false },
     productId: { type: String, required: false },
+    category: { type: String, required: false },
     price: { type: Number, required: false },
     discountPrice: { type: Number, required: false },
+    isPriceInbox: { type: Boolean, default: false },
+    priceInboxText: { type: String, default: 'Prix en Inbox' },
+    duration: { type: Number, required: false },
     badge: { type: String, default: 'PROMO EXCLUSIVE' },
     placement: { 
       type: String, 

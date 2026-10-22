@@ -133,13 +133,15 @@
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 
-  /* Marquee animation */
+  /* Marquee animation - Smooth and gently paced */
   @keyframes marquee {
     0% { transform: translateX(0); }
     100% { transform: translateX(-50%); }
   }
   .animate-marquee {
-    animation: marquee 30s linear infinite;
+    animation: marquee var(--duration, 85s) linear infinite;
+    will-change: transform;
+    transform: translateZ(0);
   }
 
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);

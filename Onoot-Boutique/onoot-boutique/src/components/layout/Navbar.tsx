@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCartContext } from "@/contexts/CartContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -15,6 +16,34 @@ export function Navbar() {
   const [location, setLocation] = useLocation();
   const [searchValue, setSearchValue] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  const prefetchBoutique = (path: string) => {
+    try {
+      if (path === "/products") {
+        queryClient.prefetchQuery({
+          queryKey: ["/api/products"],
+          queryFn: () => fetch("/api/products").then(r => r.json())
+        });
+        queryClient.prefetchQuery({
+          queryKey: ["/api/categories"],
+          queryFn: () => fetch("/api/categories").then(r => r.json())
+        });
+      } else if (path === "/") {
+        queryClient.prefetchQuery({
+          queryKey: ["/api/promo-videos"],
+          queryFn: () => fetch("/api/promo-videos").then(r => r.json())
+        });
+      } else if (path === "/orders" && user) {
+        queryClient.prefetchQuery({
+          queryKey: ["/api/orders"],
+          queryFn: () => fetch("/api/orders").then(r => r.json())
+        });
+      }
+    } catch {
+      // Ignore
+    }
+  };
 
   const cartItemsCount = cart?.totalItems || 0;
   const isAuthPage = location.startsWith('/auth');
@@ -35,13 +64,15 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-white dark:bg-gray-950 text-foreground dark:text-white shadow-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 gap-4">
-        <Link
-          href="/"
-          aria-label="Accueil Onoot Boutique"
-          className="flex shrink-0 items-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E87C2A] focus-visible:ring-offset-2"
-        >
-          <OnootLogo size="md" variant={logoVariant} />
-        </Link>
+          <Link
+            href="/"
+            aria-label="Accueil Onoot Boutique"
+            onMouseEnter={() => prefetchBoutique("/")}
+            onTouchStart={() => prefetchBoutique("/")}
+            className="flex shrink-0 items-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E87C2A] focus-visible:ring-offset-2"
+          >
+            <OnootLogo size="md" variant={logoVariant} />
+          </Link>
 
         {!isAuthPage && (
           <div className="flex-1 max-w-xl hidden md:flex relative">
@@ -66,7 +97,14 @@ export function Navbar() {
           </Button>
 
           {!isAuthPage && (
-            <Button variant="ghost" size="icon" className="relative cursor-pointer" asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative cursor-pointer"
+              onMouseEnter={() => prefetchBoutique("/cart")}
+              onTouchStart={() => prefetchBoutique("/cart")}
+              asChild
+            >
               <Link href="/cart">
                 <ShoppingCart className="h-5 w-5" />
                 {cartItemsCount > 0 && (
@@ -98,11 +136,17 @@ export function Navbar() {
                     <p className="text-xs text-slate-500 dark:text-gray-400 truncate">{user.email}</p>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => setLocation("/profile")}>
+                <DropdownMenuItem 
+                  onMouseEnter={() => prefetchBoutique("/profile")}
+                  onClick={() => setLocation("/profile")}
+                >
                   <User className="mr-2.5 h-4 w-4 text-slate-500 dark:text-gray-400" />
                   <span>Profil</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLocation("/orders")}>
+                <DropdownMenuItem 
+                  onMouseEnter={() => prefetchBoutique("/orders")}
+                  onClick={() => setLocation("/orders")}
+                >
                   <Package className="mr-2.5 h-4 w-4 text-slate-500 dark:text-gray-400" />
                   <span>Mes Commandes</span>
                 </DropdownMenuItem>
@@ -171,6 +215,8 @@ export function Navbar() {
           <nav className="flex flex-col space-y-1">
             <Link
               href="/"
+              onMouseEnter={() => prefetchBoutique("/")}
+              onTouchStart={() => prefetchBoutique("/")}
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-muted transition-colors"
             >
@@ -178,6 +224,8 @@ export function Navbar() {
             </Link>
             <Link
               href="/products"
+              onMouseEnter={() => prefetchBoutique("/products")}
+              onTouchStart={() => prefetchBoutique("/products")}
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-muted transition-colors"
             >
@@ -185,6 +233,8 @@ export function Navbar() {
             </Link>
             <Link
               href="/products?onSale=true"
+              onMouseEnter={() => prefetchBoutique("/products")}
+              onTouchStart={() => prefetchBoutique("/products")}
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-muted transition-colors"
             >
@@ -199,6 +249,8 @@ export function Navbar() {
                 <div className="h-px bg-border my-2" />
                 <Link
                   href="/orders"
+                  onMouseEnter={() => prefetchBoutique("/orders")}
+                  onTouchStart={() => prefetchBoutique("/orders")}
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-muted transition-colors"
                 >
@@ -207,6 +259,8 @@ export function Navbar() {
                 </Link>
                 <Link
                   href="/profile"
+                  onMouseEnter={() => prefetchBoutique("/profile")}
+                  onTouchStart={() => prefetchBoutique("/profile")}
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-muted transition-colors"
                 >

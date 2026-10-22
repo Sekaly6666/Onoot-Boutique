@@ -1,5 +1,6 @@
 packages:
   - 'Onoot-Boutique/*'
+  - '!Onoot-Boutique/onoot-boutique-Appmobile'
   - 'artifacts/*'
   - 'lib/*'
   - 'scripts'

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Marquee } from "./marquee";
-import { Flame, Sparkles, ArrowRight, Play, Volume2, VolumeX, Eye, Radio, Tag } from "lucide-react";
+import { Flame, Sparkles, ArrowRight, Play, Volume2, VolumeX, Eye, Radio, Tag, Film } from "lucide-react";
 
 interface PromoVideoItem {
   _id: string;
@@ -11,8 +11,11 @@ interface PromoVideoItem {
   thumbnailUrl?: string;
   productLink?: string;
   productName?: string;
+  productId?: string;
   price?: number;
   discountPrice?: number;
+  isPriceInbox?: boolean;
+  priceInboxText?: string;
   badge?: string;
   viewsCount?: number;
 }
@@ -66,22 +69,37 @@ export function VideoMarquee() {
           </span>
         </div>
         <span className="text-[10px] text-gray-400 hidden sm:inline-block">
-          Survolez pour mettre en pause • Cliquez pour voir le produit
+          Survolez pour mettre en pause • Cliquez pour voir et commander le produit
         </span>
       </div>
 
-      <Marquee className="[--duration:38s] [--gap:1.5rem] py-1" pauseOnHover repeat={4}>
+      <Marquee className="[--duration:95s] [--gap:1.5rem] py-1" pauseOnHover repeat={3}>
         {videos.map((item) => {
           const discountPercent =
             item.price && item.discountPrice && item.discountPrice < item.price
               ? Math.round((1 - item.discountPrice / item.price) * 100)
               : null;
 
-          const targetUrl = item.productLink && item.productLink !== "/products" 
-            ? item.productLink 
-            : (item.productId ? `/products/${item.productId}` : "/products");
+          const rawTargetUrl = item.productId
+            ? `/products/${item.productId}`
+            : (item.productLink && item.productLink !== "/products" 
+                ? item.productLink 
+                : `/products/${item._id}`);
+          const targetUrl = rawTargetUrl.includes('?') ? `${rawTargetUrl}&media=video` : `${rawTargetUrl}?media=video`;
 
-          const thumb = item.thumbnailUrl || "/images/smartwatch.png";
+          let thumb = item.thumbnailUrl;
+          if (thumb && (thumb.includes('facebook.com') || thumb.includes('fb.watch'))) {
+            thumb = undefined;
+          }
+          if (!thumb && item.videoUrl) {
+            const ytMatch = item.videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i);
+            if (ytMatch && ytMatch[1]) {
+              thumb = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+            }
+          }
+          if (!thumb && item.title.toLowerCase().includes('fold')) {
+            thumb = '/images/zfold_case.jpg';
+          }
 
           return (
             <Link
@@ -90,12 +108,20 @@ export function VideoMarquee() {
               className="group/card flex items-center gap-3.5 bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 hover:border-orange-500/50 p-2 pr-4 rounded-2xl backdrop-blur-md transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/10 cursor-pointer text-white"
             >
               {/* Mini Video / Product Box */}
-              <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-white/15 group-hover/card:border-orange-500 transition-colors shadow-sm p-1">
-                <img
-                  src={thumb}
-                  alt={item.title}
-                  className="w-full h-full object-contain group-hover/card:scale-105 transition-transform duration-500"
-                />
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-white/15 group-hover/card:border-orange-500 transition-colors shadow-sm p-1 flex items-center justify-center">
+                {thumb ? (
+                  <img
+                    src={thumb}
+                    alt={item.title}
+                    loading="lazy"
+                    className="w-full h-full object-contain group-hover/card:scale-105 transition-transform duration-500"
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-center p-1 bg-gradient-to-br from-orange-500/20 to-amber-500/20">
+                    <Film className="w-5 h-5 text-orange-400 mb-0.5" />
+                    <span className="text-[8px] font-bold text-orange-300 leading-tight truncate max-w-full">Vidéo Démo</span>
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-black/20 group-hover/card:bg-transparent transition-colors flex items-center justify-center">
                   <div className="w-6 h-6 rounded-full bg-black/60 backdrop-blur-xs flex items-center justify-center text-white/90 group-hover/card:scale-110 group-hover/card:bg-orange-500 transition-all shadow-md">
                     <Play className="w-2.5 h-2.5 ml-0.5 fill-current" />
@@ -111,11 +137,15 @@ export function VideoMarquee() {
                     <Flame className="w-2.5 h-2.5 text-white fill-white" />
                     <span>{cleanBadgeText(item.badge)}</span>
                   </span>
-                  {discountPercent && (
+                  {item.isPriceInbox ? (
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                      WhatsApp
+                    </span>
+                  ) : discountPercent ? (
                     <span className="text-[10px] font-bold text-amber-300">
                       -{discountPercent}%
                     </span>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Title */}
@@ -131,7 +161,11 @@ export function VideoMarquee() {
                 {/* Pricing & CTA */}
                 <div className="flex items-center justify-between mt-1 pt-1 border-t border-white/5">
                   <div className="flex items-center gap-1.5 text-xs">
-                    {item.discountPrice ? (
+                    {item.isPriceInbox ? (
+                      <span className="font-extrabold text-emerald-400 text-[11px] flex items-center gap-1">
+                        💬 {item.priceInboxText || "Prix en Inbox"}
+                      </span>
+                    ) : item.discountPrice ? (
                       <>
                         <span className="font-extrabold text-orange-400">
                           {item.discountPrice.toLocaleString("fr-FR")} F

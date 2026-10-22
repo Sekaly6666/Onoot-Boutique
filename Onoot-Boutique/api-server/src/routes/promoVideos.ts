@@ -8,90 +8,84 @@ const router: IRouter = Router();
 import mongoose from "mongoose";
 import { Product } from "../models/Product";
 
-// Seed initial demo promo videos and update broken mixkit URLs
-async function seedDemoPromoVideosIfEmpty() {
+// Seed initial demo promo videos and ensure all promo videos have matching real products in DB
+async function syncPromoVideosWithProducts() {
   try {
-    // Find matching real products from DB to create perfect direct links
-    const smartwatch = await Product.findOne({ name: new RegExp("Smartwatch", "i") });
-    const earbuds = await Product.findOne({ name: new RegExp("Écouteurs", "i") });
-    const powerbank = await Product.findOne({ name: new RegExp("Batterie", "i") });
-
-    const demoVideos = [
-      {
-        title: "Smartwatch Ultra Pro Séries",
-        subtitle: "Écran AMOLED HD & Autonomie 7 jours",
-        description: "La montre intelligente ultime pour vos activités sportives et professionnelles avec capteur cardiaque précis.",
-        videoUrl: "https://vjs.zencdn.net/v/oceans.mp4",
-        thumbnailUrl: "/images/smartwatch.png",
-        productLink: smartwatch ? `/products/${smartwatch._id}` : "/products",
-        productId: smartwatch ? smartwatch._id.toString() : undefined,
-        productName: smartwatch ? smartwatch.name : "Smartwatch Pro S8",
-        price: 45000,
-        discountPrice: 38000,
-        badge: "FLASH SALE -15%",
-        placement: "all",
-        isActive: true,
-        order: 1,
-        viewsCount: 1420,
-      },
-      {
-        title: "Écouteurs Sans Fil Bass Boost",
-        subtitle: "Réduction active de bruit & Son immersif",
-        description: "Plongez dans votre musique sans interruption avec la technologie ANC de pointe et basses profondes.",
-        videoUrl: "https://res.cloudinary.com/demo/video/upload/sea_turtle.mp4",
-        thumbnailUrl: "/images/earbuds.png",
-        productLink: earbuds ? `/products/${earbuds._id}` : "/products",
-        productId: earbuds ? earbuds._id.toString() : undefined,
-        productName: earbuds ? earbuds.name : "Écouteurs Bluetooth Pro ANC",
-        price: 25000,
-        discountPrice: 19000,
-        badge: "NOUVELLE SORTIE",
-        placement: "all",
-        isActive: true,
-        order: 2,
-        viewsCount: 980,
-      },
-      {
-        title: "Batterie Solaire & Rapide 20000mAh",
-        subtitle: "Ne soyez plus jamais à court d'énergie",
-        description: "Charge ultra rapide 65W compatible iPhone, Samsung et tous smartphones Android.",
-        videoUrl: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
-        thumbnailUrl: "/images/powerbank.png",
-        productLink: powerbank ? `/products/${powerbank._id}` : "/products",
-        productId: powerbank ? powerbank._id.toString() : undefined,
-        productName: powerbank ? powerbank.name : "Batterie Externe 20000mAh Ultra",
-        price: 22000,
-        discountPrice: 18500,
-        badge: "COUP DE CŒUR",
-        placement: "all",
-        isActive: true,
-        order: 3,
-        viewsCount: 2350,
+    const allVideos = await PromoVideo.find({});
+    for (const v of allVideos) {
+      let matchedProduct = null;
+      if (v.productId && mongoose.isValidObjectId(v.productId)) {
+        matchedProduct = await Product.findById(v.productId);
       }
-    ];
+      
+      const prodName = (v.productName && v.productName.trim() !== '') ? v.productName.trim() : v.title.trim();
 
-    const count = await PromoVideo.countDocuments();
-    if (count === 0) {
-      await PromoVideo.insertMany(demoVideos);
-      logger.info('Auto-seeded 3 demo promotional videos for Onoot Boutique');
-    } else {
-      // Fix broken mixkit URLs in existing documents
-      await PromoVideo.updateMany(
-        { videoUrl: new RegExp("mixkit\\.co", "i") },
-        { 
-          $set: { 
-            videoUrl: "https://vjs.zencdn.net/v/oceans.mp4" 
-          } 
+      if (!matchedProduct) {
+        matchedProduct = await Product.findOne({ name: new RegExp(`^${prodName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+      }
+
+      if (!matchedProduct) {
+        // Create matching Product for this promo video
+        const slug = prodName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now();
+        let validImg = v.thumbnailUrl && !v.thumbnailUrl.includes('facebook.com') && !v.thumbnailUrl.includes('fb.watch') ? v.thumbnailUrl : undefined;
+        if (!validImg && v.videoUrl) {
+          const ytMatch = v.videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i);
+          if (ytMatch && ytMatch[1]) validImg = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
         }
-      );
+
+        matchedProduct = await new Product({
+          name: prodName,
+          slug,
+          description: v.description || v.subtitle || `Démonstration et détails du produit "${prodName}" sur Onoot Boutique.`,
+          price: v.price && v.price > 0 ? Number(v.price) : 15000,
+          discountPrice: v.discountPrice && v.discountPrice > 0 ? Number(v.discountPrice) : undefined,
+          isPriceInbox: Boolean(v.isPriceInbox),
+          priceInboxText: v.priceInboxText || 'Prix en Inbox',
+          category: 'Accessoires',
+          stock: 25,
+          imageUrl: validImg || undefined,
+          images: validImg ? [validImg] : [],
+          video: v.videoUrl,
+          status: 'Publié',
+          rating: 4.8,
+          reviewCount: 18,
+          salesCount: 42,
+        }).save();
+      } else {
+        // Sync isPriceInbox, prices and real thumbnail
+        const updates: any = {};
+        if (v.isPriceInbox !== undefined) {
+          updates.isPriceInbox = Boolean(v.isPriceInbox);
+          updates.priceInboxText = v.priceInboxText || 'Prix en Inbox';
+        }
+        let validImg = v.thumbnailUrl && !v.thumbnailUrl.includes('facebook.com') && !v.thumbnailUrl.includes('fb.watch') ? v.thumbnailUrl : undefined;
+        if (validImg) {
+          updates.imageUrl = validImg;
+          updates.images = [validImg];
+        }
+        if (Object.keys(updates).length > 0) {
+          await Product.findByIdAndUpdate(matchedProduct._id, updates).catch(() => {});
+        }
+      }
+
+      if (matchedProduct && (!v.productId || v.productLink === '/products')) {
+        await PromoVideo.findByIdAndUpdate(v._id, {
+          productId: matchedProduct._id.toString(),
+          productLink: `/products/${matchedProduct._id}`,
+          productName: prodName,
+        });
+      }
     }
+    logger.info('Synced promo videos with real product catalog entries');
   } catch (err) {
-    logger.error({ err }, 'Failed to seed or update demo promo videos');
+    logger.error({ err }, 'Failed to sync promo videos with products');
   }
 }
 
-// Ensure seed runs on startup
-seedDemoPromoVideosIfEmpty();
+// Run sync on startup after DB connects
+setTimeout(() => {
+  syncPromoVideosWithProducts();
+}, 2500);
 
 /* ─── PUBLIC ROUTES (FOR BOUTIQUE) ─── */
 
@@ -111,23 +105,24 @@ router.get("/promo-videos", async (req, res): Promise<void> => {
       let matchedProduct = null;
 
       if (v.productId && mongoose.isValidObjectId(v.productId)) {
-        matchedProduct = await Product.findById(v.productId);
+        matchedProduct = await Product.findById(v.productId).lean();
       }
       
       if (!matchedProduct && v.productName) {
-        matchedProduct = await Product.findOne({ name: new RegExp(v.productName.trim(), "i") });
+        matchedProduct = await Product.findOne({ name: new RegExp(v.productName.trim(), "i") }).lean();
       }
 
       if (!matchedProduct && v.title) {
-        // Try searching product by first word of title
         const firstWord = v.title.split(" ")[0];
         if (firstWord && firstWord.length > 3) {
-          matchedProduct = await Product.findOne({ name: new RegExp(firstWord, "i") });
+          matchedProduct = await Product.findOne({ name: new RegExp(firstWord, "i") }).lean();
         }
       }
 
       if (matchedProduct) {
         resolvedLink = `/products/${matchedProduct._id}`;
+      } else if (v.productId) {
+        resolvedLink = `/products/${v.productId}`;
       }
 
       // Replace any remaining broken mixkit video URL
@@ -139,9 +134,12 @@ router.get("/promo-videos", async (req, res): Promise<void> => {
       return {
         ...v,
         videoUrl: cleanVideoUrl,
-        productLink: resolvedLink || "/products",
+        productLink: resolvedLink || (matchedProduct ? `/products/${matchedProduct._id}` : "/products"),
         productId: matchedProduct ? matchedProduct._id.toString() : (v.productId || null),
         productName: matchedProduct ? matchedProduct.name : (v.productName || v.title),
+        isPriceInbox: Boolean(v.isPriceInbox || matchedProduct?.isPriceInbox),
+        priceInboxText: v.priceInboxText || matchedProduct?.priceInboxText || 'Prix en Inbox',
+        duration: v.duration || undefined,
       };
     }));
 
@@ -201,8 +199,12 @@ router.post("/admin/promo-videos", requireAdmin, async (req, res): Promise<void>
       productLink,
       productName,
       productId,
+      category,
       price,
       discountPrice,
+      isPriceInbox,
+      priceInboxText,
+      duration,
       badge,
       placement,
       isActive,
@@ -214,17 +216,62 @@ router.post("/admin/promo-videos", requireAdmin, async (req, res): Promise<void>
       return;
     }
 
+    // Auto-create or link product so this item can be directly viewed and ordered
+    let linkedProductId = productId;
+    const prodName = (productName && productName.trim() !== '') ? productName.trim() : title.trim();
+
+    // Nettoyer thumbnail
+    let cleanThumb = thumbnailUrl && !thumbnailUrl.includes('facebook.com') && !thumbnailUrl.includes('fb.watch') ? thumbnailUrl : undefined;
+    if (!cleanThumb && videoUrl) {
+      const ytMatch = videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i);
+      if (ytMatch && ytMatch[1]) cleanThumb = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+    }
+
+    if (!linkedProductId) {
+      let existingProd = await Product.findOne({ name: new RegExp(`^${prodName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+      if (!existingProd) {
+        const slug = prodName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now();
+        existingProd = await new Product({
+          name: prodName,
+          slug,
+          description: description || subtitle || `Démonstration du produit "${prodName}"`,
+          price: price ? Number(price) : 15000,
+          discountPrice: discountPrice ? Number(discountPrice) : undefined,
+          isPriceInbox: Boolean(isPriceInbox),
+          priceInboxText: priceInboxText || 'Prix en Inbox',
+          category: category || 'Accessoires',
+          stock: 25,
+          imageUrl: cleanThumb || undefined,
+          images: cleanThumb ? [cleanThumb] : [],
+          video: videoUrl,
+          status: 'Publié',
+          rating: 4.8,
+          reviewCount: 15,
+        }).save();
+      } else if (category) {
+        existingProd.category = category;
+        await existingProd.save().catch(() => {});
+      }
+      linkedProductId = existingProd._id.toString();
+    }
+
+    const finalProductLink = linkedProductId ? `/products/${linkedProductId}` : (productLink || '/products');
+
     const newVideo = new PromoVideo({
       title,
       subtitle,
       description,
       videoUrl,
-      thumbnailUrl,
-      productLink: productLink || '/products',
-      productName,
-      productId,
+      thumbnailUrl: cleanThumb,
+      productLink: finalProductLink,
+      productName: prodName,
+      productId: linkedProductId,
+      category: category || 'Accessoires',
       price: price ? Number(price) : undefined,
       discountPrice: discountPrice ? Number(discountPrice) : undefined,
+      isPriceInbox: Boolean(isPriceInbox),
+      priceInboxText: priceInboxText || 'Prix en Inbox',
+      duration: duration ? Number(duration) : undefined,
       badge: badge ? badge.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{2B50}\u{2B00}-\u{2BFF}\u{1F1E6}-\u{1F1FF}]/gu, "").trim() : 'PROMO EXCLUSIVE',
       placement: placement || 'all',
       isActive: isActive !== undefined ? Boolean(isActive) : true,
@@ -249,6 +296,39 @@ router.put("/admin/promo-videos/:id", requireAdmin, async (req, res): Promise<vo
     if (updateData.price !== undefined) updateData.price = Number(updateData.price);
     if (updateData.discountPrice !== undefined) updateData.discountPrice = Number(updateData.discountPrice);
     if (updateData.order !== undefined) updateData.order = Number(updateData.order);
+    if (updateData.duration !== undefined) updateData.duration = Number(updateData.duration);
+    if (updateData.isPriceInbox !== undefined) updateData.isPriceInbox = Boolean(updateData.isPriceInbox);
+
+    let cleanThumb = updateData.thumbnailUrl && !updateData.thumbnailUrl.includes('facebook.com') && !updateData.thumbnailUrl.includes('fb.watch') ? updateData.thumbnailUrl : undefined;
+    if (!cleanThumb && updateData.videoUrl) {
+      const ytMatch = updateData.videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i);
+      if (ytMatch && ytMatch[1]) cleanThumb = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+    }
+    if (cleanThumb) {
+      updateData.thumbnailUrl = cleanThumb;
+    }
+
+    // If productId is provided or existing, sync product with new info and thumbnail
+    if (updateData.productId) {
+      updateData.productLink = `/products/${updateData.productId}`;
+      const prodSync: any = {
+        isPriceInbox: updateData.isPriceInbox,
+        priceInboxText: updateData.priceInboxText,
+        price: updateData.price,
+        discountPrice: updateData.discountPrice,
+      };
+      if (updateData.category) {
+        prodSync.category = updateData.category;
+      }
+      if (cleanThumb) {
+        prodSync.imageUrl = cleanThumb;
+        prodSync.images = [cleanThumb];
+      }
+      if (updateData.videoUrl) {
+        prodSync.video = updateData.videoUrl;
+      }
+      await Product.findByIdAndUpdate(updateData.productId, prodSync).catch(() => {});
+    }
 
     const updated = await PromoVideo.findByIdAndUpdate(id, updateData, { new: true });
     if (!updated) {

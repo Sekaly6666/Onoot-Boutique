@@ -52,6 +52,8 @@ async function buildCartResponse(sessionId: string, items: any[]) {
           discountPrice: (product as any).discountPrice ?? null,
           category: product.category,
           images: (product as any).images ?? [],
+          imageUrl: (product as any).imageUrl ?? null,
+          video: (product as any).video ?? null,
           stock: product.stock,
           slug: (product as any).slug ?? null,
           createdAt: product.createdAt ? new Date(product.createdAt).toISOString() : new Date().toISOString(),

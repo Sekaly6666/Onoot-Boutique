@@ -454,9 +454,30 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
 
   const targetPath = fromPage === "register" ? "/auth/register" : "/auth/login";
 
+  function buildAuthRedirect(
+    origin: string,
+    params: Record<string, string>,
+    defaultPath: string
+  ): string {
+    const isDeepLink =
+      origin.startsWith("exp://") ||
+      origin.startsWith("exps://") ||
+      (!origin.startsWith("http://") && !origin.startsWith("https://"));
+    const hasCallback = origin.includes("/auth/callback");
+
+    let base = origin;
+    if (!hasCallback && !isDeepLink) {
+      base = `${origin}${defaultPath}`;
+    }
+
+    const sep = base.includes("?") ? "&" : "?";
+    const search = new URLSearchParams(params).toString();
+    return `${base}${sep}${search}`;
+  }
+
   if (oauthError || !code) {
     console.warn("[GOOGLE AUTH] OAuth rejected by user or Google:", oauthError, error_description);
-    res.redirect(`${returnOrigin}${targetPath}?error=google_cancelled`);
+    res.redirect(buildAuthRedirect(returnOrigin, { error: "google_cancelled" }, targetPath));
     return;
   }
 
@@ -481,7 +502,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     if (!tokenResponse.access_token) {
       console.error("[GOOGLE AUTH] Token exchange error response from Google:", JSON.stringify(tokenResponse));
       const reason = tokenResponse.error_description || tokenResponse.error || "no_access_token";
-      res.redirect(`${returnOrigin}${targetPath}?error=google_failed&reason=${encodeURIComponent(reason)}`);
+      res.redirect(buildAuthRedirect(returnOrigin, { error: "google_failed", reason }, targetPath));
       return;
     }
 
@@ -494,7 +515,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
 
     if (!email) {
       console.error("[GOOGLE AUTH] Userinfo missing email:", JSON.stringify(googleUser));
-      res.redirect(`${returnOrigin}${targetPath}?error=google_failed&reason=${encodeURIComponent("email_manquant")}`);
+      res.redirect(buildAuthRedirect(returnOrigin, { error: "google_failed", reason: "email_manquant" }, targetPath));
       return;
     }
 
@@ -541,11 +562,11 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
       date: now,
     }).catch((err) => console.error("Email login notification error:", err));
 
-    // Redirect to boutique with token
-    res.redirect(`${returnOrigin}/auth/callback?token=${token}`);
+    // Redirect to boutique or mobile deep-link with token
+    res.redirect(buildAuthRedirect(returnOrigin, { token }, "/auth/callback"));
   } catch (err: any) {
     console.error("[GOOGLE AUTH] Exception:", err.message);
-    res.redirect(`${returnOrigin}${targetPath}?error=google_failed&reason=${encodeURIComponent(err.message || "erreur_serveur")}`);
+    res.redirect(buildAuthRedirect(returnOrigin, { error: "google_failed", reason: err.message || "erreur_serveur" }, targetPath));
   }
 });
 

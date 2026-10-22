@@ -13,6 +13,8 @@ function formatProduct(p: any) {
     description: p.description ?? null,
     price: p.price ?? 0,
     discountPrice: p.discountPrice ?? null,
+    isPriceInbox: p.isPriceInbox ?? false,
+    priceInboxText: p.priceInboxText ?? 'Prix en Inbox',
     category: p.category ?? '',
     subCategory: p.subCategory ?? null,
     brand: p.brand ?? null,

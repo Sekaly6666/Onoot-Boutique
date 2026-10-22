@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   LayoutDashboard, 
   Users, 
@@ -53,9 +53,48 @@ export const AdminLayout: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const prevNotifIdsRef = useRef<Set<string>>(new Set());
   const isFirstLoadRef = useRef(true);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  const prefetchNav = (path: string) => {
+    try {
+      switch (path) {
+        case '/admin/dashboard':
+          queryClient.prefetchQuery({ queryKey: ['admin-stats'], queryFn: () => adminFetch('/api/admin/stats') });
+          queryClient.prefetchQuery({ queryKey: ['admin-top-products'], queryFn: () => adminFetch('/api/admin/top-products?limit=5') });
+          break;
+        case '/admin/products':
+          queryClient.prefetchQuery({ queryKey: ['admin-products'], queryFn: () => adminFetch('/api/admin/products') });
+          queryClient.prefetchQuery({ queryKey: ['admin-categories'], queryFn: () => adminFetch('/api/admin/categories') });
+          break;
+        case '/admin/orders':
+          queryClient.prefetchQuery({ queryKey: ['admin-orders'], queryFn: () => adminFetch('/api/admin/orders') });
+          break;
+        case '/admin/ads-videos':
+          queryClient.prefetchQuery({ queryKey: ['admin-promos'], queryFn: () => adminFetch('/api/admin/promos') });
+          break;
+        case '/admin/users':
+          queryClient.prefetchQuery({ queryKey: ['admin-users'], queryFn: () => adminFetch('/api/admin/users') });
+          break;
+        case '/admin/delivery-drivers':
+          queryClient.prefetchQuery({ queryKey: ['admin-drivers'], queryFn: () => adminFetch('/api/admin/delivery-drivers') });
+          break;
+        case '/admin/categories':
+          queryClient.prefetchQuery({ queryKey: ['admin-categories'], queryFn: () => adminFetch('/api/admin/categories') });
+          break;
+        case '/admin/reviews':
+          queryClient.prefetchQuery({ queryKey: ['admin-reviews'], queryFn: () => adminFetch('/api/admin/reviews') });
+          break;
+        case '/admin/notifications':
+          queryClient.prefetchQuery({ queryKey: ['admin-notifications'], queryFn: () => adminFetch('/api/admin/notifications') });
+          break;
+      }
+    } catch (e) {
+      // Ignorer silencieusement si hors-ligne
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -264,6 +303,9 @@ export const AdminLayout: React.FC = () => {
                   <NavLink
                     key={item.path}
                     to={item.path}
+                    onMouseEnter={() => prefetchNav(item.path)}
+                    onTouchStart={() => prefetchNav(item.path)}
+                    onFocus={() => prefetchNav(item.path)}
                     onClick={() => {
                       if (isMobile) setIsSidebarOpen(false);
                     }}
@@ -420,12 +462,12 @@ export const AdminLayout: React.FC = () => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 bg-background">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 bg-background scroll-smooth">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="max-w-7xl mx-auto"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="max-w-7xl mx-auto will-change-[opacity]"
           >
             <Outlet />
             <Toaster position="top-right" toastOptions={{ duration: 3000 }} />

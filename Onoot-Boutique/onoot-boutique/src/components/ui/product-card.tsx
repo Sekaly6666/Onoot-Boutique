@@ -47,9 +47,19 @@ export function ProductCard({ product, className }: ProductCardProps) {
     ? Math.round(((product.price - (product.discountPrice ?? 0)) / product.price) * 100)
     : 0;
 
+  const [imageError, setImageError] = React.useState(false);
   const isExample = product.id.startsWith("example-");
   const videoRaw = (product as any).video as string | undefined;
   const imageRaw = product.images?.[0] || product.imageUrl;
+
+  const isValidImgStr = (src?: string | null): boolean => {
+    if (!src || typeof src !== 'string') return false;
+    const s = src.trim();
+    if (!s) return false;
+    if (s.includes('facebook.com') || s.includes('fb.watch')) return false;
+    if ((s.includes('youtube.com') || s.includes('youtu.be')) && !s.includes('img.youtube.com')) return false;
+    return true;
+  };
 
   // Extraction automatique de la miniature YouTube si aucune image n'est renseignée
   const youtubeThumbnail = React.useMemo(() => {
@@ -61,7 +71,11 @@ export function ProductCard({ product, className }: ProductCardProps) {
     return null;
   }, [videoRaw]);
 
-  const displayImage = imageRaw ? resolveMediaUrl(imageRaw) : (youtubeThumbnail || null);
+  const rawValid = isValidImgStr(imageRaw) ? imageRaw : null;
+  const displayImage = rawValid ? resolveMediaUrl(rawValid) : (youtubeThumbnail || null);
+  const hasRealImage = Boolean(displayImage) && !imageError;
+
+  const productTargetUrl = `/products/${product.id}${videoRaw && !hasRealImage ? '?media=video' : ''}`;
 
   const CardContent = (
     <motion.div
@@ -101,20 +115,20 @@ export function ProductCard({ product, className }: ProductCardProps) {
 
       {/* Image / Video thumbnail */}
       <div className="relative aspect-square bg-gray-50 dark:bg-gray-900/50 overflow-hidden flex items-center justify-center p-4">
-        {videoRaw && !displayImage ? (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-muted/40 rounded-xl text-orange-500 relative group-hover:scale-105 transition-transform duration-300">
+        {!hasRealImage && videoRaw ? (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-orange-500/10 to-amber-500/10 rounded-xl text-orange-500 relative group-hover:scale-105 transition-transform duration-300 border border-orange-500/20">
             <div className="w-12 h-12 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/30">
               <Play className="w-5 h-5 fill-white ml-0.5" />
             </div>
-            <span className="text-[11px] font-bold text-foreground mt-2">Voir la vidéo</span>
+            <span className="text-[11px] font-bold text-foreground mt-2">Démonstration Vidéo</span>
           </div>
-        ) : (
+        ) : hasRealImage && displayImage ? (
           <div className="relative w-full h-full flex items-center justify-center">
             <img
-              src={displayImage || "/images/smartwatch.png"}
+              src={displayImage}
               alt={product.name}
               className="object-contain w-full h-full mix-blend-multiply dark:mix-blend-normal transition-transform duration-500 group-hover:scale-110"
-              onError={(e) => { e.currentTarget.src = "/images/smartwatch.png"; }}
+              onError={() => setImageError(true)}
             />
             {videoRaw && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -123,6 +137,13 @@ export function ProductCard({ product, className }: ProductCardProps) {
                 </div>
               </div>
             )}
+          </div>
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-muted/30 rounded-xl p-3 text-center">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-1.5">
+              <ShoppingCart className="w-5 h-5 text-primary" />
+            </div>
+            <span className="text-[11px] font-semibold text-foreground line-clamp-1">{product.name}</span>
           </div>
         )}
 
@@ -196,7 +217,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  setLocation(`/products/${product.id}`);
+                  setLocation(productTargetUrl);
                 }}
               >
                 <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground group-hover:text-foreground" />
@@ -222,7 +243,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
   );
 
   return (
-    <Link href={`/products/${product.id}`} className="block">
+    <Link href={productTargetUrl} className="block">
       {CardContent}
     </Link>
   );
