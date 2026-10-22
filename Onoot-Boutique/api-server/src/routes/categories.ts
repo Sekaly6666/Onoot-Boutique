@@ -15,7 +15,17 @@ router.get("/categories", async (_req, res): Promise<void> => {
 
   const result = await Promise.all(
     cats.map(async (cat) => {
-      const productCount = await Product.countDocuments({ category: cat.slug });
+      const escapedCat = (cat.slug || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedName = (cat.name || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const productCount = await Product.countDocuments({
+        $or: [
+          { category: cat.slug },
+          { category: new RegExp(`^${escapedCat}$`, 'i') },
+          ...(escapedName ? [{ category: new RegExp(`^${escapedName}$`, 'i') }] : []),
+          ...(cat.slug === 'watches' || cat.slug === 'smartwatches' ? [{ category: /^(watches|smartwatches)$/i }, { category: /montre/i }] : []),
+          ...(cat.slug === 'earphones' ? [{ category: /écouteur|ecouteur|audio/i }] : [])
+        ]
+      });
       return {
         id: cat._id,
         name: cat.name,

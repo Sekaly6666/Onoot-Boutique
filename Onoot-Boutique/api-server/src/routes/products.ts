@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { Product } from "../models/Product";
+import { Category } from "../models/Category";
 import { ListProductsQueryParams, GetProductParams, CreateProductBody, UpdateProductBody, UpdateProductParams, DeleteProductParams } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 
@@ -63,14 +64,52 @@ router.get("/products", async (req, res): Promise<void> => {
 
   if (category && category !== "all" && category.trim() !== "") {
     const catClean = category.trim();
-    conditions.push({
+    const escapedCat = catClean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Chercher si cette catégorie correspond à un document Category par slug ou par nom
+    const matchedCategory = await Category.findOne({
       $or: [
-        { category: new RegExp(`^${catClean}$`, "i") },
-        { category: new RegExp(catClean.replace(/-/g, " "), "i") },
-        { subCategory: new RegExp(catClean, "i") },
-        { tags: { $in: [new RegExp(catClean, "i")] } }
+        { slug: new RegExp(`^${escapedCat}$`, "i") },
+        { name: new RegExp(`^${escapedCat}$`, "i") },
       ]
-    });
+    }).catch(() => null);
+
+    const categoryOrList: any[] = [
+      { category: new RegExp(`^${escapedCat}$`, "i") },
+      { category: new RegExp(catClean.replace(/[-_]/g, " "), "i") },
+      { category: new RegExp(catClean.replace(/\s+/g, "-"), "i") },
+      { subCategory: new RegExp(escapedCat, "i") },
+      { tags: { $in: [new RegExp(escapedCat, "i")] } }
+    ];
+
+    if (matchedCategory) {
+      if (matchedCategory.slug) {
+        categoryOrList.push({ category: new RegExp(`^${matchedCategory.slug}$`, "i") });
+        categoryOrList.push({ category: new RegExp(matchedCategory.slug.replace(/[-_]/g, " "), "i") });
+      }
+      if (matchedCategory.name) {
+        const escapedName = matchedCategory.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        categoryOrList.push({ category: new RegExp(`^${escapedName}$`, "i") });
+        categoryOrList.push({ category: new RegExp(matchedCategory.name.replace(/[-_]/g, " "), "i") });
+      }
+    }
+
+    // Synonymes & équivalences fréquentes
+    if (/^(watches|smartwatches|montres)/i.test(catClean)) {
+      categoryOrList.push({ category: /^watches$/i });
+      categoryOrList.push({ category: /^smartwatches$/i });
+      categoryOrList.push({ category: /montre/i });
+    }
+    if (/^(earphones|ecouteurs|audio|casques)/i.test(catClean)) {
+      categoryOrList.push({ category: /^earphones$/i });
+      categoryOrList.push({ category: /écouteur|ecouteur|audio/i });
+    }
+    if (/^(smartphones|telephones|telephonie)/i.test(catClean)) {
+      categoryOrList.push({ category: /^smartphones$/i });
+      categoryOrList.push({ category: /smartphone|téléphone|telephone/i });
+    }
+
+    conditions.push({ $or: categoryOrList });
   }
 
   if (brand && brand.trim() !== "") {

@@ -547,7 +547,7 @@ function PromoVideoModal({
   const [thumbError, setThumbError] = useState(false);
   const [productName, setProductName] = useState(initialVideo?.productName || '');
   const [productLink, setProductLink] = useState(initialVideo?.productLink || '/products');
-  const [category, setCategory] = useState(initialVideo?.category || 'Accessoires');
+  const [category, setCategory] = useState(initialVideo?.category || 'accessoires');
   const [isAddingNewCat, setIsAddingNewCat] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [isCreatingCat, setIsCreatingCat] = useState(false);
@@ -557,6 +557,15 @@ function PromoVideoModal({
     queryKey: ['admin-categories'],
     queryFn: () => adminFetch<any[]>('/api/admin/categories'),
   });
+
+  const selectedCategoryValue = useMemo(() => {
+    if (!category) return '';
+    const match = categories.find((c: any) => 
+      c.slug?.toLowerCase() === category.toLowerCase() || 
+      c.name?.toLowerCase() === category.toLowerCase()
+    );
+    return match ? (match.slug || match.name) : category;
+  }, [category, categories]);
 
   const handleQuickAddCategory = async (e?: React.FormEvent | React.MouseEvent) => {
     if (e) e.preventDefault();
@@ -573,7 +582,7 @@ function PromoVideoModal({
       });
       toast.success(`Catégorie "${trimmed}" créée avec succès !`);
       await queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
-      setCategory(res.name || trimmed);
+      setCategory(res.slug || res.name || trimmed);
       setNewCatName('');
       setIsAddingNewCat(false);
     } catch (err: any) {
@@ -1098,22 +1107,30 @@ function PromoVideoModal({
             ) : (
               <div className="relative">
                 <select
-                  value={category}
+                  value={selectedCategoryValue}
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none appearance-none pr-9 text-foreground"
                 >
                   <option value="">Sélectionner une catégorie</option>
                   {categories.map((c: any) => (
-                    <option key={c.id || c._id || c.slug || c.name} value={c.name || c.slug}>
+                    <option key={c.id || c._id || c.slug || c.name} value={c.slug || c.name}>
                       {c.name}
                     </option>
                   ))}
-                  <option value="Accessoires">Accessoires</option>
-                  <option value="Smartphones">Smartphones</option>
-                  <option value="Montres Connectées">Montres Connectées</option>
-                  <option value="Audio">Audio & Écouteurs</option>
-                  <option value="Coques & Protections">Coques & Protections</option>
-                  <option value="Autre">Autre</option>
+                  <option value="smartphones">Smartphones & Téléphonie</option>
+                  <option value="watches">Montres connectées</option>
+                  <option value="earphones">Écouteurs</option>
+                  <option value="cases">Coques & Protections</option>
+                  <option value="power-banks">Batteries externes</option>
+                  <option value="chargers">Chargeurs & Câbles</option>
+                  <option value="speakers">Haut-parleurs</option>
+                  <option value="robes">Robes</option>
+                  <option value="chaussures">Chaussures</option>
+                  <option value="sacs">Sacs</option>
+                  <option value="bijoux">Bijoux</option>
+                  <option value="parfums">Parfums</option>
+                  <option value="accessoires">Accessoires</option>
+                  <option value="autre">Autre</option>
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-xs">
                   ▼

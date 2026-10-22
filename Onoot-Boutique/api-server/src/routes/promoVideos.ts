@@ -7,6 +7,24 @@ const router: IRouter = Router();
 
 import mongoose from "mongoose";
 import { Product } from "../models/Product";
+import { Category } from "../models/Category";
+
+async function resolveCanonicalCategory(rawCat?: string): Promise<string> {
+  if (!rawCat || !rawCat.trim()) return 'accessoires';
+  const clean = rawCat.trim();
+  const escaped = clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const matched = await Category.findOne({
+    $or: [
+      { slug: new RegExp(`^${escaped}$`, 'i') },
+      { name: new RegExp(`^${escaped}$`, 'i') }
+    ]
+  }).catch(() => null);
+
+  if (matched && matched.slug) return matched.slug;
+  if (/^(watches|smartwatches|montres)/i.test(clean)) return 'watches';
+  if (/^(earphones|ecouteurs|audio)/i.test(clean)) return 'earphones';
+  return clean;
+}
 
 // Seed initial demo promo videos and ensure all promo videos have matching real products in DB
 async function syncPromoVideosWithProducts() {
@@ -219,6 +237,7 @@ router.post("/admin/promo-videos", requireAdmin, async (req, res): Promise<void>
     // Auto-create or link product so this item can be directly viewed and ordered
     let linkedProductId = productId;
     const prodName = (productName && productName.trim() !== '') ? productName.trim() : title.trim();
+    const resolvedCat = await resolveCanonicalCategory(category);
 
     // Nettoyer thumbnail
     let cleanThumb = thumbnailUrl && !thumbnailUrl.includes('facebook.com') && !thumbnailUrl.includes('fb.watch') ? thumbnailUrl : undefined;
@@ -239,7 +258,7 @@ router.post("/admin/promo-videos", requireAdmin, async (req, res): Promise<void>
           discountPrice: discountPrice ? Number(discountPrice) : undefined,
           isPriceInbox: Boolean(isPriceInbox),
           priceInboxText: priceInboxText || 'Prix en Inbox',
-          category: category || 'Accessoires',
+          category: resolvedCat,
           stock: 25,
           imageUrl: cleanThumb || undefined,
           images: cleanThumb ? [cleanThumb] : [],
@@ -248,11 +267,21 @@ router.post("/admin/promo-videos", requireAdmin, async (req, res): Promise<void>
           rating: 4.8,
           reviewCount: 15,
         }).save();
-      } else if (category) {
-        existingProd.category = category;
+      } else {
+        existingProd.category = resolvedCat;
+        if (cleanThumb) {
+          existingProd.imageUrl = cleanThumb;
+          if (!existingProd.images || existingProd.images.length === 0) existingProd.images = [cleanThumb];
+        }
         await existingProd.save().catch(() => {});
       }
       linkedProductId = existingProd._id.toString();
+    } else {
+      // Sync linked product category if provided
+      await Product.findByIdAndUpdate(linkedProductId, { 
+        category: resolvedCat,
+        ...(cleanThumb ? { imageUrl: cleanThumb, images: [cleanThumb] } : {}),
+      }).catch(() => {});
     }
 
     const finalProductLink = linkedProductId ? `/products/${linkedProductId}` : (productLink || '/products');
@@ -266,7 +295,7 @@ router.post("/admin/promo-videos", requireAdmin, async (req, res): Promise<void>
       productLink: finalProductLink,
       productName: prodName,
       productId: linkedProductId,
-      category: category || 'Accessoires',
+      category: resolvedCat,
       price: price ? Number(price) : undefined,
       discountPrice: discountPrice ? Number(discountPrice) : undefined,
       isPriceInbox: Boolean(isPriceInbox),
@@ -298,6 +327,10 @@ router.put("/admin/promo-videos/:id", requireAdmin, async (req, res): Promise<vo
     if (updateData.order !== undefined) updateData.order = Number(updateData.order);
     if (updateData.duration !== undefined) updateData.duration = Number(updateData.duration);
     if (updateData.isPriceInbox !== undefined) updateData.isPriceInbox = Boolean(updateData.isPriceInbox);
+
+    if (updateData.category) {
+      updateData.category = await resolveCanonicalCategory(updateData.category);
+    }
 
     let cleanThumb = updateData.thumbnailUrl && !updateData.thumbnailUrl.includes('facebook.com') && !updateData.thumbnailUrl.includes('fb.watch') ? updateData.thumbnailUrl : undefined;
     if (!cleanThumb && updateData.videoUrl) {

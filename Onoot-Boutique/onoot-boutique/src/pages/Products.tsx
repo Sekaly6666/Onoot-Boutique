@@ -179,18 +179,35 @@ export default function Products() {
   const fetchedCategories = Array.isArray(categoriesRaw) && categoriesRaw.length > 0
     ? categoriesRaw.map(c => ({ value: c.slug, label: c.name }))
     : [
-        { value: "smartwatches", label: "Montres Connectées" },
+        { value: "smartphones", label: "Smartphones & Téléphonie" },
+        { value: "watches", label: "Montres Connectées" },
         { value: "earphones", label: "Écouteurs" },
         { value: "cases", label: "Coques & Protections" },
         { value: "power-banks", label: "Batteries externes" },
         { value: "chargers", label: "Chargeurs & Câbles" },
         { value: "speakers", label: "Haut-parleurs" },
+        { value: "robes", label: "Robes" },
+        { value: "chaussures", label: "Chaussures" },
+        { value: "sacs", label: "Sacs" },
+        { value: "bijoux", label: "Bijoux" },
+        { value: "parfums", label: "Parfums" },
+        { value: "accessoires", label: "Accessoires" },
       ];
 
   const categories = [
     { value: "", label: "Toutes les catégories" },
     ...fetchedCategories
   ];
+
+  const getCategoryLabel = (val: string) => {
+    if (!val) return "";
+    const found = categories.find(c => 
+      c.value.toLowerCase() === val.toLowerCase() ||
+      c.label.toLowerCase() === val.toLowerCase() ||
+      ((c.value === 'watches' || c.value === 'smartwatches') && (val === 'watches' || val === 'smartwatches'))
+    );
+    return found?.label || val;
+  };
 
   const clearFilters = () => {
     setCategory("");
@@ -210,7 +227,14 @@ export default function Products() {
     let list = [...exampleProducts];
 
     if (category) {
-      list = list.filter(p => p.category.toLowerCase().includes(category.toLowerCase()));
+      const catLower = category.toLowerCase();
+      list = list.filter(p => {
+        const prodCat = (p.category || "").toLowerCase();
+        if (prodCat.includes(catLower) || catLower.includes(prodCat)) return true;
+        if ((catLower === 'watches' || catLower === 'smartwatches') && (prodCat === 'watches' || prodCat === 'smartwatches' || prodCat.includes('montre'))) return true;
+        if ((catLower === 'earphones' || catLower === 'audio') && (prodCat === 'earphones' || prodCat.includes('écouteur') || prodCat.includes('ecouteur'))) return true;
+        return false;
+      });
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -464,7 +488,7 @@ export default function Products() {
               <>
                 <ChevronRight className="w-3.5 h-3.5" />
                 <span className="text-[#F5C430] font-semibold capitalize">
-                  {categories.find(c => c.value === category)?.label || category}
+                  {getCategoryLabel(category)}
                 </span>
               </>
             )}
@@ -504,7 +528,12 @@ export default function Products() {
             }}
           >
             {categories.map((c) => {
-              const isSelected = category === c.value;
+              const isSelected = (!category && !c.value) || 
+                (category && c.value && (
+                  category.toLowerCase() === c.value.toLowerCase() ||
+                  category.toLowerCase() === c.label.toLowerCase() ||
+                  ((c.value === 'watches' || c.value === 'smartwatches') && (category.toLowerCase() === 'watches' || category.toLowerCase() === 'smartwatches'))
+                ));
               return (
                 <button
                   key={c.value}
@@ -630,7 +659,7 @@ export default function Products() {
                   
                   {category && (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary font-semibold border border-primary/20">
-                      <span>{categories.find(c => c.value === category)?.label || category}</span>
+                      <span>{getCategoryLabel(category)}</span>
                       <button onClick={() => { setCategory(""); syncToUrl({ category: "" }); }}>
                         <X className="w-3 h-3 hover:scale-125 transition-transform" />
                       </button>

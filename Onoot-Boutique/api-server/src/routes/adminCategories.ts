@@ -8,14 +8,28 @@ const router = Router();
 
 router.use(requireAdmin);
 
-const formatCategory = async (cat: any) => ({
-  id: cat._id,
-  name: cat.name,
-  slug: cat.slug,
-  description: cat.description ?? null,
-  image: cat.image ?? null,
-  productCount: await Product.countDocuments({ category: cat.slug }),
-});
+const formatCategory = async (cat: any) => {
+  const escapedCat = (cat.slug || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedName = (cat.name || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const count = await Product.countDocuments({
+    $or: [
+      { category: cat.slug },
+      { category: new RegExp(`^${escapedCat}$`, 'i') },
+      ...(escapedName ? [{ category: new RegExp(`^${escapedName}$`, 'i') }] : []),
+      ...(cat.slug === 'watches' || cat.slug === 'smartwatches' ? [{ category: /^(watches|smartwatches)$/i }, { category: /montre/i }] : []),
+      ...(cat.slug === 'earphones' ? [{ category: /écouteur|ecouteur|audio/i }] : [])
+    ]
+  }).catch(() => 0);
+
+  return {
+    id: cat._id,
+    name: cat.name,
+    slug: cat.slug,
+    description: cat.description ?? null,
+    image: cat.image ?? null,
+    productCount: count,
+  };
+};
 
 export const DEFAULT_STORE_CATEGORIES = [
   {
