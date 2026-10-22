@@ -46,9 +46,14 @@ class AdminErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
       return (
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', padding: '20px', textAlign: 'center', background: '#f8fafc', color: '#0f172a' }}>
           <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '12px' }}>Onoot Administration</h2>
-          <p style={{ color: '#64748b', maxWidth: '420px', marginBottom: '24px' }}>
+          <p style={{ color: '#64748b', maxWidth: '420px', marginBottom: '16px' }}>
             Une erreur est survenue lors de l'affichage. Veuillez recharger la page ou vous reconnecter.
           </p>
+          {this.state.error && (
+            <pre style={{ color: '#dc2626', background: '#fee2e2', padding: '10px 14px', borderRadius: '8px', fontSize: '12px', maxWidth: '600px', overflowX: 'auto', marginBottom: '20px', textAlign: 'left' }}>
+              {this.state.error.message || String(this.state.error)}
+            </pre>
+          )}
           <div style={{ display: 'flex', gap: '12px' }}>
             <button
               onClick={() => window.location.reload()}
