@@ -42,6 +42,8 @@ async function syncPromoVideosWithProducts() {
         matchedProduct = await Product.findOne({ name: new RegExp(`^${prodName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
       }
 
+      const resolvedCat = await resolveCanonicalCategory(v.category || 'Accessoires');
+
       if (!matchedProduct) {
         // Create matching Product for this promo video
         const slug = prodName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now();
@@ -59,7 +61,7 @@ async function syncPromoVideosWithProducts() {
           discountPrice: v.discountPrice && v.discountPrice > 0 ? Number(v.discountPrice) : undefined,
           isPriceInbox: Boolean(v.isPriceInbox),
           priceInboxText: v.priceInboxText || 'Prix en Inbox',
-          category: 'Accessoires',
+          category: resolvedCat,
           stock: 25,
           imageUrl: validImg || undefined,
           images: validImg ? [validImg] : [],
@@ -70,8 +72,11 @@ async function syncPromoVideosWithProducts() {
           salesCount: 42,
         }).save();
       } else {
-        // Sync isPriceInbox, prices and real thumbnail
+        // Sync isPriceInbox, prices, real thumbnail, and category
         const updates: any = {};
+        if (v.category) {
+          updates.category = resolvedCat;
+        }
         if (v.isPriceInbox !== undefined) {
           updates.isPriceInbox = Boolean(v.isPriceInbox);
           updates.priceInboxText = v.priceInboxText || 'Prix en Inbox';
@@ -341,15 +346,37 @@ router.put("/admin/promo-videos/:id", requireAdmin, async (req, res): Promise<vo
       updateData.thumbnailUrl = cleanThumb;
     }
 
-    // If productId is provided or existing, sync product with new info and thumbnail
-    if (updateData.productId) {
-      updateData.productLink = `/products/${updateData.productId}`;
+    const existingVideo = await PromoVideo.findById(id);
+    if (!existingVideo) {
+      res.status(404).json({ error: "Vidéo publicitaire introuvable" });
+      return;
+    }
+
+    let targetProductId = updateData.productId || existingVideo.productId;
+
+    // If targetProductId is not explicitly set, try finding product by name
+    if (!targetProductId) {
+      const prodName = (updateData.productName || existingVideo.productName || existingVideo.title || '').trim();
+      if (prodName) {
+        const matched = await Product.findOne({ name: new RegExp(`^${prodName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+        if (matched) {
+          targetProductId = matched._id.toString();
+          updateData.productId = targetProductId;
+          updateData.productLink = `/products/${targetProductId}`;
+        }
+      }
+    }
+
+    // Sync associated product
+    if (targetProductId) {
+      updateData.productLink = `/products/${targetProductId}`;
       const prodSync: any = {
-        isPriceInbox: updateData.isPriceInbox,
-        priceInboxText: updateData.priceInboxText,
-        price: updateData.price,
-        discountPrice: updateData.discountPrice,
+        isPriceInbox: updateData.isPriceInbox ?? existingVideo.isPriceInbox,
+        priceInboxText: updateData.priceInboxText ?? existingVideo.priceInboxText,
       };
+      if (updateData.price !== undefined) prodSync.price = updateData.price;
+      if (updateData.discountPrice !== undefined) prodSync.discountPrice = updateData.discountPrice;
+      if (updateData.productName) prodSync.name = updateData.productName;
       if (updateData.category) {
         prodSync.category = updateData.category;
       }
@@ -360,14 +387,10 @@ router.put("/admin/promo-videos/:id", requireAdmin, async (req, res): Promise<vo
       if (updateData.videoUrl) {
         prodSync.video = updateData.videoUrl;
       }
-      await Product.findByIdAndUpdate(updateData.productId, prodSync).catch(() => {});
+      await Product.findByIdAndUpdate(targetProductId, prodSync).catch(() => {});
     }
 
     const updated = await PromoVideo.findByIdAndUpdate(id, updateData, { new: true });
-    if (!updated) {
-      res.status(404).json({ error: "Vidéo publicitaire introuvable" });
-      return;
-    }
     res.json(updated);
   } catch (err: any) {
     logger.error({ err }, "Failed to update promo video");

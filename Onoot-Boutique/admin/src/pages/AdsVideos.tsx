@@ -64,6 +64,7 @@ interface PromoVideoInput {
   thumbnailUrl?: string;
   productLink?: string;
   productName?: string;
+  productId?: string;
   category?: string;
   price?: number;
   discountPrice?: number;
@@ -696,6 +697,7 @@ function PromoVideoModal({
         thumbnailUrl: finalThumbnail,
         productName: productName.trim() || undefined,
         productLink: productLink.trim() || '/products',
+        productId: initialVideo?.productId || undefined,
         category: category.trim() || undefined,
         price: isPriceInbox ? undefined : (price ? Number(price) : undefined),
         discountPrice: isPriceInbox ? undefined : (discountPrice ? Number(discountPrice) : undefined),

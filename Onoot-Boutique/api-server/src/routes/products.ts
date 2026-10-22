@@ -108,6 +108,22 @@ router.get("/products", async (req, res): Promise<void> => {
       categoryOrList.push({ category: /^smartphones$/i });
       categoryOrList.push({ category: /smartphone|téléphone|telephone/i });
     }
+    if (/^(coques|protections|cases|etuis)/i.test(catClean)) {
+      categoryOrList.push({ category: /^cases$/i });
+      categoryOrList.push({ category: /coque|protection|étui|etui/i });
+    }
+    if (/^(power-banks|batteries|batterie)/i.test(catClean)) {
+      categoryOrList.push({ category: /^power-banks$/i });
+      categoryOrList.push({ category: /batterie/i });
+    }
+    if (/^(chargers|chargeurs|cables)/i.test(catClean)) {
+      categoryOrList.push({ category: /^chargers$/i });
+      categoryOrList.push({ category: /chargeur|câble|cable/i });
+    }
+    if (/^(speakers|haut-parleurs|enceintes)/i.test(catClean)) {
+      categoryOrList.push({ category: /^speakers$/i });
+      categoryOrList.push({ category: /haut-parleur|enceinte/i });
+    }
 
     conditions.push({ $or: categoryOrList });
   }
